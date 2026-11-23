@@ -356,6 +356,15 @@ git diff --cached
 
 See [SECURITY.md](SECURITY.md).
 
+### Documentation
+
+- [Unified gateway and API](docs/unified-gateway.md)
+- [Self-hosting and providers](docs/self-hosting.md)
+- [Claude Code integration](docs/claude-code.md)
+- [MCP Hub](docs/mcp-hub.md)
+- [Smoke tests and diagnostics](docs/smoke-tests.md)
+- [Security policy](SECURITY.md)
+
 **Free-tier transparency:** Shadow does not provide shared API keys, hosted inference or unlimited third-party free quotas. Each user brings their own provider accounts and credentials. Local Ollama inference uses the user's own hardware.
 
 ---
