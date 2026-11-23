@@ -57,6 +57,8 @@ The local machine has dedicated launchers:
 - `claude-gonka`
 - `claude-nvidia`
 
+The versioned launcher template is `scripts/claude-route.sh`. It generates a private model-picker settings file using Claude Code's documented `behavesAs` compatibility profile, preserves the Shadow alias sent upstream, and conservatively caps context compaction. See [Claude Code integration](docs/claude-code.md).
+
 The `claude-requesty` CLI smoke test completed successfully through Shadow. Aider, Cline, OpenCode and Continue CLI also passed end-to-end smoke tests. Continue resolves `SHADOW_API_KEY` from the protected global `~/.continue/.env`. Cline uses a dedicated config at `~/.config/shadow/cline/gateway`, leaving the existing Cline profile untouched. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
 
 These select provider aliases through the local gateway. The launcher and active alias should be tested after changing LiteLLM or provider configuration.
@@ -74,7 +76,9 @@ The OpenAI-compatible Requesty alias has an explicit fallback chain for concurre
 - `config/shadow.example.yaml`: minimal provider/fallback example.
 - `config/shadow.runtime.example.yaml`: sanitized snapshot of the current 48-alias / 37-fallback local router (all credentials remain environment references; Cloudflare Account ID is a placeholder).
 - `docs/`: provider status, quota notes and operating guidance.
-- `scripts/`: local validation and maintenance helpers.
+- `scripts/`: local validation, Claude Code gateway launcher and maintenance helpers.
+- `docs/claude-code.md`: Claude Code model-picker compatibility and launcher behavior.
+- `docs/session-closeout-2026-11-23.md`: dated handoff/checkpoint for the next session.
 - `.env.example`: names of required variables, no values.
 
 ## Security
