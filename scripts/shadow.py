@@ -124,10 +124,11 @@ def main():
     return subprocess.call([str(pybin()),str(ROOT/'scripts'/'shadow.py'),*sys.argv[1:]],cwd=ROOT)
   except OSError:
    pass
- if args.command in ('configure','refresh','validate','_finish_setup'):
-  if not pybin().exists() and args.command != '_finish_setup':
-   print('Run setup first to install Shadow dependencies.')
-   return 2
+ if args.command != 'setup' and not pybin().exists() and args.command != '_finish_setup':
+  print('Run setup first to install Shadow dependencies.')
+  return 2
+ import yaml
+ globals()['yaml']=yaml
  try: return int(args.func(args))
  except subprocess.CalledProcessError as e: print(f'Comando falhou: exit {e.returncode}'); return int(e.returncode or 1)
 if __name__=='__main__': raise SystemExit(main())
