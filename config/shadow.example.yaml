@@ -54,6 +54,19 @@ model_list:
         X-Free-Fallback: "false"
       timeout: 90
 
+  - model_name: claude-code-nvidia
+    litellm_params:
+      model: nvidia_nim/mistralai/mistral-large-4-1t-a52b
+      api_key: os.environ/NVIDIA_NIM_API_KEY
+      timeout: 90
+
+  - model_name: claude-code-horde
+    litellm_params:
+      model: openai/koboldcpp/Llama-3.2-3B-Instruct
+      api_base: https://oai.aihorde.net/v1
+      api_key: os.environ/AI_HORDE_API_KEY
+      timeout: 90
+
 litellm_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 
@@ -67,6 +80,12 @@ router_settings:
 
     - claude-code-requesty-nemotron-free:
         - claude-code-gonka-glm53-anthropic
+        - claude-code-nvidia
+        - claude-code-horde
 
     - claude-code-gonka-glm53-anthropic:
         - claude-code-nvidia
+        - claude-code-horde
+
+    - claude-code-nvidia:
+        - claude-code-horde
