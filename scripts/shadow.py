@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse, os, secrets, shutil, subprocess, sys
 from pathlib import Path
 from typing import Any
-import yaml
 ROOT=Path(__file__).resolve().parents[1]
 ENV_FILE=ROOT/'.env'; LOCAL_CONFIG=ROOT/'config'/'shadow.yaml'
 STARTER=ROOT/'config'/'shadow.example.yaml'; CATALOG=ROOT/'config'/'providers.catalog.yaml'
@@ -28,7 +27,6 @@ def ensure_venv():
  subprocess.run([str(pybin()),'-m','pip','install','--upgrade','pip'],check=True)
  subprocess.run([str(pybin()),'-m','pip','install','-r',str(ROOT/'requirements.txt')],check=True)
 def enabled_models(values):
- import yaml
  data=yaml.safe_load(CATALOG.read_text(encoding='utf-8')) or {}; result=[]
  for p in data.get('providers',[]):
   required=[p['api_key_env'],*p.get('required_env',[])]
@@ -51,7 +49,6 @@ def enabled_models(values):
    }})
  return result
 def build_config(values):
- import yaml
  cfg=yaml.safe_load(STARTER.read_text(encoding='utf-8'))
  providers=enabled_models(values)
  cfg['model_list'].extend(providers)
@@ -131,7 +128,6 @@ def main():
   if not pybin().exists() and args.command != '_finish_setup':
    print('Run setup first to install Shadow dependencies.')
    return 2
- import yaml
  try: return int(args.func(args))
  except subprocess.CalledProcessError as e: print(f'Comando falhou: exit {e.returncode}'); return int(e.returncode or 1)
 if __name__=='__main__': raise SystemExit(main())
