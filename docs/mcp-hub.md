@@ -9,7 +9,7 @@ Shadow MCP Hub is the single local MCP gateway shared by Claude Code, OpenCode a
 - wake_server
 - sleep_server
 
-The current active inventory is 46 GitHub + 60 Runcrate + 91 Mistral + 4 Hugging Face + 2 Cloudflare Docs = 203 tools. Cloudflare API MCP is registered but still awaits user OAuth approval; its server uses two Code Mode tools for the Cloudflare API. Each client starts one local stdio process named shadow; upstream tools are discovered and invoked through the hub on demand.
+The current active inventory is 46 GitHub + 60 Runcrate + 91 Mistral + 4 Hugging Face + 2 Cloudflare Docs + 5 Cloudflare API = 208 tools across six connected upstreams. Each client starts one local stdio process named shadow; upstream tools are discovered and invoked through the hub on demand.
 
 ## Current connected clients
 
@@ -26,7 +26,7 @@ The GitHub Authorization bearer header is stored only in:
 
     ~/.config/shadow/mcp-hub/github.token
 
-That file must have mode 600. The wrapper reads it at process start, exports it to the hub process, and never prints it. It is not stored in Claude Code MCP configuration anymore. The wrapper also loads only MISTRAL_API_KEY and HF_TOKEN from the protected extra-providers.env file, exporting those two values to the hub process; the other provider variables are not exported by the launcher.
+That file must have mode 600. The wrapper reads it at process start, exports it to the hub process, and never prints it. It is not stored in Claude Code MCP configuration anymore. The wrapper also loads only MISTRAL_API_KEY, HF_TOKEN and CLOUDFLARE_API_TOKEN from the protected extra-providers.env file, exporting those selected values to the hub process; other provider variables are not exported by the launcher.
 
 Runcrate OAuth state and its access token are stored locally in:
 
@@ -158,10 +158,13 @@ After completing OAuth, stop the temporary HTTP listener. The normal stdio MCP c
 
 - Endpoint: https://mcp.cloudflare.com/mcp
 - Transport: Streamable HTTP
-- Authentication: OAuth (DCR); official docs also support static Cloudflare user/account API tokens.
-- Registered in the hub, but still awaits the user to approve Cloudflare's OAuth consent page. Do not treat it as connected until upstream status reports authorized and tools/list returns tools.
-- The API server exposes two Code Mode tools (search, execute) representing more than 2,500 Cloudflare API endpoints. Select only the account/product scopes needed in the consent page.
-
+- Authentication: Authorization header uses the local CLOUDFLARE_API_TOKEN environment-variable placeholder.
+- OAuth DCR was abandoned because the Cloudflare authorization response omitted the iss parameter expected by the hub (issuer mismatch during code exchange).
+- The API token was imported from the final API.txt line into the protected extra-providers.env after correcting the misspelled label CLOUDFARE_API_TOKEN to CLOUDFLARE_API_TOKEN. The source line was normalized to CLOUDFLARE_API_TOKEN=VALUE.
+- Cloudflare /user/tokens/verify returned HTTP 200, success=true, status=active.
+- The MCP whoami call passed and its tool metadata declares readOnlyHint=true.
+- The token-detail endpoint returned 403, so token policy details could not be independently enumerated through the API. The setup used the Read All Resources template; avoid calling write/destructive operations. Only read-only calls have been tested. GET /accounts returned success with one account; GET /zones returned success with zero zones visible.
+- The MCP exposes five tools: docs, search, execute, whoami and submit_feedback. execute can invoke Cloudflare API operations; effective permissions are constrained by the API token, not by the MCP tool name. The execute tool itself is marked destructive-capable, so Shadow usage must remain limited to GET requests and read-only tools. Do not issue POST, PUT, PATCH or DELETE calls against this upstream.
 ### Hugging Face Hub MCP
 
 - Endpoint: https://huggingface.co/mcp

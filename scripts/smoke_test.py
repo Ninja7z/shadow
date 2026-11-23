@@ -283,8 +283,10 @@ def safe_checks(args: argparse.Namespace, report: Reporter) -> tuple[str, list[s
     account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
     account_token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
     workers_token = os.environ.get("CLOUDFLARE_WORKERS_AI_TOKEN", "")
-    if account_id and account_token:
-        url = f"https://api.cloudflare.com/client/v4/accounts/{urllib.parse.quote(account_id, safe='')}/tokens/verify"
+    if account_token:
+        # CLOUDFLARE_API_TOKEN is a user API token, so verify it at /user/tokens/verify.
+        # The account-scoped /accounts/{id}/tokens/verify endpoint is not interchangeable.
+        url = "https://api.cloudflare.com/client/v4/user/tokens/verify"
         code, data = http_json(url, headers=_bearer(account_token), timeout=args.timeout)
         status = ((data or {}).get("result") or {}).get("status")
         if code == 200 and (data or {}).get("success") is True and status == "active":
@@ -292,7 +294,7 @@ def safe_checks(args: argparse.Namespace, report: Reporter) -> tuple[str, list[s
         else:
             report.fail("Cloudflare account token", f"HTTP {status_text(code)}; status={status or 'unknown'}")
     else:
-        report.fail("Cloudflare account token", "CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN missing")
+        report.fail("Cloudflare account token", "CLOUDFLARE_API_TOKEN missing")
 
     if account_id and workers_token:
         query = urllib.parse.urlencode({"search": "glm-4.7-flash", "per_page": 5})

@@ -37,6 +37,7 @@ if [[ -r "$HOME/.config/shadow/extra-providers.env" ]]; then
   source "$HOME/.config/shadow/extra-providers.env"
   export MISTRAL_API_KEY
   export HF_TOKEN
+  export CLOUDFLARE_API_TOKEN
 fi
 
 MODE="${1:---stdio}"

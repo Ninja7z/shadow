@@ -106,3 +106,15 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 - Current live tool inventory: GitHub 46 + Runcrate 60 + Mistral 91 + Hugging Face 4 + Cloudflare Docs 2 = 203. Cloudflare API not counted until OAuth is authorized.
 - Updated config/mcp-hub.example.json and docs/mcp-hub.md.
 - Groq and NVIDIA docs reviewed: their APIs consume remote MCP tools; neither is a hosted MCP upstream to add directly to this Hub. Keep those keys in the LLM/model routing layer.
+
+
+## Cloudflare API MCP completed with static token — 2026-11-23 17:38 -0300
+
+- The last non-empty line of Desktop/API.txt contained the misspelled label CLOUDFARE_API_TOKEN using KEY: VALUE syntax.
+- Imported the value into protected ~/.config/shadow/extra-providers.env as canonical CLOUDFLARE_API_TOKEN. Created a backup before replacing the previous value; file mode remains 600. The secret value was never printed.
+- Cloudflare /user/tokens/verify returned HTTP 200, success=true, status=active.
+- OAuth DCR was not used because the official authorization callback consistently failed issuer validation (missing iss parameter). Cloudflare API MCP is now configured with the CLOUDFLARE_API_TOKEN environment-variable placeholder in its Authorization header.
+- Updated both hub/admin launchers and their versioned source scripts to export only CLOUDFLARE_API_TOKEN alongside existing selected keys. The smoke test now verifies user API tokens at /user/tokens/verify (not the old account-scoped endpoint).
+- Cloudflare MCP is up and exposes five tools: docs, search, execute, whoami, submit_feedback.
+- whoami succeeded; tool annotations declare readOnlyHint=true. GET /accounts returned success with one account; GET /zones returned success with zero zones visible. The updated safe smoke suite passed 9/9 checks. The token-detail endpoint returned 403, so policy metadata could not be enumerated independently. The setup used the Read All Resources template; no write/destructive calls were made.
+- Active inventory is now GitHub 46 + Runcrate 60 + Mistral 91 + Hugging Face 4 + Cloudflare Docs 2 + Cloudflare API 5 = 208 tools.

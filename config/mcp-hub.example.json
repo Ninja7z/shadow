@@ -25,9 +25,8 @@
     "cloudflare-api": {
       "type": "http",
       "url": "https://mcp.cloudflare.com/mcp",
-      "oauth": {
-        "mode": "dcr",
-        "grant": "authorization_code"
+      "headers": {
+        "Authorization": "Bearer ${CLOUDFLARE_API_TOKEN}"
       }
     },
     "huggingface": {
