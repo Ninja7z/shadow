@@ -1,0 +1,47 @@
+# Secrets and local credentials
+API.txt
+**/API.txt
+.env
+.env.*
+!.env.example
+*.env
+!*.env.example
+providers.env
+extra-providers.env
+**/providers.env
+**/extra-providers.env
+**/credentials*.json
+**/*service-account*.json
+**/*token*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.db
+
+# Local runtime state
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+data/
+logs/
+models/
+*.log
+*.pid
+*.sock
+
+# Large local SDKs and downloads
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz
+*.tar.gz
+
+# Machine-specific configuration
+config/shadow.yaml
+config/runtime.yaml
+config/local/
