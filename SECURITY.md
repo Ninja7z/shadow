@@ -4,7 +4,7 @@ Shadow is a gateway for several upstream AI providers. Its provider credentials 
 
 ## Never commit
 
-- `API.txt`, `.env`, `*.env`, `providers.env`, `extra-providers.env`.
+- `.env`, `*.env`, `providers.env`, `extra-providers.env`.
 - Provider API keys, Cloudflare account tokens, LiteLLM master keys, OAuth tokens or service-account JSON.
 - Runtime configuration backups, logs, SQLite databases, request traces, model blobs, caches or local virtual environments.
 - Screenshots or diagnostic output that may contain authorization headers or token values.
@@ -21,7 +21,7 @@ Shadow is a gateway for several upstream AI providers. Its provider credentials 
 1. Run `git status --short`.
 2. Review the staged file list and `git diff --cached`.
 3. Search staged text for common token prefixes and `Authorization: Bearer`.
-4. Confirm that `API.txt`, `.env`, provider env files, logs and backups are ignored.
+4. Confirm that secret files, `.env`, provider env files, logs and backups are ignored.
 
 ## If a credential is committed
 
