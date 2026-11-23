@@ -94,7 +94,7 @@ python scripts/shadow.py refresh
 
 Provedores pagos ficam fora do alias `shadow-auto` por padrão. Também é possível conectar endpoints próprios compatíveis com OpenAI ou Anthropic usando as famílias `CUSTOM_OPENAI_*` e `CUSTOM_ANTHROPIC_*`.
 
-Consulte [Self-hosting](docs/self-hosting.md) para os detalhes de configuração.
+Consulte [Auto-hospedagem e provedores](docs/pt-BR/auto-hospedagem.md) para os detalhes de configuração.
 
 ## 🧭 Rotas e fallback
 
@@ -147,7 +147,7 @@ O Shadow inclui lançadores locais dedicados:
 
 O template versionado fica em `scripts/claude-route.sh`. Ele gera configurações privadas para o seletor de modelos, preserva o alias enviado ao Shadow e aplica limites conservadores à compactação de contexto.
 
-Veja [Integração com Claude Code](docs/claude-code.md).
+Veja [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md).
 
 ### Hub MCP
 
@@ -155,7 +155,7 @@ Claude Code, OpenCode e Cline podem se conectar ao mesmo servidor MCP local cham
 
 A API de modelos e o MCP Hub são, atualmente, processos e endpoints separados. Essa separação é intencional no estado atual do projeto.
 
-Veja [MCP Hub](docs/mcp-hub.md).
+Veja [Hub MCP](docs/pt-BR/hub-mcp.md).
 
 ## 🧪 Testes
 
@@ -178,7 +178,7 @@ python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
 python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
 ```
 
-Testes de inferência podem consumir cotas gratuitas. Não os use como monitor de saúde frequente. Consulte [Smoke tests](docs/smoke-tests.md) para detalhes, timeouts e observações sobre cotas.
+Testes de inferência podem consumir cotas gratuitas. Não os use como monitor de saúde frequente. Consulte [Testes de diagnóstico](docs/pt-BR/testes-smoke.md) para detalhes, timeouts e observações sobre cotas.
 
 Testes unitários:
 
@@ -206,7 +206,7 @@ O repositório público deve conter apenas código, templates e documentação.
 **Nunca envie para o Git:**
 
 - Chaves de API, tokens ou arquivos `.env`
-- `API.txt`, `extra-providers.env` ou configurações privadas
+- Chaves de API, tokens, arquivos de ambiente ou configurações privadas
 - Backups, logs, bancos de dados ou arquivos de modelos
 - Estado de runtime ou dados de contas
 
@@ -217,18 +217,18 @@ git status
 git diff --cached
 ```
 
-Leia também a [Política de segurança](SECURITY.md).
+Leia também a [Política de segurança](SECURITY.pt-BR.md).
 
 > **Transparência sobre o modo gratuito:** o Shadow não fornece chaves compartilhadas, hospedagem de inferência ou cotas gratuitas ilimitadas. Cada pessoa usa suas próprias contas e credenciais nos provedores remotos. O modo local com Ollama utiliza os recursos da própria máquina.
 
 ## 📚 Documentação
 
-- [Gateway unificado](docs/unified-gateway.md)
-- [Self-hosting e provedores](docs/self-hosting.md)
-- [Integração com Claude Code](docs/claude-code.md)
-- [Hub MCP](docs/mcp-hub.md)
-- [Smoke tests](docs/smoke-tests.md)
-- [Política de segurança](SECURITY.md)
+- [Gateway unificado](docs/pt-BR/gateway-unificado.md)
+- [Auto-hospedagem e provedores](docs/pt-BR/auto-hospedagem.md)
+- [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md)
+- [Hub MCP](docs/pt-BR/hub-mcp.md)
+- [Testes de diagnóstico](docs/pt-BR/testes-smoke.md)
+- [Política de segurança](SECURITY.pt-BR.md)
 
 ---
 
@@ -345,7 +345,7 @@ python3 -m unittest discover -s tests -v
 
 ### Security
 
-The public repository must contain templates, code and documentation only. Never commit API keys, account tokens, `.env` files, `API.txt`, `extra-providers.env`, backups, logs, databases, model files or private runtime state.
+The public repository must contain templates, code and documentation only. Never commit API keys, account tokens, `.env` files, provider environment files, backups, logs, databases, model files or private runtime state.
 
 Review before every commit:
 
