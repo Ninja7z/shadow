@@ -57,7 +57,7 @@ The local machine has dedicated launchers:
 - `claude-gonka`
 - `claude-nvidia`
 
-The `claude-requesty` CLI smoke test completed successfully through Shadow. Aider, Cline and OpenCode also passed end-to-end smoke tests through the gateway. Continue has selectable model entries and a protected global `~/.continue/.env` key. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
+The `claude-requesty` CLI smoke test completed successfully through Shadow. Aider, Cline, OpenCode and Continue CLI also passed end-to-end smoke tests. Continue resolves `SHADOW_API_KEY` from the protected global `~/.continue/.env`. Cline uses a dedicated config at `~/.config/shadow/cline/gateway`, leaving the existing Cline profile untouched. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
 
 These select provider aliases through the local gateway. The launcher and active alias should be tested after changing LiteLLM or provider configuration.
 
@@ -67,7 +67,7 @@ The current free chat fallback chain is ordered to prefer higher-allowance or br
 
 Groq OSS → Kilo Auto → Kilo → OpenRouter Nemotron → Gemini Flash-Lite → NVIDIA → Cloudflare Workers AI → Requesty → Gonka → BazaarLink → LLM7 → AI Horde.
 
-The Claude Code-specific Requesty route falls back to native Anthropic Gonka, then NVIDIA and AI Horde. Provider fallbacks should be kept protocol-compatible; an OpenAI-only route must not be inserted into an Anthropic Messages chain.
+The OpenAI-compatible Requesty alias has an explicit fallback chain for concurrency 429s: Cloudflare Workers AI → Gonka → BazaarLink → LLM7 → AI Horde. The Claude Code-specific Requesty route falls back to native Anthropic Gonka, then NVIDIA and AI Horde. Provider fallbacks should be kept protocol-compatible; an OpenAI-only route must not be inserted into an Anthropic Messages chain.
 
 ## Repository layout
 
