@@ -78,6 +78,13 @@ router_settings:
         - claude-code-gonka-glm53-free
         - claude-code-bazaarlink-nemotron-free
 
+    - router-requesty-nemotron-free:
+        - router-cloudflare
+        - claude-code-gonka-glm53-free
+        - claude-code-bazaarlink-nemotron-free
+        - claude-code-llm7
+        - claude-code-horde
+
     - claude-code-requesty-nemotron-free:
         - claude-code-gonka-glm53-anthropic
         - claude-code-nvidia
