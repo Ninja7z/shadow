@@ -160,7 +160,7 @@ After completing OAuth, stop the temporary HTTP listener. The normal stdio MCP c
 - Transport: Streamable HTTP
 - Authentication: Authorization header uses the local CLOUDFLARE_API_TOKEN environment-variable placeholder.
 - OAuth DCR was abandoned because the Cloudflare authorization response omitted the iss parameter expected by the hub (issuer mismatch during code exchange).
-- The API token was imported from the final API.txt line into the protected extra-providers.env after correcting the misspelled label CLOUDFARE_API_TOKEN to CLOUDFLARE_API_TOKEN. The source line was normalized to CLOUDFLARE_API_TOKEN=VALUE.
+- The Cloudflare API token is stored only in the protected extra-providers.env file under the variable name CLOUDFLARE_API_TOKEN.
 - Cloudflare /user/tokens/verify returned HTTP 200, success=true, status=active.
 - The MCP whoami call passed and its tool metadata declares readOnlyHint=true.
 - The token-detail endpoint returned 403, so token policy details could not be independently enumerated through the API. The setup used the Read All Resources template; avoid calling write/destructive operations. Only read-only calls have been tested. GET /accounts returned success with one account; GET /zones returned success with zero zones visible.
