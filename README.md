@@ -205,8 +205,8 @@ O repositório público deve conter apenas código, templates e documentação.
 
 **Nunca envie para o Git:**
 
-- Chaves de API, tokens ou arquivos `.env`
-- Chaves de API, tokens, arquivos de ambiente ou configurações privadas
+- Chaves de API e tokens de acesso/autenticação
+- Arquivos `.env`, `*.env`, `providers.env`, `extra-providers.env` e configurações privadas
 - Backups, logs, bancos de dados ou arquivos de modelos
 - Estado de runtime ou dados de contas
 
