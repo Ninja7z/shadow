@@ -107,6 +107,12 @@ Unit tests:
 
     python3 -m unittest discover -s tests -v
 
+## Unified Shadow API Gateway
+
+The local Shadow model API is LiteLLM on 127.0.0.1:4000: OpenAI-compatible clients use http://127.0.0.1:4000/v1, while Anthropic Messages clients use http://127.0.0.1:4000/v1/messages. The current local router exposes 48 model aliases and 37 fallback groups. OpenCode, Cline, Continue and Claude Code are configured against this gateway. Kilo Code can use it as an OpenAI Compatible custom provider; Kilo is not installed in the audited Linux environment. See docs/unified-gateway.md.
+
 ## Single MCP aggregation
 
-Claude Code, OpenCode and Cline now connect to the same local MCP named shadow, which aggregates GitHub, Runcrate, Mistral and Hugging Face (203 active tools; Cloudflare account OAuth registered and awaiting user approval) behind six discovery/forwarding meta-tools. Setup across Claude Code, OpenCode and Cline, OAuth renewal, compatibility patches and security boundaries are documented in docs/mcp-hub.md. The reproducible patch script is scripts/patch-mcp-hub-compat.mjs.
+Claude Code, OpenCode and Cline connect to the same local MCP named shadow, which aggregates GitHub, Runcrate, Mistral, Hugging Face, Cloudflare Docs and Cloudflare API (208 tools across six upstreams) behind six discovery/forwarding meta-tools. Setup, token handling, compatibility patches and security boundaries are documented in docs/mcp-hub.md. The reproducible patch script is scripts/patch-mcp-hub-compat.mjs.
+
+The model API and MCP Hub are currently separate protocol endpoints/processes. A LiteLLM MCP Gateway proof of concept on port 4002 returned a 403 for the Shadow MCP upstream, so the production gateway on port 4000 and current MCP client connections were left unchanged.

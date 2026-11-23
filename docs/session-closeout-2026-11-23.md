@@ -118,3 +118,16 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 - Cloudflare MCP is up and exposes five tools: docs, search, execute, whoami, submit_feedback.
 - whoami succeeded; tool annotations declare readOnlyHint=true. GET /accounts returned success with one account; GET /zones returned success with zero zones visible. The updated safe smoke suite passed 9/9 checks. The token-detail endpoint returned 403, so policy metadata could not be enumerated independently. The setup used the Read All Resources template; no write/destructive calls were made.
 - Active inventory is now GitHub 46 + Runcrate 60 + Mistral 91 + Hugging Face 4 + Cloudflare Docs 2 + Cloudflare API 5 = 208 tools.
+
+
+## Unified model API audit and LiteLLM MCP Gateway proof of concept — 2026-11-23 18:00 -0300
+
+- Confirmed the existing local Shadow model API already provides the desired shared provider gateway: LiteLLM 1.110.2 on 127.0.0.1:4000.
+- GET /health/liveliness returned HTTP 200. Authenticated GET /v1/models returned 48 model aliases. The local YAML config has 37 fallback groups.
+- Current provider-adapter counts in the local model config: anthropic 5, cloudflare 2, cohere 1, deepseek 3, gemini 4, groq 4, mistral 3, nvidia_nim 1, ollama 1, openai 20, openrouter 3, sambanova 1.
+- Existing clients point to the same gateway: OpenCode provider shadow uses http://127.0.0.1:4000/v1 and resolves LITELLM_MASTER_KEY from env; Cline's default and isolated gateway profiles use the same base URL and their API key matches LITELLM_MASTER_KEY; Continue has 17 models on the same base URL and SHADOW_API_KEY matches LITELLM_MASTER_KEY; Claude Code's claude-route launcher configures the Anthropic Messages adapter on the same host. Kilo is not installed/detected in the Linux environment.
+- The same local host supports OpenAI Chat Completions, OpenAI Responses, Anthropic Messages and /v1/models. Client-specific base URLs depend on the protocol.
+- Current clients use LITELLM_MASTER_KEY, which is the LiteLLM proxy admin/master credential. The current gateway has no DATABASE_URL and no local PostgreSQL; virtual keys, budgets and per-client key permissions are therefore not set up.
+- Investigated merging the MCP Hub into LiteLLM's MCP Gateway (same service host, /mcp). An isolated lab config on port 4002 loaded the same 48 model aliases and registered shadow_tools, but /mcp tools/list returned 403 forbidden for the Shadow MCP upstream. Production port 4000 was not changed. The lab process and temporary config/log/PID were stopped/removed.
+- Current design recommendation: keep the existing LiteLLM model gateway, keep the working Shadow MCP Hub separate until the 403 is diagnosed, add PostgreSQL before creating app-scoped virtual keys, and configure Kilo as an OpenAI Compatible custom provider pointing to http://127.0.0.1:4000/v1 with a Shadow model alias.
+- Added docs/unified-gateway.md and updated README/MCP documentation to reflect the verified architecture and the remaining work.

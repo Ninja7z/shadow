@@ -123,7 +123,7 @@ After completing OAuth, stop the temporary HTTP listener. The normal stdio MCP c
 
 - GitHub search_repositories found Ninja7z/shadow through call_tool.
 - Runcrate list_gpu_types returned 162 entries through call_tool.
-- Final upstream inventory: GitHub 46 tools, Runcrate 60 tools.
+- Final upstream inventory: GitHub 46, Runcrate 60, Mistral 91, Hugging Face 4, Cloudflare Docs 2, Cloudflare API 5 = 208 tools.
 - Forwarding was retested after moving the GitHub token to github.token.
 - Claude Code, OpenCode and Cline are configured to use the shared shadow MCP; Claude Code and OpenCode report connected.
 
