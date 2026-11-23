@@ -45,6 +45,8 @@ The local gateway uses environment variables such as:
 - `CLOUDFLARE_API_TOKEN`
 - `GONKA_API_KEY`
 - `BAZAARLINK_API_KEY`
+- `NVIDIA_NIM_API_KEY`
+- `AI_HORDE_API_KEY`
 
 Create a private local environment file from `.env.example` or your secret manager. Do not commit that file.
 
