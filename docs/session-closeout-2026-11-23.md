@@ -6,7 +6,7 @@
 - Local project clone: `~/Projects/shadow`.
 - Public repository: https://github.com/Ninja7z/shadow, branch `main`.
 - Shadow gateway: active on `127.0.0.1:4000`.
-- Latest health check before this closeout: 48 aliases, 37 fallback groups, 0 cycles, no missing environment variables.
+- Final health check: 48 aliases, 37 fallback groups, 0 cycles, no missing environment variables. Gateway service is active.
 
 ## Requesty credential
 
@@ -21,7 +21,7 @@
 - Fixed using Claude Code's documented `modelPicker.options[].behavesAs` support.
 - The gateway alias remains unchanged; `behavesAs: claude-sonnet-4-6` is only the local compatibility profile.
 - Generated private settings live in `~/.config/shadow/claude-model-settings/`, mode 600.
-- `claude-requesty` smoke test after the fix returned `SHADOW_MODEL_PICKER_OK`, exit code 0, with no unrecognized-model diagnostic.
+- `claude-requesty` smoke tests after the fix returned `SHADOW_MODEL_PICKER_OK` and `SHADOW_FINAL_E2E_OK`, exit code 0, with no unrecognized-model diagnostic. A subsequent test after syncing the versioned launcher also passed.
 - The launcher no longer requires unrelated NVIDIA/Gemini keys just to start another provider route.
 
 ## Client verification
@@ -37,7 +37,10 @@
 - Requesty: validated and active.
 - Cloudflare Workers AI: validated for Chat Completions and structured tool calls.
 - Gonka Broker: validated; free tier requires SMS verification and is rate-limited to about 6 RPM.
-- BazaarLink: validated free-tier key; zero-priced Nemotron free model; small daily quota; route uses `X-Free-Fallback: false`.
+- BazaarLink: final key check HTTP 200; `is_free_tier=true`, `is_management_key=false`; zero-priced Nemotron free model; small daily quota; route uses `X-Free-Fallback: false`.
+- Requesty: final catalog check HTTP 200, 787 model IDs; active key matches the only Requesty entry left in Desktop/API.txt.
+- Gonka: final root auth check HTTP 200, `status=ok`, `maxRpm=6`.
+- Cloudflare: account token verification HTTP 200 with status active; Workers AI catalog HTTP 200.
 
 Quotas and model IDs can change. Recheck provider dashboards before relying on free limits.
 
@@ -55,4 +58,4 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 2. Run `shadow doctor`.
 3. If any provider quota changed, check its dashboard before sending inference.
 4. Consider adding a small automated smoke-test script for all provider routes.
-5. The PC is currently running Linux Mint; a Windows System Restore Point cannot be created from this Linux session. If booting into Windows for the next maintenance session, create a restore point before making Windows-side changes.
+5. The PC is currently running Linux Mint. Timeshift 25.12.4 is installed, but `/etc/timeshift/timeshift.json` is absent, so no Timeshift snapshot was created. The elevated snapshot operation was blocked in this session. A Windows System Restore Point cannot be created from this Linux session; if booting into Windows next time, create one before Windows-side changes.
