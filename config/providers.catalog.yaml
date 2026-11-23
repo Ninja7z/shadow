@@ -1,0 +1,32 @@
+# Optional upstream catalog. Only entries with required environment variables are enabled.
+providers:
+  - {id: gemini, label: Google Gemini, model_name: shadow-gemini-flash, model: gemini/gemini-2.5-flash, api_key_env: GEMINI_API_KEY, access: free-tier-and-paid, auto_fallback: false, docs: https://ai.google.dev/gemini-api/docs}
+  - {id: groq, label: Groq, model_name: shadow-groq-oss, model: groq/openai/gpt-oss-120b, api_key_env: GROQ_API_KEY, access: free-tier-and-paid, auto_fallback: false, docs: https://console.groq.com/docs}
+  - {id: openrouter, label: OpenRouter, model_name: shadow-openrouter-free, model: openrouter/openrouter/free, api_key_env: OPENROUTER_API_KEY, access: free-models-and-paid, auto_fallback: false, docs: https://openrouter.ai/docs}
+  - {id: huggingface, label: Hugging Face, model_name: shadow-huggingface, model: openai/Qwen/Qwen3.5-4B, api_base: https://router.huggingface.co/v1, api_key_env: HF_TOKEN, access: credits-and-paid, auto_fallback: false, docs: https://huggingface.co/docs/inference-providers}
+  - {id: requesty, label: Requesty, model_name: shadow-requesty-free, model: openai/nvidia/nemotron-3.5-lightning-30b-a3b, api_base: https://router.requesty.ai/v1, api_key_env: REQUESTY_API_KEY, access: free-tier-and-paid, auto_fallback: true, docs: https://www.requesty.ai/models/free}
+  - {id: gonka, label: Gonka Broker, model_name: shadow-gonka-free, model: openai/zai-org/GLM-5.3-Flash, api_base: https://proxy.gonkabroker.com/v1, api_key_env: GONKA_API_KEY, access: free-tier, auto_fallback: true, docs: https://docs.gonkabroker.com/reference/limits-and-quotas/}
+  - id: bazaarlink
+    label: BazaarLink
+    model_name: shadow-bazaarlink-free
+    model: openai/nvidia/nemotron-3.5-lightning-free:free
+    api_base: https://api.bazaarlink.ai/v1
+    api_key_env: BAZAARLINK_API_KEY
+    access: free-tier
+    auto_fallback: true
+    extra_headers: {X-Free-Fallback: 'false'}
+    docs: https://bazaarlink.ai/
+  - id: cloudflare
+    label: Cloudflare Workers AI
+    model_name: shadow-cloudflare-free
+    model: cloudflare/@cf/zai-org/glm-4.7-flash
+    api_base: 'https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1'
+    api_key_env: CLOUDFLARE_WORKERS_AI_TOKEN
+    required_env: [CLOUDFLARE_ACCOUNT_ID]
+    access: free-daily-quota-and-paid
+    auto_fallback: false
+    docs: https://developers.cloudflare.com/workers-ai/
+  - {id: deepseek, label: DeepSeek, model_name: shadow-deepseek, model: deepseek/deepseek-chat, api_key_env: DEEPSEEK_API_KEY, access: paid, auto_fallback: false, docs: https://api-docs.deepseek.com/}
+  - {id: mistral, label: Mistral, model_name: shadow-mistral, model: mistral/mistral-small-latest, api_key_env: MISTRAL_API_KEY, access: free-trial-and-paid, auto_fallback: false, docs: https://docs.mistral.ai/}
+  - {id: openai, label: OpenAI, model_name: shadow-openai, model: openai/gpt-4.1-mini, api_key_env: OPENAI_API_KEY, access: paid, auto_fallback: false, docs: https://platform.openai.com/docs}
+  - {id: anthropic, label: Anthropic, model_name: shadow-anthropic, model: anthropic/claude-sonnet-4-5, api_key_env: ANTHROPIC_API_KEY, access: paid, auto_fallback: false, docs: https://docs.anthropic.com/}

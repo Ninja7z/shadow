@@ -14,7 +14,23 @@ O que ele oferece
 
 Importante: O repositório público contém apenas templates e documentação. Ele nunca deve conter chaves de API reais, tokens de conta, arquivos de ambiente de provedores, logs, blobs de modelos ou estado de runtime local.
 
-Rotas gratuitas verificadas atualmente
+Primeiros passos para qualquer pessoa que clonar o repositório
+
+Requisitos: Python 3.11+ e Ollama para inferência local.
+
+    git clone https://github.com/Ninja7z/shadow.git
+    cd shadow
+    python scripts/shadow.py setup
+    ollama pull llama3.2:3b
+    python scripts/shadow.py start
+
+Isso cria um ambiente Python isolado, uma chave local aleatória e a configuração privada. A API fica em 127.0.0.1:4000. O modo Ollama não precisa de chave de API remota nem cobra inferência em nuvem; usa o hardware e a energia da própria pessoa.
+
+Para adicionar provedores gratuitos ou pagos, preencha as variáveis correspondentes no arquivo .env e execute python scripts/shadow.py refresh. Provedores pagos ficam fora do shadow-auto por padrão. Também é possível conectar qualquer endpoint compatível com OpenAI ou Anthropic usando CUSTOM_OPENAI_* ou CUSTOM_ANTHROPIC_*. Veja docs/self-hosting.md.
+
+O repositório não oferece chaves compartilhadas, hospedagem de inferência nem cotas gratuitas ilimitadas. Cada pessoa usa suas próprias contas e credenciais dos provedores remotos.
+
+Rotas gratuitas verificadas atualmente (contas do mantenedor; não são os padrões de novos clones)
 
 O gateway local atual possui rotas verificadas para:
 
@@ -150,7 +166,23 @@ What it provides
 
 Important: The public repository contains templates and documentation only. It must never contain live API keys, account tokens, provider environment files, logs, model blobs or local runtime state.
 
-Current verified free routes
+Quick start for anyone cloning the repository
+
+Requirements: Python 3.11+ and Ollama for local inference.
+
+    git clone https://github.com/Ninja7z/shadow.git
+    cd shadow
+    python scripts/shadow.py setup
+    ollama pull llama3.2:3b
+    python scripts/shadow.py start
+
+This creates an isolated Python environment, a random local gateway key and a private runtime config. The API listens on 127.0.0.1:4000. Ollama mode needs no remote API key and has no cloud inference bill; it uses the owner's hardware and electricity.
+
+To add free or paid providers, fill in the matching variables in .env and run python scripts/shadow.py refresh. Paid providers are excluded from shadow-auto by default. You can also connect any OpenAI-compatible or Anthropic Messages endpoint using CUSTOM_OPENAI_* or CUSTOM_ANTHROPIC_*. See docs/self-hosting.md.
+
+The repository does not provide shared API keys, hosted inference or unlimited third-party free quota. Each person uses their own provider accounts and credentials.
+
+Current verified free routes (maintainer's own accounts; not clone defaults)
 
 The current local gateway has verified routes for:
 

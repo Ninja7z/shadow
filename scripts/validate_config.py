@@ -39,7 +39,7 @@ def main() -> int:
     for item in models:
         params = item.get("litellm_params", {})
         key_ref = params.get("api_key")
-        if key_ref and not str(key_ref).startswith("os.environ/"):
+        if key_ref and str(key_ref) != "ollama" and not str(key_ref).startswith("os.environ/"):
             print(f"FAIL: {item['model_name']} uses a non-environment api_key reference")
             return 2
 
