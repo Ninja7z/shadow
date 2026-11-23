@@ -54,6 +54,13 @@ model_list:
         X-Free-Fallback: "false"
       timeout: 90
 
+  - model_name: claude-code-llm7
+    litellm_params:
+      model: openai/codestral-latest
+      api_base: https://api.llm7.io/v1
+      api_key: os.environ/LLM7_API_KEY
+      timeout: 90
+
   - model_name: claude-code-nvidia
     litellm_params:
       model: nvidia_nim/mistralai/mistral-large-4-1t-a52b
