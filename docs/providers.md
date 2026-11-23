@@ -7,7 +7,8 @@ This is a dated operational snapshot, not a promise that provider quotas or mode
 - Official free-model catalog: 8 zero-cost model IDs and 200 free-model requests per day, no payment method required on the free plan.
 - Verified model: `nvidia/nemotron-3.5-lightning-30b-a3b`.
 - Catalog pricing for the NVIDIA deployment showed input and output price `0`.
-- Tested directly and through Shadow using both OpenAI Chat Completions and Anthropic Messages. Structured tool calls passed; the test responses reported `cost: 0`.
+- Tested directly and through Shadow using both OpenAI Chat Completions and Anthropic Messages. Structured tool calls passed; the test responses reported `cost: 0`. A one-turn `claude-requesty` CLI smoke test also completed through Shadow (exit code 0); Claude Code printed a non-fatal `unrecognized_model` notice for the custom alias.
+- Active Shadow aliases: `router-requesty-nemotron-free` (OpenAI-compatible) and `claude-code-requesty-nemotron-free` (Anthropic Messages). The old Requesty credential is retained locally under `REQUESTY_API_KEY_FALLBACK`; the active route uses the newer key as `REQUESTY_API_KEY`.
 - OpenAI-compatible base URL: `https://router.requesty.ai/v1`.
 - Claude Code base URL: `https://router.requesty.ai` (without a trailing `/v1` when the client appends `/v1/messages`).
 - Official sources: https://www.requesty.ai/models/free, https://www.requesty.ai/agents/claude-code, https://www.requesty.ai/terms.
