@@ -40,7 +40,6 @@ The local gateway uses environment variables such as:
 
 - `LITELLM_MASTER_KEY`
 - `REQUESTY_API_KEY`
-- `REQUESTY_API_KEY_FALLBACK` (preserved backup credential; not the active key)
 - `CLOUDFLARE_WORKERS_AI_TOKEN`
 - `CLOUDFLARE_API_TOKEN`
 - `GONKA_API_KEY`
@@ -58,7 +57,7 @@ The local machine has dedicated launchers:
 - `claude-gonka`
 - `claude-nvidia`
 
-The `claude-requesty` CLI smoke test completed successfully through the local Shadow gateway. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
+The `claude-requesty` CLI smoke test completed successfully through Shadow. Aider, Cline and OpenCode also passed end-to-end smoke tests through the gateway. Continue has selectable model entries and a protected global `~/.continue/.env` key. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
 
 These select provider aliases through the local gateway. The launcher and active alias should be tested after changing LiteLLM or provider configuration.
 
@@ -73,7 +72,7 @@ The Claude Code-specific Requesty route falls back to native Anthropic Gonka, th
 ## Repository layout
 
 - `config/shadow.example.yaml`: minimal provider/fallback example.
-- `config/shadow.runtime.example.yaml`: sanitized snapshot of the current 48-alias / 36-fallback local router (all credentials remain environment references; Cloudflare Account ID is a placeholder).
+- `config/shadow.runtime.example.yaml`: sanitized snapshot of the current 48-alias / 37-fallback local router (all credentials remain environment references; Cloudflare Account ID is a placeholder).
 - `docs/`: provider status, quota notes and operating guidance.
 - `scripts/`: local validation and maintenance helpers.
 - `.env.example`: names of required variables, no values.
