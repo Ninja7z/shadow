@@ -28,6 +28,7 @@ def ensure_venv():
  subprocess.run([str(pybin()),'-m','pip','install','--upgrade','pip'],check=True)
  subprocess.run([str(pybin()),'-m','pip','install','-r',str(ROOT/'requirements.txt')],check=True)
 def enabled_models(values):
+ import yaml
  data=yaml.safe_load(CATALOG.read_text(encoding='utf-8')) or {}; result=[]
  for p in data.get('providers',[]):
   required=[p['api_key_env'],*p.get('required_env',[])]
@@ -50,6 +51,7 @@ def enabled_models(values):
    }})
  return result
 def build_config(values):
+ import yaml
  cfg=yaml.safe_load(STARTER.read_text(encoding='utf-8'))
  providers=enabled_models(values)
  cfg['model_list'].extend(providers)
