@@ -1,0 +1,72 @@
+# Shareable LiteLLM configuration example.
+# Replace YOUR_CLOUDFLARE_ACCOUNT_ID locally. API keys are env-var references only.
+# Keep your real config and provider env files out of Git.
+
+model_list:
+  - model_name: router-requesty-nemotron-free
+    litellm_params:
+      model: openai/nvidia/nemotron-3.5-lightning-30b-a3b
+      api_base: https://router.requesty.ai/v1
+      api_key: os.environ/REQUESTY_API_KEY
+      timeout: 90
+
+  - model_name: claude-code-requesty-nemotron-free
+    litellm_params:
+      model: anthropic/nvidia/nemotron-3.5-lightning-30b-a3b
+      api_base: https://router.requesty.ai
+      api_key: os.environ/REQUESTY_API_KEY
+      timeout: 90
+
+  - model_name: router-cloudflare
+    litellm_params:
+      model: cloudflare/@cf/zai-org/glm-4.7-flash
+      api_base: https://api.cloudflare.com/client/v4/accounts/YOUR_CLOUDFLARE_ACCOUNT_ID/ai/v1
+      api_key: os.environ/CLOUDFLARE_WORKERS_AI_TOKEN
+      timeout: 90
+
+  - model_name: claude-code-cloudflare
+    litellm_params:
+      model: cloudflare/@cf/zai-org/glm-4.7-flash
+      api_base: https://api.cloudflare.com/client/v4/accounts/YOUR_CLOUDFLARE_ACCOUNT_ID/ai/v1
+      api_key: os.environ/CLOUDFLARE_WORKERS_AI_TOKEN
+      timeout: 90
+
+  - model_name: claude-code-gonka-glm53-free
+    litellm_params:
+      model: openai/zai-org/GLM-5.3-Flash
+      api_base: https://proxy.gonkabroker.com/v1
+      api_key: os.environ/GONKA_API_KEY
+      timeout: 90
+
+  - model_name: claude-code-gonka-glm53-anthropic
+    litellm_params:
+      model: anthropic/zai-org/GLM-5.3-Flash
+      api_base: https://proxy.gonkabroker.com
+      api_key: os.environ/GONKA_API_KEY
+      timeout: 90
+
+  - model_name: claude-code-bazaarlink-nemotron-free
+    litellm_params:
+      model: openai/nvidia/nemotron-3.5-lightning-free:free
+      api_base: https://api.bazaarlink.ai/v1
+      api_key: os.environ/BAZAARLINK_API_KEY
+      extra_headers:
+        X-Free-Fallback: "false"
+      timeout: 90
+
+litellm_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+router_settings:
+  fallbacks:
+    - router-shadow-free:
+        - router-cloudflare
+        - router-requesty-nemotron-free
+        - claude-code-gonka-glm53-free
+        - claude-code-bazaarlink-nemotron-free
+
+    - claude-code-requesty-nemotron-free:
+        - claude-code-gonka-glm53-anthropic
+
+    - claude-code-gonka-glm53-anthropic:
+        - claude-code-nvidia
