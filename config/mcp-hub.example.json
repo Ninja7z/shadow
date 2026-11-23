@@ -14,6 +14,32 @@
         "mode": "dcr",
         "grant": "authorization_code"
       }
+    },
+    "mistral": {
+      "type": "http",
+      "url": "https://api.mistral.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer ${MISTRAL_API_KEY}"
+      }
+    },
+    "cloudflare-api": {
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp",
+      "oauth": {
+        "mode": "dcr",
+        "grant": "authorization_code"
+      }
+    },
+    "huggingface": {
+      "type": "http",
+      "url": "https://huggingface.co/mcp",
+      "headers": {
+        "Authorization": "Bearer ${HF_TOKEN}"
+      }
+    },
+    "cloudflare-docs": {
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp"
     }
   }
 }

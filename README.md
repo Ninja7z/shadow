@@ -109,4 +109,4 @@ Unit tests:
 
 ## Single MCP aggregation
 
-Claude Code, OpenCode and Cline now connect to the same local MCP named shadow, which aggregates GitHub and Runcrate (46 + 60 upstream tools) behind six discovery/forwarding meta-tools. Setup across Claude Code, OpenCode and Cline, OAuth renewal, compatibility patches and security boundaries are documented in docs/mcp-hub.md. The reproducible patch script is scripts/patch-mcp-hub-compat.mjs.
+Claude Code, OpenCode and Cline now connect to the same local MCP named shadow, which aggregates GitHub, Runcrate, Mistral and Hugging Face (203 active tools; Cloudflare account OAuth registered and awaiting user approval) behind six discovery/forwarding meta-tools. Setup across Claude Code, OpenCode and Cline, OAuth renewal, compatibility patches and security boundaries are documented in docs/mcp-hub.md. The reproducible patch script is scripts/patch-mcp-hub-compat.mjs.

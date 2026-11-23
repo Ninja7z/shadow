@@ -95,3 +95,14 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 - The GitHub credential was moved once into ~/.config/shadow/mcp-hub/github.token, mode 600. After updating both wrappers, a real GitHub search and Runcrate GPU-types tool call passed through Shadow. The Claude Code GitHub user MCP was then removed. A private ~/.claude.json backup was retained outside Git.
 - The old GitHub helper no longer needs project-level disabledMcpServers entries.
 - Cross-client config/renewal instructions are in docs/mcp-hub.md.
+
+
+## MCP Hub expansion — Mistral, Hugging Face and Cloudflare — 2026-11-23
+
+- Added official Mistral Studio MCP at https://api.mistral.ai/mcp, authenticated from MISTRAL_API_KEY in the protected extra-providers.env. Launcher exports only this key, not every variable from the file. Mistral reports 91 tools; read-only whoami call passed.
+- Added official Hugging Face Hub MCP at https://huggingface.co/mcp, authenticated from HF_TOKEN in extra-providers.env. Launcher exports only HF_TOKEN. It reports 4 baseline tools; read-only hub_repo_search for Qwen3.5 passed.
+- Added official Cloudflare API MCP at https://mcp.cloudflare.com/mcp with DCR OAuth. Registration succeeded, but user consent remains pending. Do not mark it connected until OAuth status is authorized and tools/list succeeds. The official API MCP exposes 2 Code Mode tools backed by more than 2,500 API endpoints.
+- Added Cloudflare documentation MCP at https://docs.mcp.cloudflare.com/mcp. It is public/no-auth, exposes 2 read-only tools, and a real search_cloudflare_documentation call returned Workers AI documentation.
+- Current live tool inventory: GitHub 46 + Runcrate 60 + Mistral 91 + Hugging Face 4 + Cloudflare Docs 2 = 203. Cloudflare API not counted until OAuth is authorized.
+- Updated config/mcp-hub.example.json and docs/mcp-hub.md.
+- Groq and NVIDIA docs reviewed: their APIs consume remote MCP tools; neither is a hosted MCP upstream to add directly to this Hub. Keep those keys in the LLM/model routing layer.

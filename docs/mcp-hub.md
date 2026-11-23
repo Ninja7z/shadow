@@ -9,7 +9,7 @@ Shadow MCP Hub is the single local MCP gateway shared by Claude Code, OpenCode a
 - wake_server
 - sleep_server
 
-The current upstream inventory is 46 GitHub tools + 60 Runcrate tools = 106 tools. Each client starts one local stdio process named shadow; upstream tools are discovered and invoked through the hub on demand.
+The current active inventory is 46 GitHub + 60 Runcrate + 91 Mistral + 4 Hugging Face + 2 Cloudflare Docs = 203 tools. Cloudflare API MCP is registered but still awaits user OAuth approval; its server uses two Code Mode tools for the Cloudflare API. Each client starts one local stdio process named shadow; upstream tools are discovered and invoked through the hub on demand.
 
 ## Current connected clients
 
@@ -26,7 +26,7 @@ The GitHub Authorization bearer header is stored only in:
 
     ~/.config/shadow/mcp-hub/github.token
 
-That file must have mode 600. The wrapper reads it at process start, exports it to the hub process, and never prints it. It is not stored in Claude Code MCP configuration anymore.
+That file must have mode 600. The wrapper reads it at process start, exports it to the hub process, and never prints it. It is not stored in Claude Code MCP configuration anymore. The wrapper also loads only MISTRAL_API_KEY and HF_TOKEN from the protected extra-providers.env file, exporting those two values to the hub process; the other provider variables are not exported by the launcher.
 
 Runcrate OAuth state and its access token are stored locally in:
 
@@ -134,3 +134,43 @@ After completing OAuth, stop the temporary HTTP listener. The normal stdio MCP c
 - The hub config contains only an environment-variable reference for the GitHub Authorization header.
 - bootstrap.env, github.token, mcp.json, and data/state.json are local-only and must never be committed.
 - Do not commit .claude.json, Cline/OpenCode auth stores, token backups, OAuth state, access tokens, refresh tokens, or generated runtime files.
+
+
+## Additional official MCP upstreams
+
+### Mistral Studio
+
+- Endpoint: https://api.mistral.ai/mcp
+- Transport: Streamable HTTP
+- Authentication: Authorization: Bearer MISTRAL_API_KEY (environment variable reference in the local MCP config).
+- The key is read from ~/.config/shadow/extra-providers.env; the launcher exports only MISTRAL_API_KEY.
+- Connected and verified with 91 tools. A read-only whoami call returned the configured account/workspace.
+- Available tool groups depend on the key's workspace and enabled features. The official server can expose write-capable tools (publish apps, manage knowledge, delete libraries/secrets, deploy workflows); review before calling write/destructive tools.
+
+### Cloudflare Documentation MCP
+
+- Endpoint: https://docs.mcp.cloudflare.com/mcp
+- Authentication: none required.
+- Connected and verified with two read-only tools: search_cloudflare_documentation and migrate_pages_to_workers_guide.
+- A read-only search for Workers AI inference documentation returned Cloudflare documentation chunks.
+
+### Cloudflare API MCP
+
+- Endpoint: https://mcp.cloudflare.com/mcp
+- Transport: Streamable HTTP
+- Authentication: OAuth (DCR); official docs also support static Cloudflare user/account API tokens.
+- Registered in the hub, but still awaits the user to approve Cloudflare's OAuth consent page. Do not treat it as connected until upstream status reports authorized and tools/list returns tools.
+- The API server exposes two Code Mode tools (search, execute) representing more than 2,500 Cloudflare API endpoints. Select only the account/product scopes needed in the consent page.
+
+### Hugging Face Hub MCP
+
+- Endpoint: https://huggingface.co/mcp
+- Transport: Streamable HTTP
+- Authentication: Authorization: Bearer HF_TOKEN (environment variable reference in the local MCP config).
+- The key is read from ~/.config/shadow/extra-providers.env; the launcher exports only HF_TOKEN.
+- Connected and verified with 4 configured baseline tools: hf_whoami, hub_repo_search, hub_repo_details, and hf_fs. A read-only search for Qwen3.5 returned repository results.
+- Additional tools, Jobs, sandboxes and community Spaces depend on user settings at https://huggingface.co/settings/mcp and token permissions. Compute-backed Jobs/Spaces may consume resources; configure only what you intend to use.
+
+### Providers not added as MCP upstreams
+
+Groq's MCP support is a Responses API feature that lets a Groq-hosted model call remote MCP servers; it is not itself a Groq-hosted MCP service. NVIDIA NIM similarly consumes MCP tools from the client side and does not expose a managed NVIDIA MCP endpoint in the docs reviewed. Those API keys belong in the model-routing/API layer, not as MCP Hub upstreams.

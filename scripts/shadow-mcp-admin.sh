@@ -26,4 +26,10 @@ fi
 
 # GitHub's upstream bearer credential is stored separately with mode 600.
 
+if [[ -r "$HOME/.config/shadow/extra-providers.env" ]]; then
+  source "$HOME/.config/shadow/extra-providers.env"
+  export MISTRAL_API_KEY
+  export HF_TOKEN
+fi
+
 exec "$RUNTIME/node_modules/.bin/mcp-hub-admin" "$@"
