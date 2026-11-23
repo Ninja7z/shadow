@@ -1,0 +1,350 @@
+model_list:
+- model_name: claude-code
+  litellm_params:
+    model: anthropic/claude-sonnet-5-5
+    api_key: os.environ/ANTHROPIC_PROVIDER_API_KEY
+- model_name: claude-code-opus
+  litellm_params:
+    model: anthropic/claude-opus-5-5
+    api_key: os.environ/ANTHROPIC_PROVIDER_API_KEY
+- model_name: claude-code-openrouter-free
+  litellm_params:
+    model: openrouter/openrouter/free
+    api_key: os.environ/OPENROUTER_API_KEY
+- model_name: claude-code-openrouter-nemotron
+  litellm_params:
+    model: openrouter/nvidia/nemotron-3.5-lightning:free
+    api_key: os.environ/OPENROUTER_API_KEY
+- model_name: claude-code-openai
+  litellm_params:
+    model: openai/gpt-6-luna
+    api_key: os.environ/OPENAI_API_KEY
+- model_name: claude-code-nvidia
+  litellm_params:
+    model: nvidia_nim/mistralai/mistral-large-4-1t-a52b
+    api_key: os.environ/NVIDIA_NIM_API_KEY
+- model_name: claude-code-gemini
+  litellm_params:
+    model: gemini/gemini-3.8-flash
+    api_key: os.environ/GEMINI_API_KEY
+- model_name: claude-code-gemini-lite
+  litellm_params:
+    model: gemini/gemini-3.1-flash-lite
+    api_key: os.environ/GEMINI_API_KEY
+- model_name: claude-code-deepseek
+  litellm_params:
+    model: deepseek/deepseek-flash
+    api_key: os.environ/DEEPSEEK_API_KEY
+    reasoning_effort: none
+- model_name: claude-code-deepseek-alt
+  litellm_params:
+    model: deepseek/deepseek-flash
+    api_key: os.environ/DEEPSEEK_ALT_API_KEY
+    reasoning_effort: none
+- model_name: claude-code-mistral
+  litellm_params:
+    model: mistral/mistral-medium-latest
+    api_key: os.environ/MISTRAL_API_KEY
+- model_name: claude-code-codestral
+  litellm_params:
+    model: mistral/codestral-latest
+    api_key: os.environ/MISTRAL_API_KEY
+- model_name: claude-code-sambanova
+  litellm_params:
+    model: sambanova/GLM-5.3
+    api_key: os.environ/SAMBANOVA_API_KEY
+- model_name: claude-code-cohere
+  litellm_params:
+    model: cohere/command-a-plus-05-2026
+    api_key: os.environ/COHERE_API_KEY
+- model_name: router-fast
+  litellm_params:
+    model: gemini/gemini-3.1-flash-lite
+    api_key: os.environ/GEMINI_API_KEY
+- model_name: router-smart
+  litellm_params:
+    model: anthropic/claude-opus-5-5
+    api_key: os.environ/ANTHROPIC_PROVIDER_API_KEY
+- model_name: router-coder
+  litellm_params:
+    model: mistral/codestral-latest
+    api_key: os.environ/MISTRAL_API_KEY
+- model_name: router-vision
+  litellm_params:
+    model: gemini/gemini-3.1-flash-lite
+    api_key: os.environ/GEMINI_API_KEY
+- model_name: router-openrouter-free
+  litellm_params:
+    model: openrouter/openrouter/free
+    api_key: os.environ/OPENROUTER_API_KEY
+- model_name: router-local
+  litellm_params:
+    model: ollama/qwen3.5:4b
+    api_base: http://127.0.0.1:11434
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: claude-code-groq
+  litellm_params:
+    model: groq/qwen/qwen3.8-27b
+    api_key: os.environ/GROQ_API_KEY
+    timeout: 90
+- model_name: claude-code-cloudflare
+  litellm_params:
+    model: cloudflare/@cf/zai-org/glm-4.7-flash
+    api_key: os.environ/CLOUDFLARE_WORKERS_AI_TOKEN
+    api_base: https://api.cloudflare.com/client/v4/accounts/YOUR_CLOUDFLARE_ACCOUNT_ID/ai/v1
+- model_name: router-deepseek
+  litellm_params:
+    model: deepseek/deepseek-flash
+    api_key: os.environ/DEEPSEEK_API_KEY
+    reasoning_effort: none
+- model_name: router-cloudflare
+  litellm_params:
+    model: cloudflare/@cf/zai-org/glm-4.7-flash
+    api_key: os.environ/CLOUDFLARE_WORKERS_AI_TOKEN
+    api_base: https://api.cloudflare.com/client/v4/accounts/YOUR_CLOUDFLARE_ACCOUNT_ID/ai/v1
+- model_name: claude-code-llm7
+  litellm_params:
+    model: openai/codestral-latest
+    api_base: https://api.llm7.io/v1
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: claude-code-huggingface-qwen
+  litellm_params:
+    model: openai/Qwen/Qwen3.8-27B
+    api_base: https://router.huggingface.co/v1
+    api_key: os.environ/HF_TOKEN
+- model_name: claude-code-huggingface-deepseek
+  litellm_params:
+    model: openai/deepseek-ai/DeepSeek-V4.1-Flash
+    api_base: https://router.huggingface.co/v1
+    api_key: os.environ/HF_TOKEN
+- model_name: claude-code-kilo
+  litellm_params:
+    model: openai/nvidia/nemotron-3-ultra-550b-a55b:free
+    api_base: http://127.0.0.1:4010/v1
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: claude-code-kilo-auto
+  litellm_params:
+    model: openai/kilo-auto/free
+    api_base: http://127.0.0.1:4010/v1
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: router-kilo-free
+  litellm_params:
+    model: openai/kilo-auto/free
+    api_base: http://127.0.0.1:4010/v1
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: claude-code-ovh-qwen38
+  litellm_params:
+    model: openai/Qwen3.8-27B
+    api_base: http://127.0.0.1:4011/v1
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: router-ovh-free
+  litellm_params:
+    model: openai/Qwen3.8-27B
+    api_base: http://127.0.0.1:4011/v1
+    api_key: os.environ/REPLACE_ME_API_KEY
+- model_name: claude-code-horde
+  litellm_params:
+    model: openai/koboldcpp/Llama-3.2-3B-Instruct
+    api_base: https://oai.aihorde.net/v1
+    api_key: os.environ/AI_HORDE_API_KEY
+    timeout: 180
+- model_name: router-horde-free
+  litellm_params:
+    model: openai/koboldcpp/Llama-3.2-3B-Instruct
+    api_base: https://oai.aihorde.net/v1
+    api_key: os.environ/AI_HORDE_API_KEY
+    timeout: 180
+- model_name: claude-code-groq-oss
+  litellm_params:
+    model: groq/openai/gpt-oss-120b
+    timeout: 90
+- model_name: router-groq-agent
+  litellm_params:
+    model: groq/qwen/qwen3.8-27b
+    timeout: 90
+- model_name: router-shadow-free
+  litellm_params:
+    model: groq/qwen/qwen3.8-27b
+    timeout: 90
+- model_name: claude-code-runcrate-deepseek
+  litellm_params:
+    model: openai/deepseek-ai/DeepSeek-V4.1-Flash-1017
+    api_base: https://api.runcrate.ai/v1
+    api_key: os.environ/RUNCRATE_API_KEY
+    timeout: 180
+- model_name: claude-code-simplellm-llama
+  litellm_params:
+    model: openai/free-Llama-3.1-8B-Instruct
+    api_base: https://api.simplellm.eu/v1
+    api_key: os.environ/SIMPLELLM_API_KEY
+    timeout: 90
+- model_name: claude-code-simplellm-gemma
+  litellm_params:
+    model: openai/free-gemma-4-E4B
+    api_base: https://api.simplellm.eu/v1
+    api_key: os.environ/SIMPLELLM_API_KEY
+    timeout: 90
+- model_name: claude-code-iteracompute-qwen
+  litellm_params:
+    model: openai/qwen/qwen3.8-27b
+    api_base: https://api.iteracompute.com/v1
+    api_key: os.environ/ITERACOMPUTE_API_KEY
+    timeout: 180
+- model_name: claude-code-iteracompute-auto
+  litellm_params:
+    model: openai/Auto
+    api_base: https://api.iteracompute.com/v1
+    api_key: os.environ/ITERACOMPUTE_API_KEY
+    timeout: 180
+- model_name: claude-code-airforce-llama-instant
+  litellm_params:
+    model: openai/llama-instant
+    api_base: https://api.airforce/v1
+    api_key: os.environ/AIRFORCE_API_KEY
+    timeout: 90
+- model_name: claude-code-gonka-glm53-free
+  litellm_params:
+    model: openai/zai-org/GLM-5.3-Flash
+    api_base: https://proxy.gonkabroker.com/v1
+    api_key: os.environ/GONKA_API_KEY
+    timeout: 90
+- model_name: claude-code-bazaarlink-nemotron-free
+  litellm_params:
+    model: openai/nvidia/nemotron-3.5-lightning-free:free
+    api_base: https://api.bazaarlink.ai/v1
+    api_key: os.environ/BAZAARLINK_API_KEY
+    timeout: 90
+    extra_headers:
+      X-Free-Fallback: 'false'
+- model_name: claude-code-gonka-glm53-anthropic
+  litellm_params:
+    model: anthropic/zai-org/GLM-5.3-Flash
+    api_base: https://proxy.gonkabroker.com
+    api_key: os.environ/GONKA_API_KEY
+    timeout: 90
+- model_name: claude-code-requesty-nemotron-free
+  litellm_params:
+    model: anthropic/nvidia/nemotron-3.5-lightning-30b-a3b
+    api_base: https://router.requesty.ai
+    api_key: os.environ/REQUESTY_API_KEY
+    timeout: 90
+- model_name: router-requesty-nemotron-free
+  litellm_params:
+    model: openai/nvidia/nemotron-3.5-lightning-30b-a3b
+    api_base: https://router.requesty.ai/v1
+    api_key: os.environ/REQUESTY_API_KEY
+    timeout: 90
+router_settings:
+  num_retries: 0
+  allowed_fails: 1
+  cooldown_time: 180
+  max_fallbacks: 15
+  fallbacks:
+  - claude-code:
+    - claude-code-openrouter-free
+  - claude-code-openrouter-free:
+    - claude-code-gemini-lite
+  - claude-code-gemini-lite:
+    - claude-code-mistral
+  - claude-code-mistral:
+    - claude-code-codestral
+  - claude-code-codestral:
+    - claude-code-llm7
+  - claude-code-openrouter-nemotron:
+    - claude-code-nvidia
+  - claude-code-nvidia:
+    - claude-code-horde
+  - claude-code-deepseek:
+    - claude-code-deepseek-alt
+  - claude-code-deepseek-alt:
+    - claude-code-cohere
+  - claude-code-cohere:
+    - claude-code-sambanova
+  - claude-code-sambanova:
+    - claude-code-openai
+  - claude-code-openai:
+    - claude-code-groq
+  - claude-code-groq:
+    - claude-code-groq-oss
+    - claude-code-cloudflare
+  - claude-code-cloudflare:
+    - claude-code-requesty-nemotron-free
+    - claude-code-gemini
+  - claude-code-opus:
+    - claude-code
+  - router-fast:
+    - claude-code-deepseek
+    - claude-code-gemini-lite
+  - router-deepseek:
+    - claude-code-gemini-lite
+    - claude-code-mistral
+    - claude-code-openrouter-free
+  - router-smart:
+    - claude-code-opus
+    - claude-code-openrouter-free
+  - router-coder:
+    - claude-code-codestral
+    - claude-code-deepseek
+    - claude-code-openrouter-free
+  - router-vision:
+    - claude-code-gemini
+    - claude-code-gemini-lite
+    - claude-code-openrouter-free
+  - router-cloudflare:
+    - claude-code-cloudflare
+    - claude-code-openrouter-free
+    - claude-code-gemini-lite
+  - router-openrouter-free:
+    - claude-code-openrouter-free
+    - claude-code-gemini-lite
+    - claude-code-mistral
+  - claude-code-llm7:
+    - claude-code-kilo-auto
+  - claude-code-kilo-auto:
+    - claude-code-kilo
+  - claude-code-kilo:
+    - claude-code-openrouter-nemotron
+  - router-kilo-free:
+    - claude-code-kilo-auto
+    - claude-code-kilo
+    - claude-code-llm7
+    - claude-code-openrouter-nemotron
+  - claude-code-gemini:
+    - claude-code-ovh-qwen38
+  - claude-code-ovh-qwen38:
+    - claude-code-horde
+  - router-ovh-free:
+    - claude-code-ovh-qwen38
+  - claude-code-horde: []
+  - router-horde-free:
+    - claude-code-horde
+  - claude-code-groq-oss: []
+  - router-groq-agent:
+    - claude-code-groq-oss
+    - claude-code-nvidia
+    - claude-code-horde
+  - router-shadow-free:
+    - claude-code-groq-oss
+    - claude-code-kilo-auto
+    - claude-code-kilo
+    - claude-code-openrouter-nemotron
+    - claude-code-gemini-lite
+    - claude-code-nvidia
+    - claude-code-cloudflare
+    - router-requesty-nemotron-free
+    - claude-code-gonka-glm53-free
+    - claude-code-bazaarlink-nemotron-free
+    - claude-code-llm7
+    - claude-code-horde
+  - claude-code-gonka-glm53-anthropic:
+    - claude-code-nvidia
+    - claude-code-horde
+  - claude-code-requesty-nemotron-free:
+    - claude-code-gonka-glm53-anthropic
+    - claude-code-nvidia
+    - claude-code-horde
+litellm_settings:
+  drop_params: true
+  request_timeout: 90
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
