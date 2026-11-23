@@ -15,7 +15,6 @@
 [![API](https://img.shields.io/badge/API-OpenAI%20%2B%20Anthropic-111827)](#-uma-api-para-seus-agentes)
 [![Self-hosted](https://img.shields.io/badge/execução-local-16A34A)](#-comece-a-usar)
 [![GitHub stars](https://img.shields.io/github/stars/Ninja7z/shadow?style=flat)](https://github.com/Ninja7z/shadow/stargazers)
-[![License](https://img.shields.io/badge/license-consulte%20o%20repositório-lightgrey)](https://github.com/Ninja7z/shadow)
 
 [🇧🇷 Português](#-português) · [🇺🇸 English](#-english) · [Documentação](docs/)
 
@@ -25,7 +24,7 @@
 
 ## 🇧🇷 Português
 
-O **Shadow** é um gateway LLM local e multi provedores. Ele coloca uma camada única entre seus agentes de desenvolvimento e os serviços de IA, permitindo trocar modelos, organizar aliases e configurar fallbacks sem reconfigurar cada cliente.
+O **Shadow** é um gateway LLM local e multiprovedor. Ele coloca uma camada única entre seus agentes de desenvolvimento e os serviços de IA, permitindo trocar modelos, organizar aliases e configurar fallbacks sem reconfigurar cada cliente.
 
 Use modelos locais com Ollama, conecte provedores gratuitos ou adicione suas próprias APIs pagas. Você controla as credenciais, os provedores e as rotas.
 
