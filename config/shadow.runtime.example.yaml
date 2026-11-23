@@ -343,6 +343,12 @@ router_settings:
     - claude-code-gonka-glm53-anthropic
     - claude-code-nvidia
     - claude-code-horde
+  - router-requesty-nemotron-free:
+    - router-cloudflare
+    - claude-code-gonka-glm53-free
+    - claude-code-bazaarlink-nemotron-free
+    - claude-code-llm7
+    - claude-code-horde
 litellm_settings:
   drop_params: true
   request_timeout: 90
