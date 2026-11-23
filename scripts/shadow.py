@@ -22,6 +22,7 @@ def write_env(values):
  try: ENV_FILE.chmod(0o600)
  except OSError: pass
 def pybin(): return VENV/('Scripts/python.exe' if WINDOWS else 'bin/python')
+def litellm_bin(): return VENV/('Scripts/litellm.exe' if WINDOWS else 'bin/litellm')
 def ensure_venv():
  if not pybin().exists(): subprocess.run([sys.executable,'-m','venv',str(VENV)],check=True)
  subprocess.run([str(pybin()),'-m','pip','install','--upgrade','pip'],check=True)
@@ -107,7 +108,7 @@ def start(args):
  values=read_env()
  if not values.get('LITELLM_MASTER_KEY'): print('Chave local ausente. Execute setup.'); return 2
  env=os.environ.copy(); env.update(values)
- cmd=[str(pybin()),'-m','litellm','--config',str(LOCAL_CONFIG),'--host','127.0.0.1','--port',str(args.port)]
+ cmd=[str(litellm_bin()),'--config',str(LOCAL_CONFIG),'--host','127.0.0.1','--port',str(args.port)]
  print(f'Shadow API em http://127.0.0.1:{args.port}; Ctrl+C encerra.')
  return subprocess.call(cmd,cwd=ROOT,env=env)
 def main():
