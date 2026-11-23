@@ -120,7 +120,7 @@ def main():
  # All YAML parsing and runtime commands are delegated to the isolated venv.
  if args.command != '_finish_setup' and pybin().exists():
   try:
-   if Path(sys.executable).resolve() != pybin().resolve():
+   if Path(sys.prefix).resolve() != VENV.resolve():
     return subprocess.call([str(pybin()),str(ROOT/'scripts'/'shadow.py'),*sys.argv[1:]],cwd=ROOT)
   except OSError:
    pass
