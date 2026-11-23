@@ -221,6 +221,14 @@ Leia também a [Política de segurança](SECURITY.pt-BR.md).
 
 > **Transparência sobre o modo gratuito:** o Shadow não fornece chaves compartilhadas, hospedagem de inferência ou cotas gratuitas ilimitadas. Cada pessoa usa suas próprias contas e credenciais nos provedores remotos. O modo local com Ollama utiliza os recursos da própria máquina.
 
+## ⚖️ Licença
+
+A Shadow usa uma **licença personalizada de uso pessoal e não comercial**. É permitido clonar, estudar, modificar e executar o projeto para uso pessoal. Uso empresarial/profissional, revenda, hospedagem como serviço e incorporação em produtos comerciais não são permitidos sem autorização comercial escrita.
+
+A licença da Shadow não substitui os termos de terceiros: cada provedor, API, modelo, SDK e serviço conectado mantém suas próprias licenças, cotas, preços e políticas. Uma autorização comercial de um provedor não concede autorização comercial para a Shadow.
+
+**Atenção:** por restringir o uso comercial, esta licença não é uma licença open source aprovada pela OSI. O projeto é source-available sob licença restritiva de uso pessoal. Consulte [Licença (PT-BR)](docs/pt-BR/licenca.md) e o arquivo [LICENSE](LICENSE).
+
 ## 📚 Documentação
 
 - [Gateway unificado](docs/pt-BR/gateway-unificado.md)
@@ -355,6 +363,14 @@ git diff --cached
 ```
 
 See [SECURITY.md](SECURITY.md).
+
+## ⚖️ License
+
+Shadow is distributed under a **custom personal, non-commercial license**. You may clone, study, modify and run the project for personal use. Business/professional use, resale, hosted-service use and incorporation into commercial products are prohibited unless a separate written commercial permission is granted.
+
+The Shadow license does not replace third-party terms: each provider, API, model, SDK and connected service retains its own licenses, quotas, prices and policies. A provider's commercial permission does not grant commercial rights to Shadow.
+
+**Note:** because commercial use is restricted, this is not an OSI-approved open-source license. Shadow is source-available under a restrictive personal-use license. See [License details](LICENSE) and the [English self-hosting guide](docs/self-hosting.md).
 
 ### Documentation
 

@@ -1,0 +1,129 @@
+SHADOW PERSONAL USE LICENSE
+Version 1.0
+Copyright (c) 2026 cristnzx (Ninja7z). All rights reserved.
+
+IMPORTANT: THIS IS A CUSTOM, RESTRICTIVE, NON-COMMERCIAL LICENSE. IT IS NOT
+AN OPEN-SOURCE LICENSE AND DOES NOT GRANT COMMERCIAL USE.
+
+1. DEFINITIONS
+
+"Software" means the original Shadow source code, scripts, configuration
+templates, documentation and other materials in this repository that are
+owned by the Licensor. "Third-Party Materials" means software, SDKs, APIs,
+models, model weights, datasets, services, trademarks and other materials
+owned or licensed by parties other than the Licensor.
+
+"Personal Use" means use by a natural person solely for that person's own
+private, individual, non-commercial purposes, such as personal learning,
+evaluation, experimentation and hobby projects. Personal Use does not include
+use on behalf of an employer, client, business, institution or other
+organization.
+
+"Commercial Use" means any use for or in connection with commercial advantage
+or monetary compensation, whether or not a fee is charged directly. It
+includes, without limitation: use in business or professional operations;
+use for an employer or client; offering or operating a hosted, shared or
+managed API/service for others; selling, sublicensing or renting the Software;
+including it in a product or service offered commercially; monetizing a
+service or derivative work; and using it to provide paid consulting,
+development or other deliverables.
+
+2. LIMITED PERSONAL LICENSE
+
+Subject to compliance with this License, the Licensor grants each individual
+who lawfully obtains the Software a personal, worldwide, non-exclusive,
+non-transferable, royalty-free license to:
+
+(a) download, install, run and use the Software solely for Personal Use;
+(b) make and retain modifications and derivative works solely for Personal
+    Use; and
+(c) share copies, modified or unmodified, with other natural persons at no
+    charge, provided each recipient receives this License and may use the
+    copy only for their own Personal Use.
+
+Every copy or derivative shared under subsection (c) must retain the
+copyright notice and this License. No distribution or sharing is permitted
+for commercial advantage or monetary compensation.
+
+3. NO COMMERCIAL USE
+
+Commercial Use is strictly prohibited without a separate written commercial
+license signed by the Licensor.
+
+In particular, you may not use the Software in a company or business, for an
+employer or client, to operate a service for customers or other users, or as
+part of a commercial product or service, even when the Software itself is
+provided without charge.
+
+A separate written agreement is required for any permission outside Personal
+Use. No payment, provider subscription, API key, contribution, sponsorship or
+access to a public repository grants commercial rights in the Software.
+
+4. THIRD-PARTY MATERIALS AND PROVIDER TERMS
+
+This License applies only to the Software rights controlled by the Licensor.
+It does not grant rights to Third-Party Materials and does not replace,
+supersede or modify any third party's terms.
+
+Each provider, API, model, model weight, SDK, dataset, client application and
+other third-party component remains subject to its own license, terms of
+service, acceptable-use policy, rate limits, quotas, pricing and other
+conditions. You are responsible for reviewing and complying with those terms
+before connecting to or using a third-party service.
+
+A provider's permission for commercial use does not waive the Commercial Use
+restriction in this License. Conversely, this License does not authorize any
+use that a third-party provider or component prohibits.
+
+Provider names, logos and trademarks are the property of their respective
+owners. No trademark or endorsement rights are granted by this License.
+
+5. RESTRICTIONS
+
+Except for the limited permissions expressly granted above, you may not:
+(a) use the Software for Commercial Use;
+(b) sell, rent, lease, sublicense or commercially distribute the Software;
+(c) offer the Software as a hosted, managed or shared service to others;
+(d) remove or alter copyright, attribution or license notices; or
+(e) claim that the Licensor endorses you, your fork, product or service.
+
+6. CONTRIBUTIONS
+
+Unless a contribution is accompanied by a different written license from its
+copyright holder, contributions submitted to the project are provided under
+this License to the extent the contributor owns or controls the relevant
+rights. Contributors retain ownership of their contributions.
+
+7. TERMINATION
+
+The permissions granted by this License terminate automatically if you
+materially breach its terms. Upon termination, you must stop using and
+sharing the Software and destroy copies in your possession, except to the
+extent retention is required by applicable law. The Licensor may reinstate
+permission in a separate written notice.
+
+8. DISCLAIMER OF WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, TITLE AND NON-INFRINGEMENT, TO THE MAXIMUM EXTENT PERMITTED BY LAW.
+THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE OR ANY PROVIDER, MODEL, API,
+ROUTE OR INTEGRATION WILL BE AVAILABLE, ACCURATE, SECURE OR ERROR-FREE.
+
+9. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE FOR
+ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, CONSEQUENTIAL OR PUNITIVE
+DAMAGES, OR ANY LOSS OF DATA, PROFITS, REVENUE, GOODWILL OR SERVICE, ARISING
+OUT OF OR RELATED TO THE SOFTWARE OR THIS LICENSE. NOTHING IN THIS LICENSE
+EXCLUDES LIABILITY THAT CANNOT LAWFULLY BE EXCLUDED.
+
+10. GENERAL
+
+This License is not an offer of commercial rights. Any exception or
+commercial permission must be in a separate written agreement signed by the
+Licensor. If any provision is held unenforceable, the remaining provisions
+remain in effect. This License does not limit rights that cannot be limited
+under applicable law.
+
+END OF LICENSE

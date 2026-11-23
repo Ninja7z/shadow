@@ -1,5 +1,7 @@
 # Run your own Shadow API
 
+> **License notice:** Shadow is available under a custom personal, non-commercial license. Cloning, studying, modifying and running it for personal use is permitted. Business/professional use, resale, hosted services for others and incorporation into commercial products/services are prohibited without separate written permission. See the root LICENSE file. This restriction applies to Shadow itself; every provider, API, model and SDK has separate terms that must also be followed. A provider's commercial terms do not override Shadow's non-commercial license.
+
 Shadow is designed to be cloned and run by its owner. The gateway software and configuration are free; you do not need a Shadow account, a hosted Shadow server, or someone else's API key.
 
 There are two ways to get inference:

@@ -1,5 +1,9 @@
 # Execute sua própria API Shadow
 
+> **Aviso de licença:** a Shadow permite apenas uso pessoal e não comercial. Uso empresarial/profissional, revenda, hospedagem para terceiros e incorporação em produtos ou serviços comerciais exigem autorização comercial escrita. Consulte o arquivo LICENSE e a [explicação em português](licenca.md). Essa licença cobre a Shadow; cada provedor, API, modelo e SDK mantém seus próprios termos, que também devem ser respeitados.
+
+
+
 O Shadow foi projetado para ser clonado e executado pelo próprio usuário. O software do gateway e sua configuração são gratuitos: você não precisa de uma conta Shadow, de um servidor Shadow hospedado ou da chave de API de outra pessoa.
 
 Há duas formas de obter inferência:
