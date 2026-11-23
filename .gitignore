@@ -45,3 +45,11 @@ google-cloud-cli-*.tar.gz
 config/shadow.yaml
 config/runtime.yaml
 config/local/
+
+# Timestamped backups and generated snapshots
+*.before-*
+*.bak
+*.bak.*
+*.backup
+*.backup.*
+*.old
