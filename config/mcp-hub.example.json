@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "${SHADOW_GITHUB_AUTH}"
+      }
+    },
+    "runcrate": {
+      "type": "http",
+      "url": "https://mcp.runcrate.ai/mcp",
+      "oauth": {
+        "mode": "dcr",
+        "grant": "authorization_code"
+      }
+    }
+  }
+}

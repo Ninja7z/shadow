@@ -106,3 +106,7 @@ Inference tests can consume free quotas, so do not run them as a frequent health
 Unit tests:
 
     python3 -m unittest discover -s tests -v
+
+## Single MCP aggregation
+
+Claude Code now connects to one active local MCP named shadow, which aggregates GitHub and Runcrate (46 + 60 upstream tools) behind six discovery/forwarding meta-tools. Setup, OAuth renewal, compatibility patches and security boundaries are documented in docs/mcp-hub.md. The reproducible patch script is scripts/patch-mcp-hub-compat.mjs.

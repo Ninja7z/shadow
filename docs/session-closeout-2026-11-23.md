@@ -69,3 +69,18 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 - Final test results: 8/8 unit tests; 9/9 safe GET checks; 4/4 Chat Completions tool calls; Requesty Anthropic tool_use passed; Gonka Anthropic tool_use passed.
 - A first Anthropic sweep exposed that a short GET timeout was reused for inference and Anthropic-only mode inadvertently ran Chat Completions checks. Both issues were fixed and covered by tests: inference now has a separate 35-second default, provider selection can target only Requesty or Gonka, and Anthropic-only mode does not trigger Chat Completions calls.
 - BazaarLink key metadata at the final safe check reported requests_today=5 and limit_remaining=10. Avoid frequent inference tests; safe mode is GET-only.
+
+## MCP consolidation completed — 2026-11-23 15:xx -0300
+
+- Installed and pinned @ni-c/mcp-hub 0.13.1 under ~/.local/share/shadow-mcp-hub.
+- Claude Code now has one active MCP server: shadow (stdio).
+- The old Runcrate MCP connector and temporary shadow-hub-login connector were removed from Claude Code user config.
+- The old GitHub connector remains only as a disabled credential source for the current known project paths (/home/mint and /home/mint/Desktop/shadow). The local wrapper reads its Authorization header at process start; it does not print or duplicate the token.
+- GitHub and Runcrate are upstreams inside the Shadow Hub. The hub exposes six meta-tools: list_servers, list_tools, get_tool_schema, call_tool, wake_server and sleep_server.
+- Verified upstream counts: GitHub 46 tools; Runcrate 60 tools; total 106.
+- Verified forwarding after the temporary HTTP panel was stopped: GitHub search_repositories found Ninja7z/shadow; Runcrate list_gpu_types returned 162 entries.
+- Added repeatable setup and repair files: scripts/patch-mcp-hub-compat.mjs, scripts/shadow-mcp-hub.sh, scripts/shadow-mcp-admin.sh, config/mcp-hub.example.json and docs/mcp-hub.md.
+- Pinned MCP Hub compatibility patches: bind HTTP admin/OAuth listener to 127.0.0.1; pass DATA_PATH into stdio so the OAuth token store is reused; skip unsupported periodic ping for Runcrate 1.5.1, which otherwise disconnects despite successful tool calls.
+- Runcrate authorization is active until 2027-02-21T18:45:25Z. The provider did not return a refresh token; reauthorize before expiry. No automatic refresh is claimed.
+- Temporary HTTP listener on 127.0.0.1:7690 was stopped after authorization. The normal stdio Shadow connection continues working without it.
+- Upstream OAuth state and access token remain local in ~/.config/shadow/mcp-hub/data/state.json (mode 700 directory). Never commit this state, bootstrap.env, or .claude.json.
