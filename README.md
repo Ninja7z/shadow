@@ -1,22 +1,26 @@
 <!--
   Shadow · README
-  Keep provider availability, model counts and smoke-test claims in sync with the repository.
+  Keep this page aligned with scripts/shadow.py, config/providers.catalog.yaml
+  and the public documentation. Do not publish maintainer credentials or
+  private runtime inventories here.
 -->
 
 <div align="center">
 
 # ◈ Shadow
 
-### Um gateway local para todas as suas IAs.
+### Sua central local de provedores de IA.
 
-**Uma única API. Vários provedores. Seus agentes de código, suas regras.**
+**Uma API para seus agentes. Seus provedores. Suas regras.**
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![API](https://img.shields.io/badge/API-OpenAI%20%2B%20Anthropic-111827)](#-uma-api-para-seus-agentes)
-[![Self-hosted](https://img.shields.io/badge/execução-local-16A34A)](#-comece-a-usar)
+[![Gateway](https://img.shields.io/badge/Gateway-LiteLLM-111827)](https://docs.litellm.ai/)
+[![Protocols](https://img.shields.io/badge/API-OpenAI%20%2B%20Anthropic-2563EB)](#-uma-api-para-seus-clientes)
+[![Self-hosted](https://img.shields.io/badge/execução-self--hosted-16A34A)](#-instalação)
+[![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Ninja7z/shadow?style=flat)](https://github.com/Ninja7z/shadow/stargazers)
 
-[🇧🇷 Português](#-português) · [🇺🇸 English](#-english) · [Documentação](docs/)
+[🇧🇷 Português](#-português) · [🇺🇸 English](#-english) · [Documentação](#-documentação)
 
 </div>
 
@@ -24,242 +28,317 @@
 
 ## 🇧🇷 Português
 
-O **Shadow** é um gateway LLM local e multiprovedor. Ele coloca uma camada única entre seus agentes de desenvolvimento e os serviços de IA, permitindo trocar modelos, organizar aliases e configurar fallbacks sem reconfigurar cada cliente.
+Shadow é um gateway de IA **local, self-hosted e multiprovedor**. Ele fica entre seus clientes/agentes e os provedores de modelos, oferecendo uma API unificada compatível com os formatos OpenAI e Anthropic Messages.
 
-Use modelos locais com Ollama, conecte provedores gratuitos ou adicione suas próprias APIs pagas. Você controla as credenciais, os provedores e as rotas.
+Em vez de configurar cada agente com várias chaves e endpoints, você conecta os clientes ao Shadow. O gateway mantém as credenciais dos provedores, disponibiliza aliases estáveis e encaminha as requisições para os modelos configurados.
 
-> **A proposta:** seus agentes falam com o Shadow. O Shadow decide para onde cada requisição vai.
+**Use Ollama localmente, conecte provedores com cotas gratuitas ou adicione suas próprias APIs pagas e endpoints personalizados.** Você escolhe o que habilitar.
 
-## ✦ O que você ganha
+> O Shadow é o gateway, não um serviço de inferência hospedado. Cada instalação usa seus próprios modelos locais e/ou suas próprias contas e credenciais de provedores.
 
-| Recurso | O que faz |
+## ✦ O que o Shadow oferece
+
+| Recurso | Como funciona |
 | --- | --- |
-| **Uma API, vários provedores** | Endpoint local compatível com OpenAI e Anthropic Messages. |
-| **Liberdade de clientes** | Integração com OpenCode, Cline, Continue, Aider, Claude Code e outros clientes compatíveis. |
-| **Aliases de modelos** | Use nomes estáveis sem espalhar IDs e configurações de provedores pelos clientes. |
-| **Fallback automático** | Encaminha requisições para alternativas configuradas quando uma rota falha. |
-| **Local-first** | Use Ollama sem depender de uma API remota para inferência local. |
-| **Credenciais isoladas** | As chaves dos provedores ficam no ambiente privado do gateway, não nos agentes. |
+| **API unificada** | Um gateway local com endpoints compatíveis com OpenAI e Anthropic Messages. |
+| **Vários provedores** | Centraliza modelos locais, provedores remotos e endpoints personalizados. |
+| **Aliases estáveis** | Clientes usam nomes como `shadow-local`, `shadow-auto` e aliases de provedores, sem precisar conhecer cada integração. |
+| **Fallback configurável** | Encaminha para alternativas habilitadas e mantém o modelo local como fallback final. |
+| **Local-first** | Ollama permite inferência na própria máquina, sem API remota. |
+| **Credenciais centralizadas** | Chaves upstream ficam no ambiente privado do gateway, não espalhadas pelos agentes. |
+| **Compatibilidade de clientes** | Pode ser usado por clientes que aceitam endpoints OpenAI-compatible ou Anthropic. |
+| **Configuração extensível** | Catálogo de provedores e suporte a endpoints OpenAI/Anthropic personalizados. |
 
-## ⌘ Uma API para seus agentes
+## ⌘ Uma API para seus clientes
 
-O gateway LiteLLM local escuta, por padrão, em `127.0.0.1:4000`.
+O gateway é operado pelo [LiteLLM Proxy](https://docs.litellm.ai/) e, por padrão, escuta somente em `127.0.0.1:4000`.
 
-| Protocolo | Endpoint |
+| Protocolo | Endpoint / Base URL |
 | --- | --- |
 | OpenAI-compatible | `http://127.0.0.1:4000/v1` |
+| OpenAI Chat Completions | `http://127.0.0.1:4000/v1/chat/completions` |
+| OpenAI Responses | `http://127.0.0.1:4000/v1/responses` |
 | Anthropic Messages | `http://127.0.0.1:4000/v1/messages` |
+| Catálogo de modelos | `http://127.0.0.1:4000/v1/models` |
 
-Use a **chave mestra local do Shadow** como credencial nos clientes. Nunca coloque chaves upstream de provedores nas configurações dos agentes.
+Para clientes OpenAI-compatible, use a Base URL terminada em `/v1`. Para clientes Anthropic que acrescentam `/v1/messages` automaticamente, use `http://127.0.0.1:4000` como Base URL.
 
-Clientes que podem apontar para esse gateway:
+Use a chave local `LITELLM_MASTER_KEY` gerada durante a instalação. **Nunca coloque as chaves dos provedores upstream nas configurações dos agentes.**
 
-<div align="center">
+Clientes compatíveis incluem OpenCode, Cline, Kilo Code, Continue, Aider e Claude Code. A configuração exata varia conforme o cliente e o protocolo escolhido.
 
-**OpenCode** · **Cline** · **Kilo Code** · **Continue** · **Aider** · **Claude Code**
-
-</div>
-
-## 🚀 Comece a usar
+## 🚀 Instalação
 
 ### Requisitos
 
-- Python **3.11 ou superior**
-- [Ollama](https://ollama.com/) para inferência local
-- Credenciais próprias apenas para os provedores remotos que você decidir conectar
+- Python **3.11 ou superior**.
+- Internet para instalar as dependências e baixar modelos.
+- [Ollama](https://ollama.com/) se quiser inferência local.
+- Chaves próprias somente para os provedores remotos que decidir conectar.
 
-### Instalação rápida
+### 1. Clone o repositório
 
 ```bash
 git clone https://github.com/Ninja7z/shadow.git
 cd shadow
+```
 
+### 2. Prepare sua instalação
+
+```bash
 python scripts/shadow.py setup
+```
+
+O comando prepara um ambiente Python isolado em `.venv`, instala as dependências, cria o arquivo privado `.env`, gera uma chave mestra local e monta a configuração inicial em `config/shadow.yaml`.
+
+A configuração inicial não exige chave de provedor remoto.
+
+### 3. Inicie com Ollama (opcional)
+
+Instale o Ollama e baixe um modelo:
+
+```bash
 ollama pull llama3.2:3b
+```
+
+### 4. Inicie o gateway
+
+```bash
 python scripts/shadow.py start
 ```
 
-O comando `setup` prepara um ambiente Python isolado, gera uma chave local aleatória e cria a configuração privada de runtime. Depois de iniciar, a API fica disponível em `127.0.0.1:4000`.
+A API estará disponível em `http://127.0.0.1:4000`. O gateway fica vinculado ao loopback por padrão, não exposto à rede local ou à internet.
 
-**Quer usar apenas modelos locais?** O Ollama não exige chave de API remota nem gera cobrança de inferência em nuvem. O processamento usa o hardware e a energia da sua própria máquina.
+### 5. Valide a instalação
 
-### Adicionar provedores
+Em outro terminal:
 
-1. Configure as variáveis necessárias no arquivo privado `.env`.
-2. Atualize a configuração executando:
+```bash
+python scripts/shadow.py validate
+curl http://127.0.0.1:4000/health/liveliness
+curl http://127.0.0.1:4000/v1/models \
+  -H "Authorization: Bearer SUA_LITELLM_MASTER_KEY"
+```
+
+A chave é gerada no seu `.env` privado. Não a publique nem a compartilhe.
+
+## 🧠 Provedores e modelos
+
+O catálogo inicial em `config/providers.catalog.yaml` inclui integrações para:
+
+| Provedor | Acesso indicado no catálogo |
+| --- | --- |
+| Google Gemini | Cota gratuita e planos pagos |
+| Groq | Cota gratuita e planos pagos |
+| OpenRouter | Modelos gratuitos e pagos |
+| Hugging Face | Créditos e planos pagos |
+| Requesty | Cota gratuita e planos pagos |
+| Gonka Broker | Cota gratuita |
+| BazaarLink | Cota gratuita |
+| Cloudflare Workers AI | Cota diária gratuita e uso pago |
+| DeepSeek | Pago |
+| Mistral | Teste gratuito e planos pagos |
+| OpenAI | Pago |
+| Anthropic | Pago |
+
+Essas classificações descrevem o tipo de acesso indicado no catálogo, **não garantem disponibilidade, elegibilidade, preço ou cota para sua conta**. Planos, modelos, limites e políticas podem mudar. Confirme as condições diretamente com cada provedor.
+
+### Ativar um provedor
+
+1. Abra o arquivo privado `.env`.
+2. Preencha a variável de ambiente correspondente ao provedor desejado.
+3. Para Cloudflare Workers AI, informe também `CLOUDFLARE_ACCOUNT_ID`.
+4. Gere novamente a configuração:
 
 ```bash
 python scripts/shadow.py refresh
 ```
 
-Provedores pagos ficam fora do alias `shadow-auto` por padrão. Também é possível conectar endpoints próprios compatíveis com OpenAI ou Anthropic usando as famílias `CUSTOM_OPENAI_*` e `CUSTOM_ANTHROPIC_*`.
+5. Reinicie o Shadow para carregar a configuração atualizada.
 
-Consulte [Auto-hospedagem e provedores](docs/pt-BR/auto-hospedagem.md) para os detalhes de configuração.
-
-## 🧭 Rotas e fallback
-
-O roteador pode combinar aliases e cadeias de fallback para manter um destino alternativo disponível quando um provedor falhar ou atingir limites.
-
-A cadeia gratuita de chat atualmente configurada no ambiente do mantenedor prioriza opções com cotas maiores ou mais amplamente disponíveis:
-
-```text
-Groq OSS
-  → Kilo Auto
-  → Kilo
-  → OpenRouter Nemotron
-  → Gemini Flash-Lite
-  → NVIDIA
-  → Cloudflare Workers AI
-  → Requesty
-  → Gonka
-  → BazaarLink
-  → LLM7
-  → AI Horde
-```
-
-Há também fallbacks específicos para determinadas rotas, incluindo tratamento de erros HTTP 429. As cadeias devem respeitar o protocolo: uma rota somente OpenAI não deve ser usada como fallback de uma cadeia Anthropic Messages.
-
-<details>
-<summary><strong>Rotas gratuitas verificadas no ambiente do mantenedor</strong></summary>
-
-Estas rotas foram verificadas usando as contas do mantenedor. **Elas não são configuradas automaticamente para quem clona o repositório.**
-
-| Provedor | Modelo verificado | Interfaces / recursos |
-| --- | --- | --- |
-| Requesty | `nvidia/nemotron-3.5-lightning-30b-a3b` | Chat Completions, Anthropic Messages e chamadas de ferramentas estruturadas; custo reportado de US$ 0 |
-| Cloudflare Workers AI | `@cf/zai-org/glm-4.7-flash` | Chat Completions e chamadas de ferramentas estruturadas |
-| Gonka Broker | `zai-org/GLM-5.3-Flash` | Chat Completions, Anthropic Messages nativas e chamadas de ferramentas estruturadas |
-| BazaarLink | `nvidia/nemotron-3.5-lightning-free:free` | Chat Completions e chamadas de ferramentas estruturadas; preço de catálogo US$ 0 / US$ 0 |
-
-Cotas, preços e disponibilidade podem mudar. Confira sempre o painel e o catálogo atual de cada provedor antes de depender de uma rota.
-
-</details>
-
-## 🔌 Integrações especiais
-
-### Claude Code
-
-O Shadow inclui lançadores locais dedicados:
-
-- `claude-requesty`
-- `claude-gonka`
-- `claude-nvidia`
-
-O template versionado fica em `scripts/claude-route.sh`. Ele gera configurações privadas para o seletor de modelos, preserva o alias enviado ao Shadow e aplica limites conservadores à compactação de contexto.
-
-Veja [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md).
-
-### Hub MCP
-
-Claude Code, OpenCode e Cline podem se conectar ao mesmo servidor MCP local chamado `shadow`. Ele agrega GitHub, Runcrate, Mistral, Hugging Face, Cloudflare Docs e Cloudflare API: **208 ferramentas em seis integrações upstream**, organizadas por ferramentas de descoberta e encaminhamento.
-
-A API de modelos e o MCP Hub são, atualmente, processos e endpoints separados. Essa separação é intencional no estado atual do projeto.
-
-Veja [Hub MCP](docs/pt-BR/hub-mcp.md).
-
-## 🧪 Testes
-
-Verificação segura de saúde: usa requisições GET, não executa inferência e não consome tokens de modelos.
+Para ver os provedores opcionais e o estado das variáveis locais:
 
 ```bash
-python3 scripts/smoke_test.py
+python scripts/shadow.py configure
 ```
 
-Teste de chamadas de ferramentas estruturadas em provedores Chat Completions:
+Somente provedores marcados com `auto_fallback: true` no catálogo entram na cadeia automática quando suas credenciais necessárias estão configuradas. Os demais ficam disponíveis por alias, para seleção manual. O modelo local permanece como fallback final.
 
-```bash
-python3 scripts/smoke_test.py --tool-calls
+### Conectar qualquer endpoint compatível
+
+Não encontrou seu provedor no catálogo? Configure um endpoint próprio no `.env`.
+
+OpenAI-compatible:
+
+```env
+CUSTOM_OPENAI_API_KEY=sua-chave
+CUSTOM_OPENAI_BASE_URL=https://seu-endpoint/v1
+CUSTOM_OPENAI_MODEL=nome-do-modelo
 ```
 
-Teste do fluxo de ferramentas Anthropic Messages:
+Anthropic Messages-compatible:
 
-```bash
-python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
-python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
+```env
+CUSTOM_ANTHROPIC_API_KEY=sua-chave
+CUSTOM_ANTHROPIC_BASE_URL=https://seu-endpoint
+CUSTOM_ANTHROPIC_MODEL=nome-do-modelo
 ```
 
-Testes de inferência podem consumir cotas gratuitas. Não os use como monitor de saúde frequente. Consulte [Testes de diagnóstico](docs/pt-BR/testes-smoke.md) para detalhes, timeouts e observações sobre cotas.
+Depois execute `python scripts/shadow.py refresh`. Os aliases serão `shadow-custom-openai` e `shadow-custom-anthropic`, respectivamente. Rotas personalizadas são manuais por padrão e não entram automaticamente no fallback.
+
+## 🔁 Roteamento e fallback
+
+O Shadow oferece dois aliases principais desde a configuração inicial:
+
+- **`shadow-local`**: modelo local configurado via Ollama.
+- **`shadow-auto`**: rota automática, que usa os provedores remotos explicitamente habilitados para fallback e termina no modelo local.
+
+A cadeia automática é montada a partir das credenciais presentes no seu próprio `.env` e das entradas marcadas com `auto_fallback: true` no catálogo. Ela não depende das contas privadas do mantenedor e não inclui automaticamente todos os provedores.
+
+Mantenha as rotas de fallback compatíveis com o protocolo do cliente. Nem todo provedor oferece os mesmos recursos: tool calling, streaming, visão, raciocínio, cache, contexto e suporte Anthropic podem variar por modelo.
+
+## 🧩 Hub MCP
+
+Além da API de modelos, o projeto possui um **MCP Hub local** para agregar ferramentas de serviços externos e compartilhá-las entre clientes compatíveis com MCP.
+
+O Hub e o gateway de modelos são componentes separados:
+
+- **API de modelos:** LiteLLM, endpoints HTTP na porta `4000`.
+- **MCP Hub:** servidor local via stdio, com configuração e credenciais próprias.
+
+A instalação básica do gateway (`setup`) não configura automaticamente contas OAuth, tokens ou clientes MCP. Consulte o guia do Hub para instalar e autorizar as integrações desejadas. O estado e as credenciais MCP são específicos de cada máquina.
+
+## 🧰 Claude Code
+
+O repositório inclui um template de lançador para usar rotas do Shadow com Claude Code:
+
+- `scripts/claude-route.sh`
+
+Consulte [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md) para requisitos, configuração e limitações. O login do Claude Code e o uso do gateway Shadow são formas diferentes de autenticação; evite configurar simultaneamente credenciais incompatíveis na mesma sessão.
+
+## 🧪 Testes e diagnóstico
 
 Testes unitários:
 
 ```bash
-python3 -m unittest discover -s tests -v
+python -m unittest discover -s tests -v
 ```
 
-## 🗂️ Estrutura do projeto
+Verificação segura de saúde:
+
+```bash
+python scripts/smoke_test.py
+```
+
+O smoke test padrão verifica endpoints e estado do gateway sem executar inferência. Testes de tool calling e Anthropic Messages podem fazer requisições reais e consumir cotas:
+
+```bash
+python scripts/smoke_test.py --tool-calls
+python scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
+python scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
+```
+
+Use esses testes de inferência conscientemente. Não os execute repetidamente como monitor de saúde.
+
+## 🗂️ Estrutura do repositório
 
 | Caminho | Conteúdo |
 | --- | --- |
-| `config/shadow.example.yaml` | Exemplo mínimo de provedores e fallbacks. |
-| `config/shadow.runtime.example.yaml` | Snapshot sanitizado do roteador do mantenedor: 48 aliases e 37 grupos de fallback. |
-| `docs/` | Documentação, status de provedores, cotas e guias operacionais. |
-| `scripts/` | Setup, validação, lançadores e manutenção. |
+| `scripts/shadow.py` | CLI de instalação, configuração, validação e inicialização. |
+| `config/shadow.example.yaml` | Configuração inicial local-first. |
+| `config/providers.catalog.yaml` | Catálogo de integrações opcionais. |
+| `config/shadow.runtime.example.yaml` | Exemplo sanitizado de configuração de roteamento. |
+| `scripts/smoke_test.py` | Verificações e testes de integração. |
+| `scripts/claude-route.sh` | Template de integração com Claude Code. |
+| `scripts/shadow-mcp-hub.sh` | Lançador do MCP Hub. |
+| `docs/` | Guias de instalação, provedores, MCP, testes e operação. |
 | `tests/` | Testes automatizados. |
-| `.env.example` | Nomes das variáveis de ambiente, sem valores secretos. |
-
-O snapshot de runtime é apenas uma referência sanitizada. Credenciais são lidas do ambiente e o ID da conta Cloudflare é um placeholder.
+| `.env.example` | Nomes das variáveis de ambiente, sem credenciais. |
 
 ## 🔐 Segurança e privacidade
 
-O repositório público deve conter apenas código, templates e documentação.
+- Mantenha `.env`, `.venv/`, `config/shadow.yaml`, tokens, estados OAuth e arquivos de runtime fora do Git.
+- Nunca publique chaves de API, tokens de acesso, cookies, arquivos de sessão ou backups de credenciais.
+- Revise `git status` e `git diff --cached` antes de cada commit.
+- O gateway inicia em `127.0.0.1`. Não o exponha diretamente à rede ou à internet sem autenticação adequada, TLS, limites de taxa e configuração segura.
+- Não compartilhe a chave mestra administrativa com agentes ou usuários não confiáveis. Para cenários multiusuário, planeje autenticação e chaves virtuais dedicadas.
+- Provedores remotos recebem as requisições encaminhadas a eles. Consulte as políticas de privacidade e retenção de cada serviço antes de enviar dados sensíveis.
 
-**Nunca envie para o Git:**
+### Sem promessas de API grátis ilimitada
 
-- Chaves de API e tokens de acesso/autenticação
-- Arquivos `.env`, `*.env`, `providers.env`, `extra-providers.env` e configurações privadas
-- Backups, logs, bancos de dados ou arquivos de modelos
-- Estado de runtime ou dados de contas
-
-Antes de cada commit, revise:
-
-```bash
-git status
-git diff --cached
-```
-
-Leia também a [Política de segurança](SECURITY.pt-BR.md).
-
-> **Transparência sobre o modo gratuito:** o Shadow não fornece chaves compartilhadas, hospedagem de inferência ou cotas gratuitas ilimitadas. Cada pessoa usa suas próprias contas e credenciais nos provedores remotos. O modo local com Ollama utiliza os recursos da própria máquina.
+O Shadow não fornece chaves compartilhadas, hospedagem de inferência nem cotas gratuitas próprias. Você conecta suas contas e credenciais aos provedores que escolher. O modo Ollama processa localmente, usando hardware, armazenamento e energia da sua máquina.
 
 ## ⚖️ Licença
 
-A Shadow é distribuída sob a **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`), uma licença existente criada para software. Ela permite usar, modificar e compartilhar o código para finalidades não comerciais, incluindo estudo, experimentação, projetos pessoais e hobbies.
+O Shadow é distribuído sob a **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`).
 
-**A licença não se limita exclusivamente a pessoas físicas:** ela também permite usos por certas organizações não comerciais, como instituições beneficentes, educacionais, de pesquisa pública, saúde/segurança pública, proteção ambiental e órgãos governamentais. O uso comercial é proibido.
+Ela permite uso, modificação e distribuição para finalidades não comerciais. Inclui usos pessoais e também determinadas organizações não comerciais. **Uso comercial é proibido.** A licença não concede direitos sobre APIs, modelos, SDKs ou serviços de terceiros; cada provedor mantém seus próprios termos, licenças, preços e políticas.
 
-Os provedores continuam sujeitos aos próprios contratos e políticas. A licença da Shadow não concede direitos sobre APIs, modelos, pesos, SDKs ou serviços de terceiros, nem substitui os termos de cada provedor.
+- [Texto oficial da PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
+- [LICENSE do repositório](LICENSE)
+- [Explicação em português](docs/pt-BR/licenca.md)
 
-Consulte o [texto oficial da PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0), a [explicação em português](docs/pt-BR/licenca.md) e o arquivo [LICENSE](LICENSE).
+---
 
 ## 📚 Documentação
 
-- [Gateway unificado](docs/pt-BR/gateway-unificado.md)
-- [Auto-hospedagem e provedores](docs/pt-BR/auto-hospedagem.md)
+### Português
+
+- [Gateway unificado e endpoints](docs/pt-BR/gateway-unificado.md)
+- [Instalação, provedores e auto-hospedagem](docs/pt-BR/auto-hospedagem.md)
 - [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md)
 - [Hub MCP](docs/pt-BR/hub-mcp.md)
-- [Testes de diagnóstico](docs/pt-BR/testes-smoke.md)
+- [Testes smoke e diagnóstico](docs/pt-BR/testes-smoke.md)
+- [Licença](docs/pt-BR/licenca.md)
 - [Política de segurança](SECURITY.pt-BR.md)
+
+### English
+
+- [Unified gateway and API](docs/unified-gateway.md)
+- [Self-hosting and providers](docs/self-hosting.md)
+- [Claude Code integration](docs/claude-code.md)
+- [MCP Hub](docs/mcp-hub.md)
+- [Smoke tests and diagnostics](docs/smoke-tests.md)
+- [License](LICENSE)
+- [Security policy](SECURITY.md)
 
 ---
 
 ## 🇺🇸 English
 
-**Shadow** is a local, multi-provider LLM gateway. It gives coding agents one stable endpoint while routing requests to independently configured providers, local models and free-tier options.
+Shadow is a **local, self-hosted, multi-provider AI gateway**. It sits between your coding agents and model providers, exposing one API compatible with OpenAI and Anthropic Messages formats.
 
-Use Ollama for local inference, connect free providers, or add your own paid APIs. You control credentials, providers, aliases and fallback routes.
+Instead of configuring every agent with multiple provider keys and endpoints, point your clients to Shadow. The gateway keeps upstream credentials in a private environment, exposes stable model aliases and routes requests to the providers you enable.
 
-> **The idea:** your agents talk to Shadow. Shadow decides where each request goes.
+Use Ollama locally, connect providers with free tiers, or bring your own paid APIs and custom endpoints. You control what gets enabled.
+
+> Shadow is gateway software, not a hosted inference service. Each installation uses its own local models and/or its own provider accounts and credentials.
 
 ### Features
 
 | Feature | Description |
 | --- | --- |
-| **One API, multiple providers** | Local OpenAI-compatible and Anthropic Messages endpoints. |
-| **Client flexibility** | Works with OpenCode, Cline, Continue, Aider, Claude Code and other compatible clients. |
-| **Model aliases** | Keep stable model names without spreading provider-specific IDs across clients. |
-| **Fallback routing** | Route requests to configured alternatives when a provider fails. |
-| **Local-first inference** | Use Ollama without a remote inference API. |
-| **Credential isolation** | Provider keys stay in the gateway's private environment, not in agent configs. |
+| **Unified API** | One local gateway with OpenAI-compatible and Anthropic Messages endpoints. |
+| **Multiple providers** | Local models, remote providers and custom endpoints behind one interface. |
+| **Stable aliases** | Clients use aliases such as `shadow-local`, `shadow-auto` and provider-specific names. |
+| **Fallback routing** | Routes to enabled alternatives and keeps the local model as the final fallback. |
+| **Local-first** | Ollama runs inference on your own machine. |
+| **Credential isolation** | Upstream keys stay in the gateway's private environment, not in agent configs. |
+| **Extensible catalog** | Optional provider integrations and custom OpenAI/Anthropic-compatible endpoints. |
+
+### API endpoints
+
+The gateway is powered by [LiteLLM Proxy](https://docs.litellm.ai/) and listens on `127.0.0.1:4000` by default.
+
+| Protocol | Endpoint / Base URL |
+| --- | --- |
+| OpenAI-compatible | `http://127.0.0.1:4000/v1` |
+| OpenAI Chat Completions | `http://127.0.0.1:4000/v1/chat/completions` |
+| OpenAI Responses | `http://127.0.0.1:4000/v1/responses` |
+| Anthropic Messages | `http://127.0.0.1:4000/v1/messages` |
+| Model catalog | `http://127.0.0.1:4000/v1/models` |
+
+Use the local `LITELLM_MASTER_KEY` generated during setup. Never put upstream provider keys in your agents' configuration.
 
 ### Quick start
 
@@ -274,118 +353,91 @@ ollama pull llama3.2:3b
 python scripts/shadow.py start
 ```
 
-Setup creates an isolated Python environment, a random local gateway key and a private runtime configuration. The API listens on `127.0.0.1:4000`.
+Setup creates an isolated Python environment, a private `.env`, a random local master key and the initial runtime config. Ollama is optional; install it and pull a model only if you want local inference.
 
-Ollama requires no remote API key and has no cloud inference bill. It uses your own machine's hardware and electricity.
+Validate the setup:
 
-To add free or paid providers, configure the matching variables in your private `.env` file and run:
+```bash
+python scripts/shadow.py validate
+curl http://127.0.0.1:4000/health/liveliness
+```
+
+### Providers and custom endpoints
+
+The initial catalog includes Google Gemini, Groq, OpenRouter, Hugging Face, Requesty, Gonka Broker, BazaarLink, Cloudflare Workers AI, DeepSeek, Mistral, OpenAI and Anthropic.
+
+Access labels in the catalog describe the listed access model, not a guarantee of availability, price, quota or eligibility. Check each provider's current terms and dashboard.
+
+Add your own provider keys to the private `.env` file and regenerate the runtime configuration:
 
 ```bash
 python scripts/shadow.py refresh
 ```
 
-Paid providers are excluded from `shadow-auto` by default. Custom OpenAI-compatible and Anthropic Messages endpoints can be connected with `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*`. See [Self-hosting](docs/self-hosting.md).
+See which optional providers are configured:
 
-### API endpoints
-
-| Protocol | Endpoint |
-| --- | --- |
-| OpenAI-compatible | `http://127.0.0.1:4000/v1` |
-| Anthropic Messages | `http://127.0.0.1:4000/v1/messages` |
-
-Use the local Shadow master key as the client credential. Never put upstream provider keys in an agent's configuration.
-
-### Routing and verified free routes
-
-The maintainer's current free chat fallback chain prioritizes higher-allowance or broadly available options:
-
-```text
-Groq OSS → Kilo Auto → Kilo → OpenRouter Nemotron → Gemini Flash-Lite
-→ NVIDIA → Cloudflare Workers AI → Requesty → Gonka → BazaarLink
-→ LLM7 → AI Horde
+```bash
+python scripts/shadow.py configure
 ```
 
-The maintainer has verified routes for Requesty, Cloudflare Workers AI, Gonka Broker and BazaarLink. These use the maintainer's own accounts and **are not clone defaults**. Free quotas, prices and model availability can change; check each provider's current dashboard and catalog.
+Only catalog entries explicitly marked `auto_fallback: true` join the automatic fallback chain when their required credentials are present. Other providers remain manual-selection routes by default. The local model remains the final fallback.
 
-Fallback chains must remain protocol-compatible. An OpenAI-only route must not be inserted into an Anthropic Messages chain.
+For any OpenAI-compatible endpoint, set `CUSTOM_OPENAI_API_KEY`, `CUSTOM_OPENAI_BASE_URL` and `CUSTOM_OPENAI_MODEL`. For an Anthropic Messages-compatible endpoint, use `CUSTOM_ANTHROPIC_API_KEY`, `CUSTOM_ANTHROPIC_BASE_URL` and `CUSTOM_ANTHROPIC_MODEL`. Run `refresh` afterwards. Custom routes are manual by default.
 
-### Claude Code and MCP
+### MCP Hub
 
-Dedicated local Claude Code launchers are available: `claude-requesty`, `claude-gonka` and `claude-nvidia`. The versioned launcher template is `scripts/claude-route.sh`. See [Claude Code integration](docs/claude-code.md).
+The repository also includes a local MCP Hub for aggregating external tools and sharing them across MCP-compatible clients.
 
-Claude Code, OpenCode and Cline can connect to the same local MCP server, `shadow`, which aggregates GitHub, Runcrate, Mistral, Hugging Face, Cloudflare Docs and Cloudflare API: **208 tools across six upstream integrations**. The model API and MCP Hub currently run as separate protocol endpoints/processes. See [MCP Hub](docs/mcp-hub.md).
+The MCP Hub and model gateway are separate components:
+
+- **Model API:** LiteLLM HTTP endpoints on port `4000`.
+- **MCP Hub:** local stdio server with its own configuration and credentials.
+
+The basic gateway setup does not automatically configure OAuth accounts, tokens or MCP clients. See the [MCP Hub guide](docs/mcp-hub.md) before enabling it.
+
+### Claude Code
+
+A local launcher template is available at `scripts/claude-route.sh`. See [Claude Code integration](docs/claude-code.md) for setup and limitations.
 
 ### Tests
-
-Safe health check (GET requests only; no inference or model tokens):
-
-```bash
-python3 scripts/smoke_test.py
-```
-
-Structured tool-call inference:
-
-```bash
-python3 scripts/smoke_test.py --tool-calls
-```
-
-Anthropic Messages tool-use path:
-
-```bash
-python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
-python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
-```
-
-Inference tests can consume free quotas. Do not run them as frequent health checks. See [Smoke tests](docs/smoke-tests.md).
 
 Unit tests:
 
 ```bash
-python3 -m unittest discover -s tests -v
+python -m unittest discover -s tests -v
 ```
 
-### Repository layout
-
-- `config/shadow.example.yaml`: minimal provider/fallback example.
-- `config/shadow.runtime.example.yaml`: sanitized maintainer router snapshot (48 aliases / 37 fallback groups).
-- `docs/`: provider status, quota notes and operating guides.
-- `scripts/`: setup, validation, launchers and maintenance helpers.
-- `tests/`: automated tests.
-- `.env.example`: environment variable names, without secret values.
-
-### Security
-
-The public repository must contain templates, code and documentation only. Never commit API keys, account tokens, `.env` files, provider environment files, backups, logs, databases, model files or private runtime state.
-
-Review before every commit:
+Safe health checks:
 
 ```bash
-git status
-git diff --cached
+python scripts/smoke_test.py
 ```
 
-See [SECURITY.md](SECURITY.md).
+Tool-call and Anthropic Messages integration tests may make real inference requests and consume provider quotas:
 
-## ⚖️ License
+```bash
+python scripts/smoke_test.py --tool-calls
+python scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
+python scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
+```
 
-Shadow is distributed under the **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`), an existing license written for software. It permits using, modifying and sharing the code for noncommercial purposes, including personal study, experimentation, hobby projects and other personal uses.
+Do not run inference tests repeatedly as health monitoring.
 
-**The license is not limited exclusively to individuals:** it also permits use by certain noncommercial organizations, including charitable, educational, public research, public safety/health, environmental protection and government institutions. Commercial use is prohibited.
+### Security and privacy
 
-Providers remain subject to their own contracts and policies. The Shadow license grants no rights to third-party APIs, models, weights, SDKs or services and does not replace any provider's terms.
+Keep `.env`, `.venv/`, `config/shadow.yaml`, tokens, OAuth state and runtime files out of Git. Never commit API keys, access tokens, cookies, session files or credential backups.
 
-See the [official PolyForm Noncommercial 1.0.0 text](https://polyformproject.org/licenses/noncommercial/1.0.0), the [full LICENSE](LICENSE) and the [Portuguese explanation](docs/pt-BR/licenca.md).
+The gateway binds to loopback by default. Do not expose it directly to a network or the public internet without proper authentication, TLS, rate limits and a secure deployment configuration. Remote providers receive the requests routed to them; review each provider's privacy and retention terms before sending sensitive data.
 
-### Documentation
+Shadow does not provide shared API keys, hosted inference or unlimited free quotas. Users bring their own provider accounts. Ollama inference runs locally on the user's hardware.
 
-- [Unified gateway and API](docs/unified-gateway.md)
-- [Self-hosting and providers](docs/self-hosting.md)
-- [Claude Code integration](docs/claude-code.md)
-- [MCP Hub](docs/mcp-hub.md)
-- [Smoke tests and diagnostics](docs/smoke-tests.md)
-- [Security policy](SECURITY.md)
+### License
 
-**Free-tier transparency:** Shadow does not provide shared API keys, hosted inference or unlimited third-party free quotas. Each user brings their own provider accounts and credentials. Local Ollama inference uses the user's own hardware.
+Shadow is distributed under the **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`). It permits use, modification and distribution for noncommercial purposes, including personal use and certain noncommercial organizations. Commercial use is prohibited.
+
+The Shadow license does not grant rights to third-party APIs, models, SDKs or services. Each provider retains its own licenses, terms, prices and policies.
+
+See the [official license](https://polyformproject.org/licenses/noncommercial/1.0.0), [LICENSE](LICENSE) and [Portuguese explanation](docs/pt-BR/licenca.md).
 
 ---
 
