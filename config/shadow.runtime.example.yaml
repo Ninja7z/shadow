@@ -81,7 +81,7 @@ model_list:
   litellm_params:
     model: ollama/qwen3.5:4b
     api_base: http://127.0.0.1:11434
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/LOCAL_OLLAMA_API_KEY
 - model_name: claude-code-groq
   litellm_params:
     model: groq/qwen/qwen3.8-27b
@@ -106,7 +106,7 @@ model_list:
   litellm_params:
     model: openai/codestral-latest
     api_base: https://api.llm7.io/v1
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/LLM7_API_KEY
 - model_name: claude-code-huggingface-qwen
   litellm_params:
     model: openai/Qwen/Qwen3.8-27B
@@ -121,27 +121,27 @@ model_list:
   litellm_params:
     model: openai/nvidia/nemotron-3-ultra-550b-a55b:free
     api_base: http://127.0.0.1:4010/v1
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/KILO_PROXY_API_KEY
 - model_name: claude-code-kilo-auto
   litellm_params:
     model: openai/kilo-auto/free
     api_base: http://127.0.0.1:4010/v1
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/KILO_PROXY_API_KEY
 - model_name: router-kilo-free
   litellm_params:
     model: openai/kilo-auto/free
     api_base: http://127.0.0.1:4010/v1
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/KILO_PROXY_API_KEY
 - model_name: claude-code-ovh-qwen38
   litellm_params:
     model: openai/Qwen3.8-27B
     api_base: http://127.0.0.1:4011/v1
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/OVH_PROXY_API_KEY
 - model_name: router-ovh-free
   litellm_params:
     model: openai/Qwen3.8-27B
     api_base: http://127.0.0.1:4011/v1
-    api_key: os.environ/REPLACE_ME_API_KEY
+    api_key: os.environ/OVH_PROXY_API_KEY
 - model_name: claude-code-horde
   litellm_params:
     model: openai/koboldcpp/Llama-3.2-3B-Instruct
