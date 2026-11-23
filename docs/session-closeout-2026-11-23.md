@@ -57,5 +57,15 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 1. Open `~/Projects/shadow` and check `git status`.
 2. Run `shadow doctor`.
 3. If any provider quota changed, check its dashboard before sending inference.
-4. Consider adding a small automated smoke-test script for all provider routes.
+4. Smoke-test automation is complete: scripts/smoke_test.py plus docs/smoke-tests.md and unit tests. Safe GET checks passed 9/9; Chat Completions structured tool calls passed 4/4; Requesty and Gonka Anthropic tool_use passed. The suite contains 8 unit tests.
 5. The PC is currently running Linux Mint. Timeshift 25.12.4 is installed, but `/etc/timeshift/timeshift.json` is absent, so no Timeshift snapshot was created. The elevated snapshot operation was blocked in this session. A Windows System Restore Point cannot be created from this Linux session; if booting into Windows next time, create one before Windows-side changes.
+
+
+## Follow-up work completed later on 2026-11-23
+
+- Added scripts/smoke_test.py with safe GET-only default mode, optional Chat Completions tool-call mode, and selectable Anthropic Messages tool_use checks.
+- Safe mode performs no inference and checks gateway health, route aliases, provider auth/catalogs and Cloudflare token/model status.
+- Added 8 unit tests covering env-file parsing, tool-call response shapes, Anthropic-only selection and timeout classification.
+- Final test results: 8/8 unit tests; 9/9 safe GET checks; 4/4 Chat Completions tool calls; Requesty Anthropic tool_use passed; Gonka Anthropic tool_use passed.
+- A first Anthropic sweep exposed that a short GET timeout was reused for inference and Anthropic-only mode inadvertently ran Chat Completions checks. Both issues were fixed and covered by tests: inference now has a separate 35-second default, provider selection can target only Requesty or Gonka, and Anthropic-only mode does not trigger Chat Completions calls.
+- BazaarLink key metadata at the final safe check reported requests_today=5 and limit_remaining=10. Avoid frequent inference tests; safe mode is GET-only.

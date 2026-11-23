@@ -84,3 +84,25 @@ The OpenAI-compatible Requesty alias has an explicit fallback chain for concurre
 ## Security
 
 See [SECURITY.md](SECURITY.md). Before every commit, review `git status` and `git diff --cached`. Do not commit `API.txt`, `.env`, `extra-providers.env`, backups, logs, databases or model files.
+
+
+## Repeatable smoke tests
+
+The safe check (GET requests only; no inference and no model tokens consumed) is:
+
+    python3 scripts/smoke_test.py
+
+To run one structured tool-call inference per Chat Completions provider:
+
+    python3 scripts/smoke_test.py --tool-calls
+
+To test the Anthropic Messages tool-use path, optionally for one provider only:
+
+    python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
+    python3 scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
+
+Inference tests can consume free quotas, so do not run them as a frequent health monitor. See docs/smoke-tests.md for checks, timeouts and quota notes.
+
+Unit tests:
+
+    python3 -m unittest discover -s tests -v
