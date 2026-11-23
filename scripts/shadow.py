@@ -28,6 +28,7 @@ def ensure_venv():
  subprocess.run([str(pybin()),'-m','pip','install','--upgrade','pip'],check=True)
  subprocess.run([str(pybin()),'-m','pip','install','-r',str(ROOT/'requirements.txt')],check=True)
 def enabled_models(values):
+ import yaml
  data=yaml.safe_load(CATALOG.read_text(encoding='utf-8')) or {}; result=[]
  for p in data.get('providers',[]):
   required=[p['api_key_env'],*p.get('required_env',[])]
@@ -50,6 +51,7 @@ def enabled_models(values):
    }})
  return result
 def build_config(values):
+ import yaml
  cfg=yaml.safe_load(STARTER.read_text(encoding='utf-8'))
  providers=enabled_models(values)
  cfg['model_list'].extend(providers)
@@ -66,8 +68,14 @@ def setup(_):
  if not ENV_FILE.exists(): shutil.copyfile(ROOT/'.env.example',ENV_FILE)
  values=read_env()
  if not values.get('LITELLM_MASTER_KEY'):
-  values['LITELLM_MASTER_KEY']='sk-shadow-'+secrets.token_urlsafe(36); write_env(values)
- ensure_venv(); cfg=build_config(values)
+  values['LITELLM_MASTER_KEY']='sk-shadow-'+secrets.token_urlsafe(36)
+  write_env(values)
+ ensure_venv()
+ subprocess.run([str(pybin()),str(ROOT/'scripts'/'shadow.py'),'_finish_setup'],cwd=ROOT,check=True)
+ return 0
+def finish_setup(_):
+ values=read_env()
+ cfg=build_config(values)
  LOCAL_CONFIG.write_text(yaml.safe_dump(cfg,sort_keys=False,allow_unicode=True),encoding='utf-8')
  try: LOCAL_CONFIG.chmod(0o600)
  except OSError: pass
@@ -109,7 +117,21 @@ def main():
  parser=argparse.ArgumentParser(description='Shadow self-hosted multi-provider API'); sub=parser.add_subparsers(dest='command',required=True)
  for name,fn in [('setup',setup),('configure',configure),('refresh',refresh),('validate',validate)]: sub.add_parser(name).set_defaults(func=fn)
  run=sub.add_parser('start'); run.add_argument('--port',type=int,default=4000); run.set_defaults(func=start)
+ sub.add_parser('_finish_setup').set_defaults(func=finish_setup)
  args=parser.parse_args()
+ # Bootstrap must work on a clean machine with only Python installed.
+ # All YAML parsing and runtime commands are delegated to the isolated venv.
+ if args.command != '_finish_setup' and pybin().exists():
+  try:
+   if Path(sys.executable).resolve() != pybin().resolve():
+    return subprocess.call([str(pybin()),str(ROOT/'scripts'/'shadow.py'),*sys.argv[1:]],cwd=ROOT)
+  except OSError:
+   pass
+ if args.command in ('configure','refresh','validate','_finish_setup'):
+  if not pybin().exists() and args.command != '_finish_setup':
+   print('Run setup first to install Shadow dependencies.')
+   return 2
+ import yaml
  try: return int(args.func(args))
  except subprocess.CalledProcessError as e: print(f'Comando falhou: exit {e.returncode}'); return int(e.returncode or 1)
 if __name__=='__main__': raise SystemExit(main())
