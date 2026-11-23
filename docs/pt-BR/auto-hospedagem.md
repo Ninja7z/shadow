@@ -1,6 +1,6 @@
 # Execute sua própria API Shadow
 
-> **Aviso de licença:** a Shadow permite apenas uso pessoal e não comercial. Uso empresarial/profissional, revenda, hospedagem para terceiros e incorporação em produtos ou serviços comerciais exigem autorização comercial escrita. Consulte o arquivo LICENSE e a [explicação em português](licenca.md). Essa licença cobre a Shadow; cada provedor, API, modelo e SDK mantém seus próprios termos, que também devem ser respeitados.
+> **Aviso de licença:** a Shadow usa a PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). Ela permite uso, modificação e distribuição apenas para finalidades não comerciais. Inclui expressamente usos pessoais e determinadas organizações não comerciais (beneficentes, educacionais, de pesquisa pública, saúde/segurança pública, proteção ambiental e instituições governamentais). Uso comercial é proibido. Cada provedor, API, modelo, SDK e serviço continua sujeito à própria licença e aos próprios termos. Consulte o [texto oficial](https://polyformproject.org/licenses/noncommercial/1.0.0), o arquivo LICENSE e a [explicação em português](licenca.md).
 
 
 
