@@ -19,17 +19,19 @@ if [[ -r "$HUB_DIR/bootstrap.env" ]]; then
   set +a
 fi
 
-export SHADOW_GITHUB_AUTH="$(
-python3 - "$GITHUB_SOURCE" <<'PY'
-from pathlib import Path
-import json,sys
-data=json.loads(Path(sys.argv[1]).read_text())
-value=data.get("mcpServers",{}).get("github",{}).get("headers",{}).get("Authorization","")
-if not value:
-    raise SystemExit("GitHub credential source is missing from the private Claude Code config.")
-print(value,end="")
-PY
-)"
+GITHUB_TOKEN_FILE="$HUB_DIR/github.token"
+if [[ ! -r "$GITHUB_TOKEN_FILE" ]]; then
+  echo "Missing private GitHub token file: $GITHUB_TOKEN_FILE" >&2
+  exit 3
+fi
+export SHADOW_GITHUB_AUTH="$(<"$GITHUB_TOKEN_FILE")"
+if [[ -z "${SHADOW_GITHUB_AUTH}" ]]; then
+  echo "Private GitHub token file is empty." >&2
+  exit 3
+fi
+
+# GitHub's upstream bearer credential is stored separately with mode 600.
+
 
 MODE="${1:---stdio}"
 if [[ "$MODE" == "http" ]]; then

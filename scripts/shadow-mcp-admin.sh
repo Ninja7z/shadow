@@ -13,14 +13,17 @@ if [[ -r "$HUB_DIR/bootstrap.env" ]]; then
   source "$HUB_DIR/bootstrap.env"
   set +a
 fi
-export SHADOW_GITHUB_AUTH="$(
-python3 - <<'PY'
-from pathlib import Path
-import json
-data=json.loads((Path.home()/".claude.json").read_text())
-value=data.get("mcpServers",{}).get("github",{}).get("headers",{}).get("Authorization","")
-if not value: raise SystemExit("GitHub credential source is missing.")
-print(value,end="")
-PY
-)"
+GITHUB_TOKEN_FILE="$HUB_DIR/github.token"
+if [[ ! -r "$GITHUB_TOKEN_FILE" ]]; then
+  echo "Missing private GitHub token file: $GITHUB_TOKEN_FILE" >&2
+  exit 3
+fi
+export SHADOW_GITHUB_AUTH="$(<"$GITHUB_TOKEN_FILE")"
+if [[ -z "${SHADOW_GITHUB_AUTH}" ]]; then
+  echo "Private GitHub token file is empty." >&2
+  exit 3
+fi
+
+# GitHub's upstream bearer credential is stored separately with mode 600.
+
 exec "$RUNTIME/node_modules/.bin/mcp-hub-admin" "$@"

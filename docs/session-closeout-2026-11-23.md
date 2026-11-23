@@ -74,13 +74,24 @@ Quotas and model IDs can change. Recheck provider dashboards before relying on f
 
 - Installed and pinned @ni-c/mcp-hub 0.13.1 under ~/.local/share/shadow-mcp-hub.
 - Claude Code now has one active MCP server: shadow (stdio).
-- The old Runcrate MCP connector and temporary shadow-hub-login connector were removed from Claude Code user config.
-- The old GitHub connector remains only as a disabled credential source for the current known project paths (/home/mint and /home/mint/Desktop/shadow). The local wrapper reads its Authorization header at process start; it does not print or duplicate the token.
+- The old GitHub and Runcrate MCP connectors and temporary shadow-hub-login connector were removed from Claude Code user config. Claude Code now has only shadow.
+- The GitHub Authorization bearer header was moved to ~/.config/shadow/mcp-hub/github.token (mode 600). Both hub/admin wrappers read it at process start. The GitHub MCP entry was removed from ~/.claude.json after the moved credential passed real forwarding tests.
 - GitHub and Runcrate are upstreams inside the Shadow Hub. The hub exposes six meta-tools: list_servers, list_tools, get_tool_schema, call_tool, wake_server and sleep_server.
 - Verified upstream counts: GitHub 46 tools; Runcrate 60 tools; total 106.
-- Verified forwarding after the temporary HTTP panel was stopped: GitHub search_repositories found Ninja7z/shadow; Runcrate list_gpu_types returned 162 entries.
+- Verified forwarding after the temporary HTTP panel was stopped: GitHub search_repositories found Ninja7z/shadow; Runcrate list_gpu_types returned 162 entries. Forwarding passed again after moving the GitHub credential to github.token and removing the GitHub user-scope MCP.
 - Added repeatable setup and repair files: scripts/patch-mcp-hub-compat.mjs, scripts/shadow-mcp-hub.sh, scripts/shadow-mcp-admin.sh, config/mcp-hub.example.json and docs/mcp-hub.md.
 - Pinned MCP Hub compatibility patches: bind HTTP admin/OAuth listener to 127.0.0.1; pass DATA_PATH into stdio so the OAuth token store is reused; skip unsupported periodic ping for Runcrate 1.5.1, which otherwise disconnects despite successful tool calls.
 - Runcrate authorization is active until 2027-02-21T18:45:25Z. The provider did not return a refresh token; reauthorize before expiry. No automatic refresh is claimed.
 - Temporary HTTP listener on 127.0.0.1:7690 was stopped after authorization. The normal stdio Shadow connection continues working without it.
-- Upstream OAuth state and access token remain local in ~/.config/shadow/mcp-hub/data/state.json (mode 700 directory). Never commit this state, bootstrap.env, or .claude.json.
+- Upstream OAuth state and access token remain local in ~/.config/shadow/mcp-hub/data/state.json (mode 600 file under a mode 700 directory). Never commit this state, bootstrap.env, github.token, or Claude/OpenCode/Cline config backups.
+
+
+## Cross-client MCP synchronization — 2026-11-23 16:05 -0300
+
+- Claude Code user MCP names now contain only shadow; claude mcp list from ~/Desktop/shadow shows shadow connected.
+- OpenCode 2.3.2 global config uses shadow (local stdio), reports connected; direct Runcrate remote MCP remains present but disabled.
+- Cline CLI 3.0.75 settings use shadow (stdio, enabled); direct Runcrate Streamable HTTP entry remains present but disabled. Verified with cline config mcp --json.
+- Codex and Cursor executables/configurations were not found in this Linux installation.
+- The GitHub credential was moved once into ~/.config/shadow/mcp-hub/github.token, mode 600. After updating both wrappers, a real GitHub search and Runcrate GPU-types tool call passed through Shadow. The Claude Code GitHub user MCP was then removed. A private ~/.claude.json backup was retained outside Git.
+- The old GitHub helper no longer needs project-level disabledMcpServers entries.
+- Cross-client config/renewal instructions are in docs/mcp-hub.md.
