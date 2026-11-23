@@ -53,3 +53,11 @@ config/local/
 *.backup
 *.backup.*
 *.old
+
+# Local coding-agent session/history artifacts
+.aider*
+*.aider.chat.history.md
+*.aider.input.history
+.cline/
+.opencode/
+.continue/
