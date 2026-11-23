@@ -1,42 +1,36 @@
-# Licença da Shadow: uso pessoal e não comercial
+# PolyForm Noncommercial License 1.0.0
 
-A Shadow é distribuída sob uma **licença personalizada e restritiva de uso pessoal**. Ela não é MIT, não é uma licença open source aprovada pela OSI e não permite uso comercial.
+A Shadow usa a **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`), uma licença existente e padronizada para software. O arquivo [LICENSE](../../LICENSE) na raiz contém o texto oficial, acompanhado apenas do aviso de copyright do projeto.
 
-Consulte o arquivo LICENSE na raiz do repositório para o texto integral, que prevalece em caso de divergência.
+## O que ela permite
 
-## O que é permitido
+A licença autoriza usar, modificar e distribuir cópias do software para finalidades não comerciais. Ela inclui expressamente usos pessoais, como:
 
-Uma pessoa física pode, exclusivamente para fins pessoais e não comerciais:
+- Estudo e aprendizado individual.
+- Pesquisa, experimentação e testes sem aplicação comercial prevista.
+- Entretenimento privado, hobbies e projetos amadores.
+- Criação e compartilhamento de modificações para fins não comerciais, mantendo os avisos e a licença.
 
-- Baixar, instalar, executar e utilizar a Shadow.
-- Estudar o código e modificá-lo para uso próprio.
-- Criar versões derivadas para uso próprio.
-- Compartilhar cópias gratuitamente com outras pessoas físicas, desde que a licença seja mantida e cada destinatário também use o software apenas para fins pessoais e não comerciais.
+## O que ela proíbe
 
-## O que não é permitido
+Uso comercial não é permitido. Não utilize a Shadow para obter vantagem comercial ou remuneração, por exemplo em operações empresariais, serviços comerciais, produtos pagos ou atividades profissionais com finalidade comercial.
 
-Sem uma autorização comercial separada e por escrito do titular dos direitos, não é permitido:
+## Atenção: não é estritamente limitada a pessoas físicas
 
-- Utilizar a Shadow em empresas, negócios ou operações profissionais.
-- Utilizá-la em nome de empregadores, clientes ou organizações.
-- Oferecer a Shadow como API, serviço hospedado, gerenciado ou compartilhado para terceiros.
-- Vender, alugar, sublicenciar ou redistribuir comercialmente o software.
-- Incorporar a Shadow a produtos ou serviços comerciais ou monetizar versões derivadas.
+A PolyForm Noncommercial também permite expressamente o uso por determinadas organizações não comerciais, independentemente da origem dos recursos: instituições beneficentes, educacionais, de pesquisa pública, saúde ou segurança pública, proteção ambiental e instituições governamentais.
 
-A proibição vale mesmo que a Shadow seja oferecida sem cobrança direta quando o uso estiver ligado a uma atividade empresarial ou vantagem comercial.
+Portanto, esta licença atende à restrição de **não permitir uso comercial**, mas não significa literalmente “somente pessoas físicas”. Se a intenção for excluir também todas essas organizações, a PolyForm Noncommercial não impõe essa restrição.
 
-## Provedores e componentes de terceiros
+## Provedores e serviços de terceiros
 
-A licença da Shadow cobre somente os direitos sobre o código e os materiais próprios do projeto. Ela **não substitui os termos de terceiros**.
+A licença da Shadow cobre apenas os direitos sobre o software que o projeto disponibiliza. Ela não substitui nem modifica os termos dos provedores.
 
-Cada API, serviço, modelo, peso de modelo, SDK, conjunto de dados e componente de terceiros continua sujeito à própria licença, aos termos de serviço, às políticas de uso, às cotas, aos limites e aos preços definidos pelo respectivo titular.
+Cada API, modelo, peso de modelo, SDK, conjunto de dados e serviço conectado mantém suas próprias licenças, termos de serviço, políticas de uso, limites, cotas e preços. Você deve verificar e cumprir esses termos separadamente. A PolyForm Noncommercial não concede direitos sobre materiais de terceiros.
 
-Você deve verificar e cumprir os termos de cada integração. Uma permissão comercial concedida por um provedor não libera o uso comercial da Shadow. Da mesma forma, a licença pessoal da Shadow não autoriza uma utilização que o provedor proíba.
+## Identificação
 
-## Por que não chamar de open source?
+- Nome: PolyForm Noncommercial License 1.0.0
+- SPDX: `PolyForm-Noncommercial-1.0.0`
+- Texto oficial: https://polyformproject.org/licenses/noncommercial/1.0.0
 
-A definição da Open Source Initiative exige que uma licença não restrinja campos de atividade, incluindo uso comercial. Como a licença da Shadow proíbe uso comercial, o projeto deve ser descrito como **source-available com licença de uso pessoal**, não como open source.
-
-## Texto legal
-
-Esta página é uma tradução informativa. O texto em inglês do arquivo LICENSE é o texto legal de referência. A licença não substitui aconselhamento jurídico; para exploração comercial ou redistribuição por organizações, solicite autorização escrita do titular dos direitos.
+A licença não é uma licença open source aprovada pela OSI porque restringe usos comerciais.
