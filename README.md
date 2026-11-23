@@ -59,7 +59,7 @@ The local machine has dedicated launchers:
 
 The versioned launcher template is `scripts/claude-route.sh`. It generates a private model-picker settings file using Claude Code's documented `behavesAs` compatibility profile, preserves the Shadow alias sent upstream, and conservatively caps context compaction. See [Claude Code integration](docs/claude-code.md).
 
-The `claude-requesty` CLI smoke test completed successfully through Shadow. Aider, Cline, OpenCode and Continue CLI also passed end-to-end smoke tests. Continue resolves `SHADOW_API_KEY` from the protected global `~/.continue/.env`. Cline uses a dedicated config at `~/.config/shadow/cline/gateway`, leaving the existing Cline profile untouched. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
+The `claude-requesty` CLI smoke test completed successfully through Shadow. Aider, Cline, OpenCode and Continue CLI also passed end-to-end smoke tests. Continue resolves `SHADOW_API_KEY` from the protected global `~/.continue/.env`. Cline uses a dedicated config at `~/.config/shadow/cline/gateway`, leaving the existing Cline profile untouched. The initial `unrecognized_model` diagnostic was eliminated with a per-alias `modelPicker.behavesAs` compatibility profile. The provider model ID sent to Shadow remains unchanged.
 
 These select provider aliases through the local gateway. The launcher and active alias should be tested after changing LiteLLM or provider configuration.
 
