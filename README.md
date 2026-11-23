@@ -223,11 +223,13 @@ Leia também a [Política de segurança](SECURITY.pt-BR.md).
 
 ## ⚖️ Licença
 
-A Shadow usa uma **licença personalizada de uso pessoal e não comercial**. É permitido clonar, estudar, modificar e executar o projeto para uso pessoal. Uso empresarial/profissional, revenda, hospedagem como serviço e incorporação em produtos comerciais não são permitidos sem autorização comercial escrita.
+A Shadow é distribuída sob a **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`), uma licença existente criada para software. Ela permite usar, modificar e compartilhar o código para finalidades não comerciais, incluindo estudo, experimentação, projetos pessoais e hobbies.
 
-A licença da Shadow não substitui os termos de terceiros: cada provedor, API, modelo, SDK e serviço conectado mantém suas próprias licenças, cotas, preços e políticas. Uma autorização comercial de um provedor não concede autorização comercial para a Shadow.
+**A licença não se limita exclusivamente a pessoas físicas:** ela também permite usos por certas organizações não comerciais, como instituições beneficentes, educacionais, de pesquisa pública, saúde/segurança pública, proteção ambiental e órgãos governamentais. O uso comercial é proibido.
 
-**Atenção:** por restringir o uso comercial, esta licença não é uma licença open source aprovada pela OSI. O projeto é source-available sob licença restritiva de uso pessoal. Consulte [Licença (PT-BR)](docs/pt-BR/licenca.md) e o arquivo [LICENSE](LICENSE).
+Os provedores continuam sujeitos aos próprios contratos e políticas. A licença da Shadow não concede direitos sobre APIs, modelos, pesos, SDKs ou serviços de terceiros, nem substitui os termos de cada provedor.
+
+Consulte o [texto oficial da PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0), a [explicação em português](docs/pt-BR/licenca.md) e o arquivo [LICENSE](LICENSE).
 
 ## 📚 Documentação
 
@@ -366,11 +368,13 @@ See [SECURITY.md](SECURITY.md).
 
 ## ⚖️ License
 
-Shadow is distributed under a **custom personal, non-commercial license**. You may clone, study, modify and run the project for personal use. Business/professional use, resale, hosted-service use and incorporation into commercial products are prohibited unless a separate written commercial permission is granted.
+Shadow is distributed under the **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`), an existing license written for software. It permits using, modifying and sharing the code for noncommercial purposes, including personal study, experimentation, hobby projects and other personal uses.
 
-The Shadow license does not replace third-party terms: each provider, API, model, SDK and connected service retains its own licenses, quotas, prices and policies. A provider's commercial permission does not grant commercial rights to Shadow.
+**The license is not limited exclusively to individuals:** it also permits use by certain noncommercial organizations, including charitable, educational, public research, public safety/health, environmental protection and government institutions. Commercial use is prohibited.
 
-**Note:** because commercial use is restricted, this is not an OSI-approved open-source license. Shadow is source-available under a restrictive personal-use license. See [License details](LICENSE) and the [English self-hosting guide](docs/self-hosting.md).
+Providers remain subject to their own contracts and policies. The Shadow license grants no rights to third-party APIs, models, weights, SDKs or services and does not replace any provider's terms.
+
+See the [official PolyForm Noncommercial 1.0.0 text](https://polyformproject.org/licenses/noncommercial/1.0.0), the [full LICENSE](LICENSE) and the [Portuguese explanation](docs/pt-BR/licenca.md).
 
 ### Documentation
 
