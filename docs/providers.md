@@ -1,0 +1,44 @@
+# Provider status and free-tier notes
+
+This is a dated operational snapshot, not a promise that provider quotas or model IDs will remain unchanged. Re-check each provider's dashboard and catalog before relying on it.
+
+## Requesty
+
+- Official free-model catalog: 8 zero-cost model IDs and 200 free-model requests per day, no payment method required on the free plan.
+- Verified model: `nvidia/nemotron-3.5-lightning-30b-a3b`.
+- Catalog pricing for the NVIDIA deployment showed input and output price `0`.
+- Tested directly and through Shadow using both OpenAI Chat Completions and Anthropic Messages. Structured tool calls passed; the test responses reported `cost: 0`.
+- OpenAI-compatible base URL: `https://router.requesty.ai/v1`.
+- Claude Code base URL: `https://router.requesty.ai` (without a trailing `/v1` when the client appends `/v1/messages`).
+- Official sources: https://www.requesty.ai/models/free, https://www.requesty.ai/agents/claude-code, https://www.requesty.ai/terms.
+
+## Cloudflare Workers AI
+
+- Verified model: `@cf/zai-org/glm-4.7-flash`.
+- Direct and through Shadow, OpenAI Chat Completions and structured tool calling returned HTTP 200.
+- The Workers AI credential and the Cloudflare account API token are separate credentials and must remain separate.
+- Workers Free currently includes 10,000 Neurons per day. On the Free plan, requests fail after the allowance is exhausted; charges above the allowance require a Workers Paid plan.
+- The Anthropic Messages adapter test through the local gateway timed out, so use the OpenAI-compatible route for this model unless retested.
+- Official sources: https://developers.cloudflare.com/workers-ai/platform/pricing/, https://developers.cloudflare.com/workers-ai/get-started/rest-api/.
+
+## Gonka Broker
+
+- Verified model: `zai-org/GLM-5.3-Flash`.
+- Root authentication endpoint: `https://proxy.gonkabroker.com/test-auth` (do not add `/v1` to this diagnostic path).
+- The tested free credential returned `status=ok` and `maxRpm=6`.
+- Chat Completions and native Anthropic Messages tool calls passed directly and through Shadow.
+- The advertised free tier provides at least 1 million tokens per month after mobile/SMS verification. Watch the provider dashboard for the remaining balance; the rate limit can still return HTTP 429.
+- Official documentation: https://docs.gonkabroker.com/reference/limits-and-quotas/.
+
+## BazaarLink
+
+- Verified model: `nvidia/nemotron-3.5-lightning-free:free`.
+- Key metadata confirmed `is_free_tier=true` and `is_management_key=false`.
+- The model catalog returned zero input and output prices. Structured Chat Completions tool calls passed directly and through Shadow; the usage response omitted a cost field.
+- The free account has a small daily weighted quota. Monitor the key dashboard.
+- Shadow sends `X-Free-Fallback: false` for this route so an exhausted free model does not silently fall through to a paid BazaarLink model.
+- Official provider site: https://bazaarlink.ai/.
+
+## Requesty fallback credential
+
+A previous Requesty key may be retained locally as `REQUESTY_API_KEY_FALLBACK` for manual recovery. The active route uses `REQUESTY_API_KEY`. No automatic switch to the backup credential is configured: credentials should be switched only after the alternate has been checked and tested.
