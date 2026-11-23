@@ -58,6 +58,8 @@ The local machine has dedicated launchers:
 - `claude-gonka`
 - `claude-nvidia`
 
+The `claude-requesty` CLI smoke test completed successfully through the local Shadow gateway. Claude Code emits a non-fatal `unrecognized_model` notice for this custom alias, but the request completed.
+
 These select provider aliases through the local gateway. The launcher and active alias should be tested after changing LiteLLM or provider configuration.
 
 ## Fallback policy
@@ -70,7 +72,8 @@ The Claude Code-specific Requesty route falls back to native Anthropic Gonka, th
 
 ## Repository layout
 
-- `config/`: shareable example configuration only.
+- `config/shadow.example.yaml`: minimal provider/fallback example.
+- `config/shadow.runtime.example.yaml`: sanitized snapshot of the current 48-alias / 36-fallback local router (all credentials remain environment references; Cloudflare Account ID is a placeholder).
 - `docs/`: provider status, quota notes and operating guidance.
 - `scripts/`: local validation and maintenance helpers.
 - `.env.example`: names of required variables, no values.
