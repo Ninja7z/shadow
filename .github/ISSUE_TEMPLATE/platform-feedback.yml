@@ -1,0 +1,101 @@
+name: Platform compatibility feedback
+description: Share installation and runtime results from Windows, macOS or Linux.
+title: "[Platform feedback]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Shadow Gateway. Please include the exact command and the step that succeeded or failed.
+
+        **Never paste API keys, provider tokens, your .env file, or the local LITELLM_MASTER_KEY. Redact credentials from logs before submitting.**
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (Ubuntu/Debian)
+        - Linux (Fedora)
+        - Linux (Arch)
+        - Linux (Other)
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version / distribution
+      placeholder: e.g. Windows 11 24H2, macOS 15.x, Ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: shadow_version
+    attributes:
+      label: Shadow Gateway version
+      placeholder: e.g. 0.1.6
+    validations:
+      required: true
+  - type: input
+    id: node_version
+    attributes:
+      label: Node.js version
+      placeholder: e.g. v22.14.0 or v24.x
+    validations:
+      required: false
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation method
+      options:
+        - npx shadow-gateway
+        - npm install --global shadow-gateway
+        - npm exec --package=shadow-gateway
+        - Cloned repository
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Overall result
+      options:
+        - Installed and started successfully
+        - Installed, but gateway did not start
+        - Installation failed
+        - Upgrade failed
+        - Client integration failed
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware / environment
+      description: CPU architecture, RAM, terminal, antivirus/security software, and relevant details.
+      placeholder: x64 / ARM64, RAM, PowerShell 7, Terminal, etc.
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and exact commands
+      description: What did you run, and at which step did the result differ?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant terminal output
+      description: Paste the smallest useful excerpt. Remove keys, tokens, URLs containing credentials, and personal paths if desired.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional feedback
+      description: What worked well, what was confusing, and what should be improved?
+    validations:
+      required: false
