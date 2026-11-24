@@ -131,7 +131,7 @@ test('runtime update replaces managed files but never overwrites local credentia
   }
 });
 
-test('Python provisioning ignores an activated unrelated project venv', async () => {
+test('Python provisioning ignores an activated unrelated project venv', { skip: process.platform === 'win32' }, async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-python-provision-'));
   try {
     const uv = path.join(directory, 'uv');
