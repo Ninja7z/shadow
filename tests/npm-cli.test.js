@@ -12,6 +12,9 @@ import {
   getPlatformInfo,
   getPythonVenvPath,
   parseDotEnv,
+  checkOllama,
+  ensurePython,
+  setLocalModel,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -114,6 +117,105 @@ test('runtime update replaces managed files but never overwrites local credentia
     assert.equal(fs.readFileSync(path.join(installDir, '.env'), 'utf8'), 'LOCAL_SECRET=private');
   } finally {
     fs.rmSync(packageRoot, { recursive: true, force: true });
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
+});
+
+test('Python provisioning ignores an activated unrelated project venv', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-python-provision-'));
+  try {
+    const uv = path.join(directory, 'uv');
+    const python = path.join(directory, 'managed-python');
+    const logPath = path.join(directory, 'uv-args.log');
+    fs.writeFileSync(python, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.writeFileSync(uv, [
+      '#!/bin/sh',
+      'if [ "${VIRTUAL_ENV+x}" = x ]; then echo inherited-venv-leaked >> "$SHADOW_FAKE_LOG"; exit 4; fi',
+      'if [ "$UV_MANAGED_PYTHON" != "1" ]; then echo managed-python-flag-missing >> "$SHADOW_FAKE_LOG"; exit 5; fi',
+      'printf "%s\n" "$*" >> "$SHADOW_FAKE_LOG"',
+      'if [ "$1" = python ] && [ "$2" = find ]; then printf "%s\n" "$SHADOW_FAKE_PYTHON"; fi',
+      'exit 0',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = await ensurePython(uv, {
+      env: {
+        ...process.env,
+        VIRTUAL_ENV: '/home/user/another-project/.venv',
+        CONDA_PREFIX: '/home/user/conda-env',
+        SHADOW_FAKE_PYTHON: python,
+        SHADOW_FAKE_LOG: logPath,
+      },
+    });
+    assert.equal(result, python);
+    const logged = fs.readFileSync(logPath, 'utf8');
+    assert.match(logged, /python find --managed-python --no-project 3\.12/u);
+    assert.doesNotMatch(logged, /inherited-venv-leaked|managed-python-flag-missing/u);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('Ollama detection uses the local tags API and exposes installed chat model names', async () => {
+  let requestedUrl = '';
+  const result = await checkOllama({
+    executableFinder: () => '/usr/bin/ollama',
+    fetchImpl: async (url) => {
+      requestedUrl = url;
+      return {
+        ok: true,
+        json: async () => ({ models: [{ name: 'nomic-embed-text:latest' }, { name: 'qwen3.5:4b' }] }),
+      };
+    },
+  });
+  assert.equal(requestedUrl, 'http://127.0.0.1:11434/api/tags');
+  assert.deepEqual(result, { installed: true, running: true, models: ['nomic-embed-text:latest', 'qwen3.5:4b'] });
+});
+
+test('Ollama timeouts are reported as optional runtime unavailability, not thrown', async () => {
+  const result = await checkOllama({
+    executableFinder: () => '/usr/bin/ollama',
+    fetchImpl: async () => { throw new Error('timeout'); },
+  });
+  assert.equal(result.installed, true);
+  assert.equal(result.running, false);
+  assert.deepEqual(result.models, []);
+  assert.match(result.detail, /timeout/u);
+});
+
+test('missing Ollama binary is treated as optional', async () => {
+  assert.deepEqual(await checkOllama({ executableFinder: () => null }), {
+    installed: false, running: false, models: [],
+  });
+});
+
+test('selecting an installed local model updates both local aliases and keeps private mode', async () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-local-model-'));
+  try {
+    const configDir = path.join(installDir, 'config');
+    fs.mkdirSync(configDir, { recursive: true });
+    const configPath = path.join(configDir, 'shadow.yaml');
+    fs.writeFileSync(configPath, [
+      'model_list:',
+      '  - model_name: shadow-local',
+      '    litellm_params:',
+      '      model: ollama/llama3.2:3b',
+      '  - model_name: shadow-auto',
+      '    litellm_params:',
+      '      model: ollama/llama3.2:3b',
+      '  - model_name: shadow-remote',
+      '    litellm_params:',
+      '      model: openai/vendor/model',
+      '',
+    ].join('\n'), { mode: 0o600 });
+    const result = setLocalModel(installDir, 'qwen3.5:4b');
+    const { parse } = await import('yaml');
+    const saved = parse(fs.readFileSync(configPath, 'utf8'));
+    assert.equal(result.updated, 2);
+    assert.equal(saved.model_list[0].litellm_params.model, 'ollama/qwen3.5:4b');
+    assert.equal(saved.model_list[1].litellm_params.model, 'ollama/qwen3.5:4b');
+    assert.equal(saved.model_list[2].litellm_params.model, 'openai/vendor/model');
+    assert.equal(fs.statSync(configPath).mode & 0o777, 0o600);
+  } finally {
     fs.rmSync(installDir, { recursive: true, force: true });
   }
 });

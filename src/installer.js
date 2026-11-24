@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   cancel, confirm, intro, isCancel, log, note, outro, password, select, spinner, text,
 } from '@clack/prompts';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = path.resolve(THIS_DIR, '..');
@@ -250,13 +250,21 @@ export async function ensureUv(installDir, { env = process.env } = {}) {
 }
 
 export async function ensurePython(uvPath, { env = process.env } = {}) {
-  let found = await capture(uvPath, ['python', 'find', PYTHON_VERSION], { env, timeoutMs: 30000 });
+  // Do not let an activated project venv (e.g. a different Shadow project) become
+  // the base interpreter for a fresh gateway installation.
+  const pythonEnv = { ...env, UV_MANAGED_PYTHON: '1', UV_NO_PROJECT: '1' };
+  delete pythonEnv.VIRTUAL_ENV;
+  delete pythonEnv.VIRTUAL_ENV_PROMPT;
+  delete pythonEnv.CONDA_PREFIX;
+  delete pythonEnv.PYTHONHOME;
+  const findArgs = ['python', 'find', '--managed-python', '--no-project', PYTHON_VERSION];
+  let found = await capture(uvPath, findArgs, { env: pythonEnv, timeoutMs: 30000 });
   if (found.code !== 0 || !found.stdout) {
-    await run(uvPath, ['python', 'install', PYTHON_VERSION], { env, timeoutMs: 300000 });
-    found = await capture(uvPath, ['python', 'find', PYTHON_VERSION], { env, timeoutMs: 30000 });
+    await run(uvPath, ['python', 'install', PYTHON_VERSION], { env: pythonEnv, timeoutMs: 600000 });
+    found = await capture(uvPath, findArgs, { env: pythonEnv, timeoutMs: 30000 });
   }
   if (found.code !== 0 || !found.stdout) {
-    throw new Error('uv could not provision Python ' + PYTHON_VERSION + '. ' + found.stderr);
+    throw new Error('uv could not provision managed Python ' + PYTHON_VERSION + '. ' + found.stderr);
   }
   const pythonPath = found.stdout.split(/\r?\n/u).at(-1)?.trim();
   if (!pythonPath || !fs.existsSync(pythonPath)) {
@@ -329,13 +337,53 @@ async function configureCatalogProviders(installDir) {
   return true;
 }
 
-async function checkOllama() {
-  const executable = findExecutable('ollama');
+export async function checkOllama({ executableFinder = findExecutable, fetchImpl = globalThis.fetch, timeoutMs = 6000 } = {}) {
+  const executable = executableFinder('ollama');
   if (!executable) return { installed: false, running: false, models: [] };
-  const result = await capture(executable, ['list'], { timeoutMs: 12000 });
-  if (result.code !== 0) return { installed: true, running: false, models: [] };
-  const models = result.stdout.split(/\r?\n/u).slice(1).map((line) => line.trim().split(/\s+/u)[0]).filter(Boolean);
-  return { installed: true, running: true, models };
+  try {
+    const response = await fetchImpl('http://127.0.0.1:11434/api/tags', {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) {
+      return { installed: true, running: false, models: [], detail: 'Ollama returned HTTP ' + response.status };
+    }
+    const data = await response.json();
+    const models = Array.isArray(data.models)
+      ? data.models.map((model) => String(model.name || '').trim()).filter(Boolean)
+      : [];
+    return { installed: true, running: true, models };
+  } catch (error) {
+    return {
+      installed: true,
+      running: false,
+      models: [],
+      detail: error instanceof Error ? error.message : 'Ollama API did not respond',
+    };
+  }
+}
+
+export function setLocalModel(installDir, modelName) {
+  if (typeof modelName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(modelName)) {
+    throw new Error('Invalid Ollama model name.');
+  }
+  const configPath = path.join(installDir, 'config', 'shadow.yaml');
+  const config = parseYaml(fs.readFileSync(configPath, 'utf8'));
+  let updated = 0;
+  for (const entry of config.model_list || []) {
+    if (!['shadow-local', 'shadow-auto'].includes(entry.model_name)) continue;
+    const params = entry.litellm_params || {};
+    if (typeof params.model === 'string' && params.model.startsWith('ollama/')) {
+      params.model = 'ollama/' + modelName;
+      entry.litellm_params = params;
+      updated += 1;
+    }
+  }
+  if (updated === 0) throw new Error('No local Shadow model aliases were found to configure.');
+  const tempPath = configPath + '.tmp';
+  fs.writeFileSync(tempPath, stringifyYaml(config), { mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, configPath);
+  return { updated, modelName };
 }
 
 async function installOllamaIfMissing() {
@@ -523,23 +571,37 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
       log.warn('Local inference is not configured yet. You can continue with remote providers or install Ollama later.');
     } else if (!ollama.running) {
       log.warn('Ollama is installed but did not answer. Start Ollama before using local models.');
-    } else if (ollama.models.length === 0) {
-      log.info('Ollama is ready, but no models are installed yet.');
-      const pull = await confirm({
-        message: 'Download the starter model llama3.2:3b now? This may download several GB.',
-        initialValue: false,
-      });
-      if (isCancel(pull)) {
-        cancel('Setup paused. Download a model later with: ollama pull llama3.2:3b');
-        return 0;
-      }
-      if (pull) {
-        spin.start('Downloading llama3.2:3b through Ollama');
-        await run('ollama', ['pull', 'llama3.2:3b'], { cwd: installed.installDir });
-        spin.stop('Starter model downloaded');
-      }
     } else {
-      log.success('Ollama detected · ' + ollama.models.slice(0, 5).join(', '));
+      log.success('Ollama detected · ' + (ollama.models.slice(0, 5).join(', ') || 'service ready'));
+      const chatModels = ollama.models.filter((name) => !/(embed|embedding|rerank|whisper|tts)/iu.test(name));
+      if (chatModels.length > 0) {
+        const selectedModel = await select({
+          message: 'Which installed Ollama model should power shadow-local and shadow-auto?',
+          options: chatModels.map((name) => ({ value: name, label: name, hint: 'Installed locally' })),
+        });
+        if (isCancel(selectedModel)) {
+          cancel('Local model selection cancelled. The existing local configuration was preserved.');
+          return 0;
+        }
+        const result = setLocalModel(installed.installDir, selectedModel);
+        log.success('Local aliases configured · ollama/' + selectedModel + ' (' + result.updated + ' routes)');
+      } else {
+        log.info('Ollama is ready, but no chat model is installed (embedding/reranking models are not used for chat).');
+        const pull = await confirm({
+          message: 'Download the starter chat model llama3.2:3b now? This may download several GB.',
+          initialValue: false,
+        });
+        if (isCancel(pull)) {
+          cancel('Setup paused. Download a model later with: ollama pull llama3.2:3b');
+          return 0;
+        }
+        if (pull) {
+          spin.start('Downloading llama3.2:3b through Ollama');
+          await run('ollama', ['pull', 'llama3.2:3b'], { cwd: installed.installDir, timeoutMs: 900000 });
+          spin.stop('Starter model downloaded');
+          setLocalModel(installed.installDir, 'llama3.2:3b');
+        }
+      }
     }
   }
 
@@ -734,4 +796,4 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
   throw new Error('Unknown command: ' + command + '. Run shadow --help.');
 }
 
-export const __test__ = { getUvPath, mergePath, PRIVATE_RUNTIME_FILES };
+export const __test__ = { getUvPath, mergePath, PRIVATE_RUNTIME_FILES, ensurePython };

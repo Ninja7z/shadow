@@ -8,7 +8,7 @@ O instalador oficial do Shadow é distribuído como pacote npm. Ele prepara o ga
 - Internet durante a instalação de uv, Python e dependências do gateway.
 - Linux, macOS ou Windows em x64/ARM64.
 
-Python e uv não precisam estar previamente instalados. O instalador provisiona uv e Python 3.12 em espaço do usuário quando necessário. Ollama é opcional; o instalador detecta se está disponível e pede confirmação antes de baixar um modelo grande.
+Python e uv não precisam estar previamente instalados. O instalador provisiona uv e um runtime Python 3.12 gerenciado pelo próprio usuário, sem reutilizar um ambiente virtual ativado de outro projeto. Ollama é opcional; o instalador detecta o serviço pela API HTTP local e pede confirmação antes de baixar um modelo grande.
 
 ## Primeira instalação
 
@@ -65,7 +65,7 @@ A atualização do pacote sincroniza somente os arquivos gerenciados pelo Shadow
 
 ## Ollama e modelos locais
 
-Ollama é uma opção, não um requisito do gateway. Se não estiver instalado, o assistente informa onde obtê-lo. Se estiver instalado sem modelos, o assistente pode oferecer o download de `llama3.2:3b`; a transferência só começa após confirmação explícita.
+Ollama é uma opção, não um requisito do gateway. Se não estiver instalado, o assistente oferece o instalador oficial adequado à plataforma. Se estiver ativo, consulta o catálogo local e permite escolher um modelo de chat já instalado para `shadow-local` e `shadow-auto`; modelos de embeddings/reranking não são oferecidos para chat. Se não houver modelo de chat, o assistente pode oferecer o download de `llama3.2:3b`, sempre com confirmação explícita. A detecção usa a API HTTP local com timeout, portanto um Ollama lento ou parado não interrompe a instalação.
 
 ## Diagnóstico
 

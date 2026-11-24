@@ -8,7 +8,7 @@ Shadow is distributed as an npm package with an interactive terminal installer. 
 - Internet access while uv, Python and gateway dependencies are installed.
 - Linux, macOS or Windows on x64/ARM64.
 
-Python and uv do not need to be installed in advance. The installer provisions uv and Python 3.12 in the user's space when needed. Ollama is optional; the installer detects it and asks before downloading a large model.
+Python and uv do not need to be installed in advance. The installer provisions uv and a managed Python 3.12 runtime in the user's space, without reusing an activated virtual environment from another project. Ollama is optional; the installer detects it through its local HTTP API and asks before downloading a large model.
 
 ## First installation
 
@@ -65,7 +65,7 @@ Package updates synchronize only Shadow-managed files. The installer preserves `
 
 ## Ollama and local models
 
-Ollama is optional, not a gateway requirement. If it is missing, the assistant shows where to get it. If it is installed without models, the assistant may offer to download `llama3.2:3b`; the transfer starts only after explicit confirmation.
+Ollama is optional, not a gateway requirement. If it is missing, the assistant offers the official installer for the current platform. If it is already running, the installer reads its local model catalog and lets you select an installed chat model for `shadow-local` and `shadow-auto`. Embedding/reranking models are not offered as chat models. If no chat model exists, the assistant may offer to download `llama3.2:3b`; the transfer starts only after explicit confirmation. Ollama detection uses the local HTTP API and a timeout, so a slow or stopped Ollama service does not abort installation.
 
 ## Diagnostics
 
