@@ -1,101 +1,45 @@
 # Shadow API Gateway
 
-Shadow already has a local multi-provider model API. The gateway is LiteLLM, configured and operated as Shadow; a second model proxy or a from-scratch protocol implementation is not needed.
+Shadow runs a local LiteLLM Proxy and exposes one API for model clients. Each clone uses its own credentials, local configuration and provider accounts.
 
-## Current local service
+## Default endpoints
 
-- Runtime: LiteLLM 1.110.2
-- Bind address: 127.0.0.1:4000 (loopback only)
-- Config: ~/.config/shadow/config.yaml
-- Provider credentials: ~/.config/shadow/providers.env and ~/.config/shadow/extra-providers.env
-- Client credential: LITELLM_MASTER_KEY
-- Catalog: 48 configured model aliases
-- Routing: 37 fallback groups
+The gateway binds to 127.0.0.1:4000 by default.
 
-The 48 entries are route aliases, not a claim that every provider/model combination has been re-tested end to end. Check the per-provider smoke test before relying on a route or a specific capability.
-
-## One host, protocol-compatible paths
-
-Use the same local host and gateway credential. The path depends on the client protocol:
-
-| API | Endpoint | Use |
+| Protocol | Endpoint | Typical clients |
 |---|---|---|
-| OpenAI Chat Completions | http://127.0.0.1:4000/v1/chat/completions | OpenCode, Cline, Continue, Kilo, Aider and OpenAI-compatible clients |
-| OpenAI Responses | http://127.0.0.1:4000/v1/responses | Clients built around the Responses API; verify provider/model support |
-| OpenAI model catalog | http://127.0.0.1:4000/v1/models | Model discovery and picker |
+| OpenAI-compatible base URL | http://127.0.0.1:4000/v1 | OpenCode, Cline, Continue, Kilo Code, Aider |
+| OpenAI Chat Completions | http://127.0.0.1:4000/v1/chat/completions | OpenAI-compatible clients |
+| OpenAI Responses | http://127.0.0.1:4000/v1/responses | Clients using Responses; verify upstream support |
 | Anthropic Messages | http://127.0.0.1:4000/v1/messages | Claude Code and Anthropic-compatible clients |
+| Model catalog | http://127.0.0.1:4000/v1/models | Model discovery |
 
-For OpenAI-compatible clients, the Base URL is http://127.0.0.1:4000/v1.
+For OpenAI-compatible clients, use the base URL ending in /v1. For Anthropic clients that append /v1/messages automatically, use the gateway root: http://127.0.0.1:4000.
 
-For Anthropic SDKs/clients that append /v1/messages themselves, use the base URL http://127.0.0.1:4000.
+## Authentication
 
-All model aliases come from the same model_list; clients should select the exact alias returned by /v1/models. The gateway translates the request and response format between the client protocol and each configured provider, subject to provider-specific feature support.
+Use the LITELLM_MASTER_KEY generated in the private .env file. This is the local gateway's administrative key, not an upstream provider key.
 
-LiteLLM documents translated OpenAI Chat Completions, OpenAI Responses and Anthropic Messages endpoints. It also supports many native and pass-through endpoints. See https://docs.litellm.ai/docs/supported_endpoints.
+The default single-user setup is bound to loopback. Do not expose it to other machines or the internet using the master key. Multi-user deployments should configure PostgreSQL-backed LiteLLM virtual keys, scoped permissions, budgets, rate limits and TLS/private networking first.
 
-## Current client integration audit — 2026-11-23
+## Model aliases
 
-| Client | Current state | API configuration |
-|---|---|---|
-| OpenCode | Configured | provider shadow, http://127.0.0.1:4000/v1, key resolved from LITELLM_MASTER_KEY |
-| Cline default profile | Configured | OpenAI-compatible, http://127.0.0.1:4000/v1 |
-| Cline isolated gateway profile | Configured | OpenAI-compatible, http://127.0.0.1:4000/v1 |
-| Continue | Configured | 17 model entries, all using http://127.0.0.1:4000/v1; SHADOW_API_KEY matches the current gateway master key |
-| Claude Code | Configured | claude-route launcher sets the Anthropic Messages base URL to the local gateway |
-| Aider | Installed | A persistent local config was not found in this audit; it can use the OpenAI-compatible base URL and a Shadow model alias |
-| Kilo Code | Not installed/detected in this Linux environment | Configure as an OpenAI Compatible custom provider when installed |
+The model aliases are generated from the local catalog and the credentials enabled by the owner of each installation. Query /v1/models and use the returned id exactly.
 
-### Kilo Code setup
+Common aliases include shadow-local, shadow-auto and shadow-custom-<id>. The actual available set depends on the local setup; no public document should assume the maintainer's private model inventory.
 
-Kilo Code's current custom-provider flow supports OpenAI Compatible, OpenAI Responses and Anthropic Messages. For Shadow's Chat Completions routes:
+## Client setup
 
-- Provider API: OpenAI Compatible
-- Base URL: http://127.0.0.1:4000/v1
-- API key: current Shadow gateway credential (currently LITELLM_MASTER_KEY; replace with a scoped virtual key when available)
-- Model: select an exact alias from /v1/models, e.g. router-shadow-free or router-fast
+See [Client integrations](client-integrations.md) for fresh-clone recipes covering OpenCode, Cline, Continue, Kilo Code, Aider and Claude Code.
 
-Kilo can fetch models automatically from /v1/models. Do not add upstream provider API keys to Kilo; keep those only in Shadow's protected environment.
+## Protocol and feature compatibility
 
-Official setup: https://kilo.ai/docs/ai-providers/openai-compatible
+The gateway translates between client request formats and configured upstream providers where LiteLLM supports the route. Model capabilities are not universal. Tool calling, streaming, image input, reasoning, prompt caching, context limits and structured output must be checked per model and provider.
 
-## Authentication and the remaining security work
+Keep fallback chains protocol-compatible. Do not assume that a model which accepts Chat Completions also supports every Anthropic Messages feature.
 
-The current clients use the single LITELLM_MASTER_KEY. This works for a single-user gateway bound to loopback, but the master key is the LiteLLM Proxy Admin key. It is not an ideal long-term application credential.
+## Model API and MCP are separate
 
-LiteLLM virtual keys allow model allowlists, budgets, rate limits and separate credentials per app. The current Shadow gateway has no DATABASE_URL and no local PostgreSQL service. LiteLLM requires PostgreSQL for virtual-key management and spend tracking; virtual keys/budgets are not available in the current no-database setup.
+The model gateway is the LiteLLM HTTP API on port 4000. The Shadow MCP Hub is a separate tool-server component with its own configuration and credentials. A model API connection does not automatically configure MCP tools, and the MCP Hub does not provide model inference.
 
-Before exposing Shadow to other machines or users:
-
-1. Add a private PostgreSQL database for LiteLLM key management.
-2. Keep LITELLM_MASTER_KEY only for gateway administration.
-3. Issue separate virtual keys for OpenCode, Cline, Kilo, Continue, Claude Code and Aider.
-4. Restrict each key to the intended model aliases and, once the MCP gateway is enabled, only the MCP servers/tools required by that client.
-5. Set per-key budgets/rate limits where applicable.
-6. Keep the service on loopback, or expose it only through an authenticated private network/TLS reverse proxy. Do not bind the raw gateway to 0.0.0.0 without that protection.
-
-Official docs: https://docs.litellm.ai/docs/proxy/virtual_keys
-
-## Model API and MCP tools are separate protocols
-
-The model API and the Shadow MCP Hub are complementary:
-
-- Model API: OpenAI/Anthropic-compatible model requests, on port 4000.
-- MCP Hub: GitHub, Runcrate, Mistral, Hugging Face, Cloudflare Docs and Cloudflare API tools, currently exposed by the local shadow-mcp-hub stdio server to MCP-capable clients.
-
-The current MCP Hub inventory is 208 tools. Claude Code, OpenCode and Cline each connect to this shared Hub. Their MCP connection is separate from their model-provider configuration.
-
-LiteLLM has its own MCP Gateway, which can expose upstream MCP servers on /mcp and can also bridge MCP tools into supported Chat Completions/Responses requests. A local proof of concept was tested on port 4002 using the existing shadow-mcp-hub as an upstream stdio process:
-
-- /v1/models returned all 48 model aliases.
-- The shadow_tools MCP server registered, but tools/list returned 403 forbidden from that upstream.
-- The lab gateway was stopped and its temporary config/log/PID removed.
-- Production port 4000 and the currently working Shadow MCP Hub were not changed.
-
-Do not replace the current MCP Hub or point clients at :4000/mcp until this stdio/authorization integration is fixed and the full tool catalog and read-only forwarding tests pass.
-
-## Important limitations
-
-- A single gateway does not remove upstream free-tier quotas, rate limits, model availability changes or provider-specific feature differences.
-- Tool calling, streaming, vision, reasoning, prompt caching and context limits vary by model/provider and need per-alias verification.
-- Preserve protocol-compatible fallback chains. An OpenAI-only route must not be inserted into an Anthropic Messages fallback chain.
-- The 48 aliases and 37 fallback groups are the current configured inventory; they are not 48 independent providers and do not imply every route is currently healthy.
+See [MCP Hub](mcp-hub.md) for its independent setup and security requirements.

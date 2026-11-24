@@ -19,25 +19,27 @@ if [[ -r "$HUB_DIR/bootstrap.env" ]]; then
   set +a
 fi
 
-GITHUB_TOKEN_FILE="$HUB_DIR/github.token"
-if [[ ! -r "$GITHUB_TOKEN_FILE" ]]; then
-  echo "Missing private GitHub token file: $GITHUB_TOKEN_FILE" >&2
-  exit 3
-fi
-export SHADOW_GITHUB_AUTH="$(<"$GITHUB_TOKEN_FILE")"
-if [[ -z "${SHADOW_GITHUB_AUTH}" ]]; then
-  echo "Private GitHub token file is empty." >&2
-  exit 3
+if node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync(process.env.CONFIG_PATH,"utf8")); process.exit(c.mcpServers && c.mcpServers.github ? 0 : 1)'; then
+  GITHUB_TOKEN_FILE="$HUB_DIR/github.token"
+  if [[ ! -r "$GITHUB_TOKEN_FILE" ]]; then
+    echo "Missing private GitHub token file: $GITHUB_TOKEN_FILE" >&2
+    exit 3
+  fi
+  export SHADOW_GITHUB_AUTH="$(<"$GITHUB_TOKEN_FILE")"
+  if [[ -z "${SHADOW_GITHUB_AUTH}" ]]; then
+    echo "Private GitHub token file is empty." >&2
+    exit 3
+  fi
 fi
 
-# GitHub's upstream bearer credential is stored separately with mode 600.
+# GitHub's upstream bearer credential is stored separately with mode 600 when GitHub is enabled.
 
 
 if [[ -r "$HOME/.config/shadow/extra-providers.env" ]]; then
   source "$HOME/.config/shadow/extra-providers.env"
-  export MISTRAL_API_KEY
-  export HF_TOKEN
-  export CLOUDFLARE_API_TOKEN
+  [[ -n "${MISTRAL_API_KEY:-}" ]] && export MISTRAL_API_KEY
+  [[ -n "${HF_TOKEN:-}" ]] && export HF_TOKEN
+  [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] && export CLOUDFLARE_API_TOKEN
 fi
 
 MODE="${1:---stdio}"

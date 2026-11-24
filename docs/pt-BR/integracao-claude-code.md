@@ -1,39 +1,34 @@
 # Integração com Claude Code
 
-O Shadow expõe um endpoint Anthropic Messages pelo LiteLLM em `http://127.0.0.1:4000`. O lançador local é `~/.local/bin/claude-route`; os lançadores específicos de provedores chamam esse script usando um alias de modelo.
+O Shadow expõe um endpoint compatível com Anthropic Messages por meio do LiteLLM.
 
-## Compatibilidade do seletor de modelos
+## Configuração em uma instalação nova
 
-O Claude Code 2.1.257 ou superior oferece suporte a `modelPicker.options[].behavesAs`. O Shadow usa esse recurso para informar ao Claude Code que aliases de provedores personalizados seguem o perfil de capacidade do Claude Sonnet 4.6.
+Inicie o Shadow e leia a chave mestra local do arquivo privado .env. No terminal:
 
-**O ID real do modelo não é reescrito:** o alias da rota continua sendo enviado ao gateway local, e o LiteLLM seleciona o provedor/modelo configurado para aquele alias.
+~~~bash
+set -a
+source /caminho/para/shadow/.env
+set +a
+unset ANTHROPIC_API_KEY
+ANTHROPIC_BASE_URL=http://127.0.0.1:4000 \
+ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY" \
+ANTHROPIC_MODEL=shadow-auto \
+claude
+~~~
 
-O lançador cria um arquivo privado de configurações para cada alias em `~/.config/shadow/claude-model-settings/`, com permissão `600`. Ele define:
+Use o alias exato retornado por GET /v1/models. A raiz do gateway é intencional: o Claude Code acrescenta o caminho do Anthropic Messages.
 
-- `modelPicker.options[].model` como o alias real do Shadow.
-- `behavesAs: claude-sonnet-4-6` para compatibilidade de capacidade/esforço no Claude Code.
-- `autoCompactWindow` com um limite conservador por rota, geralmente 131.072 tokens.
+## Credenciais
 
-Isso elimina o diagnóstico `[claude-code:unrecognized_model]` sem fingir que o modelo upstream é Claude. O perfil é apenas uma indicação de compatibilidade para o Claude Code; o gateway continua recebendo o alias original.
+O Claude Code recebe somente a LITELLM_MASTER_KEY local. As chaves dos provedores upstream permanecem no .env privado do Shadow e nunca devem ser copiadas para as configurações do Claude Code.
 
-## Credenciais e gateway
+A chave mestra é administrativa. Mantenha essa configuração em uma máquina individual com o gateway vinculado a 127.0.0.1. Para instalações compartilhadas ou remotas, configure chaves virtuais LiteLLM com escopo e proteções de rede antes de conectar clientes.
 
-O lançador lê `~/.config/shadow/providers.env` e `extra-providers.env`. Esses arquivos devem ser privados, com permissão `600`.
+## Recursos e limitações
 
-O Claude Code recebe somente a chave mestra local do LiteLLM como `ANTHROPIC_AUTH_TOKEN`. As chaves dos provedores upstream permanecem no servidor.
+O endpoint Anthropic Messages traduz as requisições por meio do LiteLLM. Uso de ferramentas, streaming, visão, raciocínio, tamanho de contexto e cache de prompt dependem do modelo upstream escolhido e de sua compatibilidade com a camada de tradução. Teste cada rota antes de depender de recursos avançados.
 
-Somente `LITELLM_MASTER_KEY` é obrigatória para o lançador. Ele não deve exigir chaves de provedores sem relação com a rota escolhida, como Gemini ou NVIDIA, quando a rota utilizada for Requesty, Gonka ou Cloudflare.
+O arquivo scripts/claude-route.sh é um lançador avançado para um layout de configuração local separado. Uma instalação recém-clonada não precisa dele; use o fluxo direto com variáveis de ambiente acima, a menos que tenha configurado esse lançador deliberadamente.
 
-## Rota Requesty atual
-
-- Lançador: `claude-requesty`
-- Alias Shadow: `claude-code-requesty-nemotron-free`
-- Upstream: `nvidia/nemotron-3.5-lightning-30b-a3b`
-- Anthropic Messages e chamadas estruturadas `tool_use` foram testadas diretamente e através do Shadow.
-- Um smoke test de uma interação pelo CLI terminou com código 0 e sem diagnóstico `unrecognized_model` após a correção de compatibilidade do seletor.
-
-## Observações
-
-- Aliases de provedores personalizados devem ter uma entrada explícita no seletor de modelos e um limite conservador de compactação de contexto.
-- Mantenha as configurações do seletor localmente. Não faça commit dos arquivos gerados em `~/.config/shadow/claude-model-settings/`.
-- As cadeias de fallback devem ser compatíveis com o protocolo. Um fallback somente OpenAI não deve ser adicionado a uma rota Anthropic Messages.
+Consulte [Integração com aplicativos](integracao-clientes.md) para os exemplos completos de todos os clientes.

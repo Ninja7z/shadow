@@ -78,7 +78,7 @@ python scripts/shadow.py refresh
 
 Consulte `config/providers.catalog.yaml` para ver o catálogo, IDs de modelos, variáveis necessárias, classificação de acesso e links oficiais. Uma variável vazia não ativa um provedor.
 
-Para cadastrar vários endpoints próprios sem editar código ou o catálogo público, execute `python scripts/shadow.py add-provider`. O assistente aceita endpoints OpenAI Chat Completions ou Anthropic Messages, pede Base URL, ID do modelo e tipo de acesso, e solicita a chave sem exibi-la. As chaves ficam no `.env` privado e os metadados em `config/providers.local.yaml`, arquivo ignorado pelo Git. Execute `refresh`, reinicie o gateway e use o alias `shadow-custom-<id>` exibido em `/v1/models`. Esses endpoints são manuais por padrão e não entram no fallback automático. APIs com protocolo proprietário precisam de um adaptador LiteLLM. As variáveis antigas `CUSTOM_OPENAI_*` e `CUSTOM_ANTHROPIC_*` continuam compatíveis.
+Para cadastrar vários endpoints próprios sem editar código ou o catálogo público, execute `python scripts/shadow.py add-provider`. O assistente aceita endpoints OpenAI Chat Completions ou Anthropic Messages, pede Base URL, ID do modelo e tipo de acesso, e solicita a chave sem exibi-la. As chaves ficam no `.env` privado e os metadados em `config/providers.local.yaml`, arquivo ignorado pelo Git. Execute `refresh`, reinicie o gateway e use o alias `shadow-custom-<id>` exibido em `/v1/models`. Esses endpoints são manuais por padrão. APIs gratuitas podem ser incluídas no fallback automático; APIs pagas ou mistas exigem que você digite `SIM` para confirmar a possibilidade de cobranças. APIs com protocolo proprietário precisam de um adaptador LiteLLM. As variáveis antigas `CUSTOM_OPENAI_*` e `CUSTOM_ANTHROPIC_*` continuam compatíveis.
 
 Para um adaptador permanente e reutilizável, adicione uma entrada ao catálogo com o ID do modelo LiteLLM, a API base e o nome da variável de ambiente.
 
@@ -92,19 +92,16 @@ O catálogo é uma lista inicial de integrações, não uma garantia de plano gr
 
 ## Conecte um cliente
 
-Clientes OpenAI-compatible (OpenCode, Cline, Continue, Kilo, Aider):
+Os dados comuns de conexão são:
 
-- Base URL: `http://127.0.0.1:4000/v1`
-- API key: sua `LITELLM_MASTER_KEY` local
-- Modelo: `shadow-auto`, `shadow-local` ou um alias de provedor habilitado.
+- Base URL OpenAI-compatible: `http://127.0.0.1:4000/v1`
+- Base URL Anthropic Messages: `http://127.0.0.1:4000`
+- API key do cliente: a `LITELLM_MASTER_KEY` local do seu `.env` privado
+- Modelo: um alias exato retornado por `/v1/models`
 
-Clientes compatíveis com Anthropic:
+Consulte [Integração com aplicativos](integracao-clientes.md) para instruções prontas de OpenCode, Cline, Continue, Kilo Code, Aider e Claude Code. Não cole chaves de provedores upstream nas configurações dos clientes.
 
-- Base URL: `http://127.0.0.1:4000`
-- API key: sua `LITELLM_MASTER_KEY` local
-- Modelo: escolha um alias compatível com Anthropic Messages no provedor selecionado.
-
-A compatibilidade varia por provedor. Uso de ferramentas, visão, streaming, raciocínio, cache de prompt, tamanho de contexto e tradução Anthropic Messages devem ser verificados por modelo. Não presuma que todo upstream OpenAI-compatible oferece todos os recursos.
+A compatibilidade varia por provedor. Uso de ferramentas, visão, streaming, raciocínio, cache de prompt, tamanho de contexto e tradução Anthropic Messages devem ser verificados por modelo.
 
 ## Comandos
 

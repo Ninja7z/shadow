@@ -64,7 +64,7 @@ Use the generated LITELLM_MASTER_KEY from your private .env as the client key. N
 
 4. Restart Shadow. The new aliases appear in /v1/models. Only catalog entries explicitly marked auto_fallback: true are eligible for shadow-auto. Paid, credit-based and mixed free/paid routes stay manual-only by default; select their alias explicitly when you want to use them. Local Ollama remains the final fallback.
 
-See config/providers.catalog.yaml for the provider catalog, model IDs, required environment variables, access classification and official setup links. A blank variable does not enable a provider. To register multiple custom endpoints without editing code or the public catalog, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI Chat Completions or Anthropic Messages endpoints, asks for the Base URL, exact model ID and access type, and reads the API key without echoing it. Keys stay in the private `.env`; endpoint metadata is stored in `config/providers.local.yaml`, which is ignored by Git. Run `refresh`, restart the gateway and use the `shadow-custom-<id>` alias shown in `/v1/models`. Custom endpoints are manual-only by default and never join automatic fallback. APIs with proprietary protocols need a LiteLLM adapter. The legacy `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported. For a permanent reusable adapter, add a catalog entry with a LiteLLM model ID, API base and environment-variable name.
+See config/providers.catalog.yaml for the provider catalog, model IDs, required environment variables, access classification and official setup links. A blank variable does not enable a provider. To register multiple custom endpoints without editing code or the public catalog, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI Chat Completions or Anthropic Messages endpoints, asks for the Base URL, exact model ID and access type, and reads the API key without echoing it. Keys stay in the private `.env`; endpoint metadata is stored in `config/providers.local.yaml`, which is ignored by Git. Run `refresh`, restart the gateway and use the `shadow-custom-<id>` alias shown in `/v1/models`. Custom endpoints are manual-only by default. Free endpoints can opt into automatic fallback; paid or mixed-access endpoints require typing `SIM` to confirm possible charges. APIs with proprietary protocols need a LiteLLM adapter. The legacy `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported. For a permanent reusable adapter, add a catalog entry with a LiteLLM model ID, API base and environment-variable name.
 
 configure prints which optional provider variables are currently enabled:
 
@@ -74,19 +74,16 @@ The catalog is a starter integration list, not a guarantee of a free plan. Confi
 
 ## Connect a client
 
-OpenAI-compatible clients (OpenCode, Cline, Continue, Kilo, Aider):
+The common connection details are:
 
-- Base URL: http://127.0.0.1:4000/v1
-- API key: your local LITELLM_MASTER_KEY
-- Model: shadow-auto, shadow-local, or an enabled provider alias.
+- OpenAI-compatible Base URL: http://127.0.0.1:4000/v1
+- Anthropic Messages Base URL: http://127.0.0.1:4000
+- Client API key: the local LITELLM_MASTER_KEY from your private .env
+- Model: an exact alias returned by /v1/models
 
-Anthropic-compatible clients:
+See [Client integrations](client-integrations.md) for copy-ready setup instructions for OpenCode, Cline, Continue, Kilo Code, Aider and Claude Code. Do not paste upstream provider keys into client settings.
 
-- Base URL: http://127.0.0.1:4000
-- API key: your local LITELLM_MASTER_KEY
-- Model: choose a model alias that the selected upstream supports through Anthropic Messages.
-
-Provider feature compatibility varies. Tool calling, vision, streaming, reasoning, prompt caching, context length and Anthropic Messages translation must be verified per model. Do not assume every OpenAI-compatible upstream supports every capability.
+Provider feature compatibility varies. Tool calling, vision, streaming, reasoning, prompt caching, context length and Anthropic Messages translation must be verified per model.
 
 ## Commands
 

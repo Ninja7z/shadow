@@ -145,11 +145,17 @@ def build_config(values):
     providers = enabled_models(values)
     cfg["model_list"].extend(providers)
     catalog = load_yaml(CATALOG, {"providers": []})
+    local = load_yaml(LOCAL_PROVIDERS, {"providers": []})
     safe_ids = {
         provider["model_name"]
         for provider in catalog.get("providers", [])
         if provider.get("auto_fallback", False)
     }
+    safe_ids.update(
+        provider["model_name"]
+        for provider in local.get("providers", [])
+        if provider.get("auto_fallback", False)
+    )
     automatic = [provider for provider in providers if provider["model_name"] in safe_ids]
     if automatic:
         cfg["model_list"][1] = {
@@ -208,6 +214,13 @@ def add_provider(_):
         print("Classificação inválida.")
         return 2
 
+    auto_fallback = False
+    if access == "free":
+        auto_fallback = input("Permitir uso no fallback automático? [s/N]: ").strip().lower() in {"s", "sim", "y", "yes"}
+    elif access in {"paid", "mixed"}:
+        print("ATENÇÃO: o fallback automático pode consumir créditos e gerar cobranças sem seleção manual do alias.")
+        auto_fallback = input("Para autorizar esse comportamento, digite SIM: ").strip() == "SIM"
+
     key_env = "SHADOW_CUSTOM_" + re.sub(r"[^A-Z0-9]+", "_", provider_id.upper()).strip("_") + "_API_KEY"
     api_key = getpass.getpass("Chave de API (não será exibida): ").strip()
     if not api_key:
@@ -230,14 +243,14 @@ def add_provider(_):
         "api_base": api_base,
         "api_key_env": key_env,
         "access": access,
-        "auto_fallback": False,
+        "auto_fallback": auto_fallback,
     })
     save_yaml_private(LOCAL_PROVIDERS, data)
     print("\nEndpoint cadastrado. A chave ficou somente no .env privado.")
     print(f"Alias local: shadow-custom-{provider_id}")
     print("Agora execute: python scripts/shadow.py refresh")
     print("Depois reinicie o Shadow. O alias aparecerá em /v1/models.")
-    print("O endpoint é manual por padrão e não entra no fallback automático.")
+    print("Fallback automático habilitado." if auto_fallback else "O endpoint permanece manual e não entra no fallback automático.")
     return 0
 
 
@@ -287,7 +300,8 @@ def configure(_):
     local = load_yaml(LOCAL_PROVIDERS, {"providers": []})
     for provider in local.get("providers", []):
         state = "ATIVO" if values.get(provider["api_key_env"]) else "sem chave"
-        print(f"[{state}] {provider['label']} | {provider['protocol']} | {provider['access']} | alias={provider['model_name']} | manual-only")
+        auto = "auto-fallback" if provider.get("auto_fallback", False) else "manual-only"
+        print(f"[{state}] {provider['label']} | {provider['protocol']} | {provider['access']} | alias={provider['model_name']} | {auto}")
     print("\nPara cadastrar uma API própria: python scripts/shadow.py add-provider")
     return 0
 

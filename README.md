@@ -65,7 +65,7 @@ Para clientes OpenAI-compatible, use a Base URL terminada em `/v1`. Para cliente
 
 Use a chave local `LITELLM_MASTER_KEY` gerada durante a instalação. **Nunca coloque as chaves dos provedores upstream nas configurações dos agentes.**
 
-Clientes compatíveis incluem OpenCode, Cline, Kilo Code, Continue, Aider e Claude Code. A configuração exata varia conforme o cliente e o protocolo escolhido.
+Clientes compatíveis incluem OpenCode, Cline, Kilo Code, Continue, Aider e Claude Code. Consulte o [guia de integração por aplicativo](docs/pt-BR/integracao-clientes.md) para configurações prontas de uma instalação recém-clonada.
 
 ## 🚀 Instalação
 
@@ -115,9 +115,10 @@ Em outro terminal:
 
 ```bash
 python scripts/shadow.py validate
-curl http://127.0.0.1:4000/health/liveliness
-curl http://127.0.0.1:4000/v1/models \
-  -H "Authorization: Bearer SUA_LITELLM_MASTER_KEY"
+curl -fsS http://127.0.0.1:4000/health/liveliness
+set -a && source .env && set +a
+curl -fsS http://127.0.0.1:4000/v1/models \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY"
 ```
 
 A chave é gerada no seu `.env` privado. Não a publique nem a compartilhe.
@@ -182,7 +183,7 @@ python scripts/shadow.py refresh
 python scripts/shadow.py configure
 ```
 
-Reinicie o gateway. Cada endpoint recebe um alias próprio, como `shadow-custom-minha-api`, disponível em `/v1/models`. Rotas cadastradas pelo assistente são manuais por padrão e não entram no fallback automático, evitando cobranças inesperadas. A URL deve implementar o protocolo escolhido; uma API proprietária ou incompatível precisa de um adaptador LiteLLM.
+Reinicie o gateway. Cada endpoint recebe um alias próprio, como `shadow-custom-minha-api`, disponível em `/v1/models`. Rotas próprias são manuais por padrão. O assistente permite incluir uma API gratuita no fallback automático; APIs pagas ou mistas exigem confirmação explícita digitando `SIM`, pois podem gerar cobranças sem seleção manual. A URL deve implementar o protocolo escolhido; uma API proprietária ou incompatível precisa de um adaptador LiteLLM.
 
 O método antigo de endpoint único continua disponível por `.env`: `CUSTOM_OPENAI_API_KEY`, `CUSTOM_OPENAI_BASE_URL`, `CUSTOM_OPENAI_MODEL` e os equivalentes `CUSTOM_ANTHROPIC_*`.
 
@@ -210,11 +211,9 @@ A instalação básica do gateway (`setup`) não configura automaticamente conta
 
 ## 🧰 Claude Code
 
-O repositório inclui um template de lançador para usar rotas do Shadow com Claude Code:
+O Claude Code pode consumir o endpoint Anthropic Messages diretamente. O script `scripts/claude-route.sh` é um lançador avançado para um layout local separado, não necessário em uma instalação nova.
 
-- `scripts/claude-route.sh`
-
-Consulte [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md) para requisitos, configuração e limitações. O login do Claude Code e o uso do gateway Shadow são formas diferentes de autenticação; evite configurar simultaneamente credenciais incompatíveis na mesma sessão.
+Consulte [Integração com aplicativos](docs/pt-BR/integracao-clientes.md) para configurar OpenCode, Cline, Continue, Kilo Code, Aider e Claude Code. O guia de [Claude Code](docs/pt-BR/integracao-claude-code.md) detalha o endpoint Anthropic Messages.
 
 ## 🧪 Testes e diagnóstico
 
@@ -233,9 +232,8 @@ python scripts/smoke_test.py
 O smoke test padrão verifica endpoints e estado do gateway sem executar inferência. Testes de tool calling e Anthropic Messages podem fazer requisições reais e consumir cotas:
 
 ```bash
-python scripts/smoke_test.py --tool-calls
-python scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
-python scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
+python scripts/smoke_test.py --tool-calls --model shadow-auto
+python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto
 ```
 
 Use esses testes de inferência conscientemente. Não os execute repetidamente como monitor de saúde.
@@ -250,9 +248,9 @@ Use esses testes de inferência conscientemente. Não os execute repetidamente c
 | `config/providers.local.yaml` | Registro privado de endpoints próprios, criado pelo assistente e ignorado pelo Git. |
 | `config/shadow.runtime.example.yaml` | Exemplo sanitizado de configuração de roteamento. |
 | `scripts/smoke_test.py` | Verificações e testes de integração. |
-| `scripts/claude-route.sh` | Template de integração com Claude Code. |
+| `scripts/claude-route.sh` | Lançador avançado para um layout local de configuração separado. |
 | `scripts/shadow-mcp-hub.sh` | Lançador do MCP Hub. |
-| `docs/` | Guias de instalação, provedores, MCP, testes e operação. |
+| `docs/` | Guias de instalação, provedores, integrações de clientes, MCP, testes e operação. |
 | `tests/` | Testes automatizados. |
 | `.env.example` | Nomes das variáveis de ambiente, sem credenciais. |
 
@@ -286,6 +284,7 @@ Ela permite uso, modificação e distribuição para finalidades não comerciais
 ### Português
 
 - [Gateway unificado e endpoints](docs/pt-BR/gateway-unificado.md)
+- [Integração com aplicativos](docs/pt-BR/integracao-clientes.md)
 - [Instalação, provedores e auto-hospedagem](docs/pt-BR/auto-hospedagem.md)
 - [Integração com Claude Code](docs/pt-BR/integracao-claude-code.md)
 - [Hub MCP](docs/pt-BR/hub-mcp.md)
@@ -296,6 +295,7 @@ Ela permite uso, modificação e distribuição para finalidades não comerciais
 ### English
 
 - [Unified gateway and API](docs/unified-gateway.md)
+- [Client integrations](docs/client-integrations.md)
 - [Self-hosting and providers](docs/self-hosting.md)
 - [Claude Code integration](docs/claude-code.md)
 - [MCP Hub](docs/mcp-hub.md)
@@ -384,7 +384,7 @@ python scripts/shadow.py add-provider
 
 Only catalog entries explicitly marked `auto_fallback: true` join the automatic fallback chain when their required credentials are present. Other providers remain manual-selection routes by default. The local model remains the final fallback.
 
-To register multiple custom endpoints without editing code, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI-compatible Chat Completions or Anthropic Messages endpoints, records each model alias, stores API keys only in the private `.env`, and stores endpoint metadata in the Git-ignored `config/providers.local.yaml`. Then run `refresh` and restart Shadow. Each endpoint gets its own alias such as `shadow-custom-my-api`. Custom endpoints are manual-only by default, so they cannot silently add paid usage to automatic fallback. APIs using proprietary protocols need a LiteLLM adapter. The legacy single-endpoint `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported.
+To register multiple custom endpoints without editing code, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI-compatible Chat Completions or Anthropic Messages endpoints, records each model alias, stores API keys only in the private `.env`, and stores endpoint metadata in the Git-ignored `config/providers.local.yaml`. Then run `refresh` and restart Shadow. Each endpoint gets its own alias such as `shadow-custom-my-api`. Custom endpoints are manual-only by default. Free endpoints can opt into automatic fallback; paid or mixed-access endpoints require an explicit `SIM` confirmation because automatic fallback may incur charges. APIs using proprietary protocols need a LiteLLM adapter. The legacy single-endpoint `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported.
 
 ### MCP Hub
 
@@ -399,7 +399,9 @@ The basic gateway setup does not automatically configure OAuth accounts, tokens 
 
 ### Claude Code
 
-A local launcher template is available at `scripts/claude-route.sh`. See [Claude Code integration](docs/claude-code.md) for setup and limitations.
+Claude Code can use the Anthropic Messages endpoint directly. `scripts/claude-route.sh` is an optional advanced launcher for a separate local configuration layout and is not required for a fresh clone.
+
+See [Client integrations](docs/client-integrations.md) for fresh-clone setup with OpenCode, Cline, Continue, Kilo Code, Aider and Claude Code, plus [Claude Code integration](docs/claude-code.md) for its protocol details.
 
 ### Tests
 
@@ -418,9 +420,8 @@ python scripts/smoke_test.py
 Tool-call and Anthropic Messages integration tests may make real inference requests and consume provider quotas:
 
 ```bash
-python scripts/smoke_test.py --tool-calls
-python scripts/smoke_test.py --anthropic-tools --anthropic-provider requesty
-python scripts/smoke_test.py --anthropic-tools --anthropic-provider gonka
+python scripts/smoke_test.py --tool-calls --model shadow-auto
+python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto
 ```
 
 Do not run inference tests repeatedly as health monitoring.

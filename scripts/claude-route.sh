@@ -79,20 +79,8 @@ export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL_ALIAS"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL_ALIAS"
 export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
 
-case "$MODEL_ALIAS" in
-  *gemini*|router-vision)
-    export DISABLE_PROMPT_CACHING=1
-    export CLAUDE_CODE_MAX_CONTEXT_TOKENS=1048576
-    ;;
-  claude-code|claude-code-opus|router-smart)
-    unset DISABLE_PROMPT_CACHING || true
-    export CLAUDE_CODE_MAX_CONTEXT_TOKENS=262144
-    ;;
-  *)
-    unset DISABLE_PROMPT_CACHING || true
-    export CLAUDE_CODE_MAX_CONTEXT_TOKENS=131072
-    ;;
-esac
+# Use a conservative generic compaction window; adjust for the chosen model if needed.
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS=131072
 
 # Claude Code 2.1.257+ supports modelPicker.behavesAs. This registers the
 # actual Shadow alias as a supported custom row while preserving the exact
@@ -114,15 +102,7 @@ path, alias, context = sys.argv[1:4]
 if not re.fullmatch(r"[A-Za-z0-9._:-]+", alias):
     raise SystemExit("Unsafe model alias for settings path.")
 
-labels = {
-    "claude-code-requesty-nemotron-free": "Requesty · Nemotron 3.5 Lightning Free",
-    "claude-code-gonka-glm53-anthropic": "Gonka · GLM-5.3-Flash",
-    "claude-code-gonka-glm53-free": "Gonka · GLM-5.3-Flash",
-    "claude-code-bazaarlink-nemotron-free": "BazaarLink · Nemotron 3.5 Lightning Free",
-    "claude-code-cloudflare": "Cloudflare Workers AI · GLM-4.7 Flash",
-    "claude-code-nvidia": "NVIDIA NIM",
-}
-label = labels.get(alias, "Shadow · " + alias)
+label = "Shadow · " + alias
 
 settings = {
     "modelPicker": {

@@ -1,99 +1,45 @@
 # Gateway de API do Shadow
 
-O Shadow já possui uma API local de modelos multiprovedor. O gateway é o LiteLLM, configurado e operado pelo Shadow. Não é necessário criar um segundo proxy de modelos nem implementar os protocolos do zero.
+O Shadow executa um LiteLLM Proxy local e oferece uma API única para clientes de modelos. Cada clone usa suas próprias credenciais, configuração local e contas de provedores.
 
-## Serviço local atual
+## Endpoints padrão
 
-- Runtime: LiteLLM 1.110.2
-- Endereço: `127.0.0.1:4000` (somente loopback)
-- Configuração: `~/.config/shadow/config.yaml`
-- Credenciais dos provedores: `~/.config/shadow/providers.env` e `~/.config/shadow/extra-providers.env`
-- Credencial dos clientes: `LITELLM_MASTER_KEY`
-- Catálogo: 48 aliases de modelos configurados
-- Roteamento: 37 grupos de fallback
+Por padrão, o gateway escuta em 127.0.0.1:4000.
 
-Os 48 itens são aliases de rota. Isso não significa que todas as combinações de provedor/modelo tenham sido testadas novamente de ponta a ponta. Consulte os smoke tests de cada provedor antes de depender de uma rota ou capacidade específica.
-
-## Um host, endpoints compatíveis com cada protocolo
-
-Use o mesmo host local e a mesma credencial do gateway. O caminho muda conforme o protocolo do cliente:
-
-| API | Endpoint | Uso |
+| Protocolo | Endpoint | Clientes comuns |
 |---|---|---|
-| OpenAI Chat Completions | `http://127.0.0.1:4000/v1/chat/completions` | OpenCode, Cline, Continue, Kilo, Aider e clientes compatíveis com OpenAI |
-| OpenAI Responses | `http://127.0.0.1:4000/v1/responses` | Clientes que usam Responses; verifique o suporte do provedor/modelo |
-| Catálogo OpenAI | `http://127.0.0.1:4000/v1/models` | Descoberta e seleção de modelos |
-| Anthropic Messages | `http://127.0.0.1:4000/v1/messages` | Claude Code e clientes compatíveis com Anthropic |
+| Base URL OpenAI-compatible | http://127.0.0.1:4000/v1 | OpenCode, Cline, Continue, Kilo Code, Aider |
+| OpenAI Chat Completions | http://127.0.0.1:4000/v1/chat/completions | Clientes compatíveis com OpenAI |
+| OpenAI Responses | http://127.0.0.1:4000/v1/responses | Clientes Responses; confira suporte upstream |
+| Anthropic Messages | http://127.0.0.1:4000/v1/messages | Claude Code e clientes Anthropic-compatible |
+| Catálogo de modelos | http://127.0.0.1:4000/v1/models | Descoberta de modelos |
 
-Para clientes OpenAI-compatible, use a Base URL `http://127.0.0.1:4000/v1`.
+Para clientes OpenAI-compatible, use a Base URL terminada em /v1. Para clientes Anthropic que acrescentam /v1/messages automaticamente, use a raiz do gateway: http://127.0.0.1:4000.
 
-Para SDKs/clientes Anthropic que acrescentam `/v1/messages` automaticamente, use a Base URL `http://127.0.0.1:4000`.
+## Autenticação
 
-Todos os aliases vêm da mesma lista de modelos. Os clientes devem selecionar o alias exato retornado por `/v1/models`. O gateway traduz os formatos de requisição e resposta entre o protocolo do cliente e cada provedor, respeitando os recursos suportados por cada serviço.
+Use a LITELLM_MASTER_KEY gerada no arquivo privado .env. Ela é a chave administrativa do gateway local, não uma chave de provedor upstream.
 
-Documentação oficial do LiteLLM: https://docs.litellm.ai/docs/supported_endpoints
+A instalação padrão para uma pessoa fica vinculada ao loopback. Não exponha o serviço a outras máquinas ou à internet usando a chave mestra. Para múltiplos usuários, configure PostgreSQL e chaves virtuais LiteLLM com permissões, orçamentos e limites por chave, além de TLS/rede privada.
 
-## Auditoria das integrações — 23/11/2026
+## Aliases de modelos
 
-| Cliente | Estado atual | Configuração |
-|---|---|---|
-| OpenCode | Configurado | Provedor `shadow`, URL `http://127.0.0.1:4000/v1`; chave lida de `LITELLM_MASTER_KEY` |
-| Perfil padrão do Cline | Configurado | OpenAI-compatible, `http://127.0.0.1:4000/v1` |
-| Perfil isolado do gateway no Cline | Configurado | OpenAI-compatible, `http://127.0.0.1:4000/v1` |
-| Continue | Configurado | 17 modelos usando `http://127.0.0.1:4000/v1`; `SHADOW_API_KEY` corresponde à chave atual |
-| Claude Code | Configurado | O lançador `claude-route` define o endpoint Anthropic Messages local |
-| Aider | Instalado | Não foi encontrada configuração persistente nesta auditoria; pode usar a Base URL OpenAI-compatible e um alias Shadow |
-| Kilo Code | Não instalado/detectado neste ambiente Linux | Quando instalado, configure como provedor personalizado OpenAI Compatible |
+Os aliases são gerados a partir do catálogo local e das credenciais habilitadas pelo responsável por cada instalação. Consulte /v1/models e use exatamente o id retornado.
 
-### Configuração do Kilo Code
+Aliases comuns incluem shadow-local, shadow-auto e shadow-custom-<id>. O conjunto disponível depende da configuração local. A documentação pública não deve presumir o inventário privado de modelos do mantenedor.
 
-O fluxo atual de provedor personalizado do Kilo Code aceita OpenAI Compatible, OpenAI Responses e Anthropic Messages. Para as rotas Chat Completions do Shadow:
+## Configuração dos clientes
 
-- API do provedor: OpenAI Compatible
-- Base URL: `http://127.0.0.1:4000/v1`
-- API key: credencial local do gateway Shadow (atualmente `LITELLM_MASTER_KEY`; prefira uma chave virtual com escopo quando disponível)
-- Modelo: selecione um alias exato de `/v1/models`, por exemplo `router-shadow-free` ou `router-fast`
+Consulte [Integração com aplicativos](integracao-clientes.md) para exemplos de instalação nova com OpenCode, Cline, Continue, Kilo Code, Aider e Claude Code.
 
-O Kilo pode buscar os modelos automaticamente em `/v1/models`. Não coloque chaves upstream no Kilo; mantenha-as somente no ambiente protegido do Shadow.
+## Compatibilidade de protocolo e recursos
 
-Guia oficial: https://kilo.ai/docs/ai-providers/openai-compatible
+O gateway traduz formatos de requisição dos clientes para os provedores upstream quando o LiteLLM oferece suporte à rota. Os recursos variam por modelo e provedor: tool calling, streaming, imagens, raciocínio, cache de prompt, contexto e saídas estruturadas precisam ser verificados individualmente.
 
-## Autenticação e próximos passos de segurança
+Mantenha cadeias de fallback compatíveis com o protocolo. Não presuma que um modelo que aceita Chat Completions também oferece todos os recursos do Anthropic Messages.
 
-Os clientes atuais usam uma única `LITELLM_MASTER_KEY`. Isso funciona para um gateway de usuário único vinculado ao loopback, mas essa chave também é a chave administrativa do LiteLLM Proxy. Não é a credencial ideal para uso compartilhado a longo prazo.
+## API de modelos e MCP são componentes separados
 
-As chaves virtuais do LiteLLM permitem listas de modelos autorizados, orçamentos, limites de taxa e credenciais separadas por aplicativo. O gateway atual não possui `DATABASE_URL` nem PostgreSQL local. O LiteLLM exige PostgreSQL para gerenciamento de chaves virtuais e controle de gastos; esses recursos não estão disponíveis na configuração atual sem banco de dados.
+O gateway de modelos é a API HTTP do LiteLLM na porta 4000. O Shadow MCP Hub é um servidor de ferramentas separado, com configuração e credenciais próprias. Conectar a API de modelos não configura automaticamente ferramentas MCP, e o MCP Hub não fornece inferência de modelos.
 
-Antes de expor o Shadow a outras máquinas ou usuários:
-
-1. Configure um PostgreSQL privado para o gerenciamento de chaves do LiteLLM.
-2. Reserve `LITELLM_MASTER_KEY` para administração do gateway.
-3. Emita chaves virtuais separadas para OpenCode, Cline, Kilo, Continue, Claude Code e Aider.
-4. Restrinja cada chave aos aliases necessários e, quando o gateway MCP estiver habilitado, somente aos servidores/ferramentas MCP exigidos por aquele cliente.
-5. Defina orçamentos e limites de taxa por chave, quando aplicável.
-6. Mantenha o serviço em loopback ou exponha-o somente por rede privada autenticada/proxy reverso com TLS. Não vincule o gateway diretamente a `0.0.0.0` sem proteção.
-
-Documentação oficial: https://docs.litellm.ai/docs/proxy/virtual_keys
-
-## API de modelos e ferramentas MCP são protocolos separados
-
-- **API de modelos:** requisições de modelos compatíveis com OpenAI/Anthropic, na porta 4000.
-- **MCP Hub:** ferramentas do GitHub, Runcrate, Mistral, Hugging Face, Cloudflare Docs e Cloudflare API, atualmente disponibilizadas pelo servidor local `shadow-mcp-hub` via stdio para clientes compatíveis com MCP.
-
-O inventário atual do MCP Hub possui 208 ferramentas. Claude Code, OpenCode e Cline conectam-se a esse Hub compartilhado. A conexão MCP é independente da configuração do provedor de modelos.
-
-O LiteLLM possui seu próprio MCP Gateway, capaz de expor servidores MCP upstream em `/mcp` e integrar ferramentas MCP a requisições Chat Completions/Responses compatíveis. Uma prova de conceito local foi testada na porta 4002 usando o `shadow-mcp-hub` como processo stdio upstream:
-
-- `/v1/models` retornou os 48 aliases.
-- O servidor MCP `shadow_tools` foi registrado, mas `tools/list` retornou 403 Forbidden do upstream.
-- O gateway de laboratório foi encerrado e seus arquivos temporários de configuração/log/PID foram removidos.
-- A porta de produção 4000 e o MCP Hub funcional não foram alterados.
-
-Não substitua o MCP Hub atual nem direcione clientes para `:4000/mcp` até que a integração stdio/autorização seja corrigida e o catálogo completo de ferramentas e os testes de encaminhamento somente leitura sejam aprovados.
-
-## Limitações importantes
-
-- Um gateway único não elimina cotas gratuitas, limites de requisição, mudanças de disponibilidade ou diferenças de recursos entre provedores.
-- Uso de ferramentas, streaming, visão, raciocínio, cache de prompt e limites de contexto variam por modelo/provedor e precisam ser verificados por alias.
-- Mantenha cadeias de fallback compatíveis com o protocolo. Uma rota somente OpenAI não deve entrar em uma cadeia Anthropic Messages.
-- Os 48 aliases e 37 grupos de fallback representam o inventário configurado atual. Não são 48 provedores independentes nem garantem que todas as rotas estejam saudáveis.
+Consulte [Hub MCP](hub-mcp.md) para requisitos independentes de instalação e segurança.

@@ -1,34 +1,34 @@
 # Claude Code integration
 
-Shadow exposes an Anthropic Messages endpoint through LiteLLM at `http://127.0.0.1:4000`. The local wrapper is `~/.local/bin/claude-route`, and provider-specific launchers call it with a model alias.
+Shadow exposes an Anthropic Messages-compatible endpoint through LiteLLM.
 
-## Model picker compatibility
+## Fresh clone setup
 
-Claude Code 2.1.257+ supports `modelPicker.options[].behavesAs`. Shadow uses this to tell Claude Code that custom provider aliases follow the capability profile of Claude Sonnet 4.6. The **actual model ID is not rewritten**: the route alias is still sent to the local gateway and LiteLLM selects the provider/model configured for that alias.
+Start Shadow and read the local master key from the private .env file. From a shell:
 
-The launcher creates a private settings file per alias under `~/.config/shadow/claude-model-settings/`, with mode `600`. It sets:
-- `modelPicker.options[].model` to the actual Shadow alias.
-- `behavesAs: claude-sonnet-4-6` for Claude Code capability/effort handling.
-- `autoCompactWindow` to a conservative route-specific limit (usually 131,072 tokens).
+~~~bash
+set -a
+source /path/to/shadow/.env
+set +a
+unset ANTHROPIC_API_KEY
+ANTHROPIC_BASE_URL=http://127.0.0.1:4000 \
+ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY" \
+ANTHROPIC_MODEL=shadow-auto \
+claude
+~~~
 
-This removes the `[claude-code:unrecognized_model]` diagnostic without pretending the upstream model is Claude. The behavior profile is only a Claude Code compatibility hint; the gateway continues receiving the original alias.
+Use the exact model alias returned by GET /v1/models. The gateway root is intentional: Claude Code appends the Anthropic Messages path.
 
-## Credentials and gateway
+## Credentials
 
-The launcher reads `~/.config/shadow/providers.env` and `extra-providers.env`, which must be private files with mode `600`. Claude Code receives only the local LiteLLM master key as `ANTHROPIC_AUTH_TOKEN`; upstream provider keys remain server-side.
+Claude Code receives only the local LITELLM_MASTER_KEY. Upstream provider keys stay in Shadow's private .env and must never be copied into Claude Code settings.
 
-Only `LITELLM_MASTER_KEY` is required by the launcher. It must not require unrelated provider keys such as Gemini or NVIDIA when the chosen route is Requesty, Gonka, or Cloudflare.
+The master key is administrative. Keep this setup on a single-user local machine bound to 127.0.0.1. For shared or remote deployments, configure scoped LiteLLM virtual keys and network protections before connecting clients.
 
-## Current Requesty route
+## Capabilities and limitations
 
-- Launcher: `claude-requesty`
-- Shadow alias: `claude-code-requesty-nemotron-free`
-- Upstream: `nvidia/nemotron-3.5-lightning-30b-a3b`
-- Anthropic Messages and structured `tool_use` were tested directly and through Shadow.
-- A CLI one-turn smoke test succeeded with exit code 0 and no `unrecognized_model` diagnostic after the model picker compatibility fix.
+The Anthropic Messages endpoint translates requests through LiteLLM. Tool use, streaming, vision, reasoning, context size and prompt caching depend on the chosen upstream model and its compatibility with the translation layer. Test each route before relying on advanced features.
 
-## Notes
+The scripts/claude-route.sh file is an advanced launcher for a separate local configuration layout. A fresh clone does not need it; use the direct environment-variable setup above unless you have deliberately configured that launcher.
 
-- Custom provider aliases should have an explicit model picker entry and a conservative context compaction window.
-- Keep the model picker settings local; do not commit generated files from `~/.config/shadow/claude-model-settings/`.
-- Provider fallback chains must remain protocol-compatible. An OpenAI-only fallback must not be added to an Anthropic Messages route.
+See [Client integrations](client-integrations.md) for the complete set of supported client recipes.

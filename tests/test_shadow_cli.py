@@ -115,13 +115,28 @@ class GeneratedConfigTests(unittest.TestCase):
                 config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret"})
         self.assertNotIn("shadow-custom-api-a", [row["model_name"] for row in config["model_list"]])
 
+    def test_custom_provider_can_be_opted_into_auto_fallback(self):
+        providers = {
+            "providers": [
+                {"id": "api-a", "label": "API A", "protocol": "openai", "model_name": "shadow-custom-api-a", "model": "vendor/model-a", "api_base": "https://a.example/v1", "api_key_env": "SHADOW_CUSTOM_API_A_API_KEY", "access": "free", "auto_fallback": True},
+            ]
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "providers.local.yaml"
+            path.write_text(yaml.safe_dump(providers), encoding="utf-8")
+            with patch.object(shadow, "LOCAL_PROVIDERS", path):
+                config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret", "SHADOW_CUSTOM_API_A_API_KEY": "api-key"})
+        self.assertEqual(config["model_list"][1]["model_name"], "shadow-auto")
+        self.assertEqual(config["model_list"][1]["litellm_params"]["model"], "openai/vendor/model-a")
+        self.assertEqual(config["router_settings"]["fallbacks"], [{"shadow-auto": ["shadow-local"]}])
+
 
 class AddProviderWizardTests(unittest.TestCase):
     def test_wizard_keeps_key_out_of_provider_metadata_and_console(self):
         with tempfile.TemporaryDirectory() as directory:
             env_path = Path(directory) / ".env"
             providers_path = Path(directory) / "providers.local.yaml"
-            prompts = ["my-api", "My API", "1", "https://api.example/v1", "vendor/model-x", "free"]
+            prompts = ["my-api", "My API", "1", "https://api.example/v1", "vendor/model-x", "free", "n"]
             output = io.StringIO()
             with patch.object(shadow, "ENV_FILE", env_path), patch.object(shadow, "LOCAL_PROVIDERS", providers_path), patch("builtins.input", side_effect=prompts), patch("getpass.getpass", return_value="top-secret-key"), contextlib.redirect_stdout(output):
                 result = shadow.add_provider(None)
@@ -131,8 +146,21 @@ class AddProviderWizardTests(unittest.TestCase):
             self.assertIn("shadow-custom-my-api", metadata)
             self.assertNotIn("top-secret-key", metadata)
             self.assertNotIn("top-secret-key", output.getvalue())
+            saved = yaml.safe_load(metadata)
+            self.assertFalse(saved["providers"][0]["auto_fallback"])
             if hasattr(env_path.stat(), "st_mode"):
                 self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+
+    def test_paid_provider_requires_explicit_sim_confirmation_for_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            providers_path = Path(directory) / "providers.local.yaml"
+            prompts = ["paid-api", "Paid API", "1", "https://api.example/v1", "vendor/model-x", "paid", "SIM"]
+            with patch.object(shadow, "ENV_FILE", env_path), patch.object(shadow, "LOCAL_PROVIDERS", providers_path), patch("builtins.input", side_effect=prompts), patch("getpass.getpass", return_value="paid-secret"), contextlib.redirect_stdout(io.StringIO()):
+                result = shadow.add_provider(None)
+            saved = yaml.safe_load(providers_path.read_text(encoding="utf-8"))
+            self.assertEqual(result, 0)
+            self.assertTrue(saved["providers"][0]["auto_fallback"])
 
 
 if __name__ == "__main__":
