@@ -40,18 +40,13 @@ jobs:
       - name: Install Python test dependency
         run: python -m pip install --disable-pip-version-check "PyYAML>=6,<7"
 
-      - name: Install uv for managed-Python integration test
-        uses: astral-sh/setup-uv@v7
-
-      - name: Provision managed Python through the Shadow installer
+      - name: Provision uv and managed Python through the Shadow installer
         shell: pwsh
         run: |
-          $uv = (Get-Command uv).Source
           $env:VIRTUAL_ENV = "C:\fake-unrelated-project\.venv"
           $env:CONDA_PREFIX = "C:\fake-conda"
-          $env:SHADOW_TEST_UV = $uv
-          node --input-type=module -e 'import { ensurePython } from "./src/installer.js"; const python = await ensurePython(process.env.SHADOW_TEST_UV); console.log(`Managed Python: ${python}`); if (!python.toLowerCase().includes("python")) process.exit(1);'
-          if ($LASTEXITCODE -ne 0) { throw "Managed Python provisioning failed" }
+          node --input-type=module -e 'import fs from "node:fs"; import os from "node:os"; import path from "node:path"; import { ensureUv, ensurePython } from "./src/installer.js"; const installDir = fs.mkdtempSync(path.join(os.tmpdir(), "shadow-win-bootstrap-")); try { const uv = await ensureUv(installDir); console.log(`uv: ${uv.path}`); const python = await ensurePython(uv.path); console.log(`Managed Python: ${python}`); if (!fs.existsSync(python)) process.exit(1); } finally { fs.rmSync(installDir, { recursive: true, force: true }); }'
+          if ($LASTEXITCODE -ne 0) { throw "Windows uv/Python provisioning failed" }
 
       - name: Test Windows-aware npm CLI and installer helpers
         run: npm test

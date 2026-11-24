@@ -31,6 +31,22 @@ The assistant:
 
 Provider keys are requested through hidden prompts and saved only in the private `.env` file.
 
+On Windows, use the `.cmd` launchers in PowerShell. This avoids PowerShell execution-policy issues with npm's `.ps1` shims:
+
+```powershell
+npx.cmd shadow-gateway
+
+# After setup, if you installed the global command:
+shadow-gateway.cmd start
+shadow-gateway.cmd status
+shadow-gateway.cmd doctor
+
+# Without a global installation:
+npx.cmd shadow-gateway start
+```
+
+Node.js installs the npm command shims. The Shadow installer downloads its own `uv.exe` and managed Python 3.12 when they are missing; a separate Python installation is not required.
+
 ## After installation
 
 If you accepted the global CLI install:

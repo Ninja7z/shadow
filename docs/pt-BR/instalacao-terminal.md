@@ -31,6 +31,22 @@ O assistente:
 
 As chaves de provedores são solicitadas em entrada oculta e gravadas somente no `.env` privado.
 
+No Windows, use os lançadores `.cmd` no PowerShell. Isso evita problemas de política de execução com os atalhos `.ps1` criados pelo npm:
+
+```powershell
+npx.cmd shadow-gateway
+
+# Depois da configuração, se instalou o comando global:
+shadow-gateway.cmd start
+shadow-gateway.cmd status
+shadow-gateway.cmd doctor
+
+# Sem instalação global:
+npx.cmd shadow-gateway start
+```
+
+O Node.js cria os atalhos de comando do npm. Quando necessário, o instalador do Shadow baixa seu próprio `uv.exe` e provisiona o Python 3.12 gerenciado. Não é necessário instalar Python separadamente.
+
 ## Depois da instalação
 
 Se você aceitou a instalação global:
