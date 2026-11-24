@@ -241,7 +241,10 @@ export async function ensureUv(installDir, { env = process.env } = {}) {
       UV_NO_MODIFY_PATH: '1',
     };
     if (windows) {
+      const programFiles = installEnv.ProgramW6432 || installEnv.ProgramFiles || 'C:\\Program Files';
+      const pwshDefault = path.join(programFiles, 'PowerShell', '7', 'pwsh.exe');
       const shell = findExecutable('pwsh.exe', installEnv)
+        || (fs.existsSync(pwshDefault) ? pwshDefault : null)
         || findExecutable('powershell.exe', installEnv)
         || 'powershell.exe';
       await run(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', installerPath], {
