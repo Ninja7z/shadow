@@ -46,12 +46,23 @@ test('parseDotEnv recognizes exported values without exposing or mutating them',
   assert.deepEqual(parsed, { A: 'plain', B: 'quoted value', C: 'value' });
 });
 
-test('findExecutable searches PATH entries', () => {
+test('findExecutable searches PATH entries using the native executable suffix', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-bin-'));
   try {
-    const executable = path.join(directory, 'uv');
-    fs.writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    const executable = path.join(directory, process.platform === 'win32' ? 'uv.exe' : 'uv');
+    fs.writeFileSync(executable, process.platform === 'win32' ? 'binary-placeholder' : '#!/bin/sh\nexit 0\n', { mode: 0o755 });
     assert.equal(findExecutable('uv', { PATH: directory }, directory), executable);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('findExecutable honors Windows PATHEXT when Windows environment is simulated', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-win-bin-'));
+  try {
+    const executable = path.join(directory, 'uv.exe');
+    fs.writeFileSync(executable, 'binary-placeholder', { mode: 0o755 });
+    assert.equal(findExecutable('uv', { OS: 'Windows_NT', PATH: directory, PATHEXT: '.EXE;.CMD;.BAT' }, directory), executable);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }

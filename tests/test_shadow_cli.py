@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,15 @@ SPEC.loader.exec_module(shadow)
 
 
 class GeneratedConfigTests(unittest.TestCase):
+    def test_env_writer_round_trips_values_portably(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            secret = "token with spaces $HOME 'quoted' # value"
+            with patch.object(shadow, "ENV_FILE", env_path):
+                shadow.write_env({"LITELLM_MASTER_KEY": "local-test-key", "CUSTOM_API_KEY": secret})
+                self.assertEqual(shadow.read_env()["CUSTOM_API_KEY"], secret)
+
+    @unittest.skipIf(os.name == "nt", "Bash is not a Windows runtime dependency; dotenv round-trip is tested portably below.")
     def test_env_writer_round_trips_shell_sensitive_values(self):
         with tempfile.TemporaryDirectory() as directory:
             env_path = Path(directory) / ".env"
