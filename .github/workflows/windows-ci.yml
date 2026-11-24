@@ -49,14 +49,8 @@ jobs:
           $uv = (Get-Command uv).Source
           $env:VIRTUAL_ENV = "C:\fake-unrelated-project\.venv"
           $env:CONDA_PREFIX = "C:\fake-conda"
-          @'
-          import { ensurePython } from "./src/installer.js";
-          const python = await ensurePython(process.env.SHADOW_TEST_UV);
-          console.log(`Managed Python: ${python}`);
-          if (!python.toLowerCase().includes("python")) process.exit(1);
-          '@ | Set-Content -Encoding utf8 $env:RUNNER_TEMP\shadow-ensure-python.mjs
           $env:SHADOW_TEST_UV = $uv
-          node $env:RUNNER_TEMP\shadow-ensure-python.mjs
+          node --input-type=module -e 'import { ensurePython } from "./src/installer.js"; const python = await ensurePython(process.env.SHADOW_TEST_UV); console.log(`Managed Python: ${python}`); if (!python.toLowerCase().includes("python")) process.exit(1);'
           if ($LASTEXITCODE -ne 0) { throw "Managed Python provisioning failed" }
 
       - name: Test Windows-aware npm CLI and installer helpers
