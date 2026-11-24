@@ -65,7 +65,7 @@ A atualização do pacote sincroniza somente os arquivos gerenciados pelo Shadow
 
 ## Ollama e modelos locais
 
-Ollama é uma opção, não um requisito do gateway. Se não estiver instalado, o assistente oferece o instalador oficial adequado à plataforma. Se estiver ativo, consulta o catálogo local e permite escolher um modelo de chat já instalado para `shadow-local` e `shadow-auto`; modelos de embeddings/reranking não são oferecidos para chat. Se não houver modelo de chat, o assistente pode oferecer o download de `llama3.2:3b`, sempre com confirmação explícita. A detecção usa a API HTTP local com timeout, portanto um Ollama lento ou parado não interrompe a instalação.
+Ollama é uma opção, não um requisito do gateway. Se não estiver instalado, o assistente oferece o instalador oficial adequado à plataforma. Se estiver ativo, consulta o catálogo local e permite escolher um modelo de chat já instalado para `shadow-local` e `shadow-auto`; modelos de embeddings/reranking não são oferecidos para chat. As rotas de chat usam o adaptador `ollama_chat/` do LiteLLM e desativam o raciocínio por padrão (`think: false`), garantindo resposta final e tool-calling. Rotas de embeddings devem continuar usando `ollama/`. Se não houver modelo de chat, o assistente pode oferecer o download de `llama3.2:3b`, sempre com confirmação explícita. A detecção usa a API HTTP local com timeout, portanto um Ollama lento ou parado não interrompe a instalação.
 
 ## Diagnóstico
 

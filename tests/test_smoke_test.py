@@ -40,6 +40,11 @@ class EnvFileTests(unittest.TestCase):
 
 
 class GatewayChecksTests(unittest.TestCase):
+    def test_default_inference_timeout_allows_cold_local_model_load(self) -> None:
+        with patch("sys.argv", ["smoke_test.py"]):
+            args = smoke.parse_args()
+        self.assertGreaterEqual(args.inference_timeout, 150)
+
     def test_safe_checks_use_only_local_gateway_endpoints(self) -> None:
         args = SimpleNamespace(base_url="http://127.0.0.1:4000", timeout=5)
         report = smoke.Reporter()

@@ -36,6 +36,9 @@ class GeneratedConfigTests(unittest.TestCase):
         config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret"})
         names = [item["model_name"] for item in config["model_list"]]
         self.assertEqual(names, ["shadow-local", "shadow-auto"])
+        for model in config["model_list"]:
+            self.assertEqual(model["litellm_params"]["model"], "ollama_chat/llama3.2:3b")
+            self.assertIs(model["litellm_params"]["think"], False)
         self.assertEqual(config["router_settings"]["fallbacks"], [{"shadow-auto": ["shadow-local"]}])
 
     def test_selected_ollama_model_survives_rebuilding_the_gateway_config(self):
@@ -44,8 +47,10 @@ class GeneratedConfigTests(unittest.TestCase):
             "SHADOW_OLLAMA_MODEL": "qwen3.5:4b",
         })
         rows = {row["model_name"]: row["litellm_params"]["model"] for row in config["model_list"]}
-        self.assertEqual(rows["shadow-local"], "ollama/qwen3.5:4b")
-        self.assertEqual(rows["shadow-auto"], "ollama/qwen3.5:4b")
+        self.assertEqual(rows["shadow-local"], "ollama_chat/qwen3.5:4b")
+        self.assertEqual(rows["shadow-auto"], "ollama_chat/qwen3.5:4b")
+        for model in config["model_list"]:
+            self.assertIs(model["litellm_params"]["think"], False)
 
     def test_invalid_ollama_model_setting_is_rejected_during_config_build(self):
         with self.assertRaises(ValueError):
@@ -57,7 +62,7 @@ class GeneratedConfigTests(unittest.TestCase):
         self.assertIn("shadow-gemini-flash", names)
         self.assertNotIn("shadow-cloudflare-free", names)
         self.assertEqual(config["model_list"][1]["model_name"], "shadow-auto")
-        self.assertEqual(config["model_list"][1]["litellm_params"]["model"], "ollama/llama3.2:3b")
+        self.assertEqual(config["model_list"][1]["litellm_params"]["model"], "ollama_chat/llama3.2:3b")
 
     def test_only_explicitly_free_providers_join_auto_fallback(self):
         config = shadow.build_config({
@@ -82,7 +87,7 @@ class GeneratedConfigTests(unittest.TestCase):
     def test_paid_provider_is_not_automatically_selected(self):
         config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret", "OPENAI_API_KEY": "openai-test"})
         self.assertIn("shadow-openai", [x["model_name"] for x in config["model_list"]])
-        self.assertEqual(config["model_list"][1]["litellm_params"]["model"], "ollama/llama3.2:3b")
+        self.assertEqual(config["model_list"][1]["litellm_params"]["model"], "ollama_chat/llama3.2:3b")
 
     def test_custom_openai_and_anthropic_endpoints_are_supported(self):
         config = shadow.build_config({
@@ -268,8 +273,8 @@ class NpmCredentialBridgeTests(unittest.TestCase):
             self.assertEqual(values["SHADOW_OLLAMA_MODEL"], "qwen3.5:4b")
             refreshed = shadow.build_config(values)
             routes = {row["model_name"]: row["litellm_params"]["model"] for row in refreshed["model_list"]}
-            self.assertEqual(routes["shadow-local"], "ollama/qwen3.5:4b")
-            self.assertEqual(routes["shadow-auto"], "ollama/qwen3.5:4b")
+            self.assertEqual(routes["shadow-local"], "ollama_chat/qwen3.5:4b")
+            self.assertEqual(routes["shadow-auto"], "ollama_chat/qwen3.5:4b")
             self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
 
     def test_import_credentials_rejects_invalid_local_ollama_model(self):

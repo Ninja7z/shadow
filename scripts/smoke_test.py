@@ -300,8 +300,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--inference-timeout",
         type=int,
-        default=35,
-        help="Timeout for optional inference/tool-call checks",
+        default=150,
+        help="Timeout for optional inference/tool-call checks (allows a cold local-model load)",
     )
     parser.add_argument(
         "--model",

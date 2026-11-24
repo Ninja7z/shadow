@@ -170,8 +170,9 @@ def build_config(values):
         for item in cfg.get("model_list", []):
             if item.get("model_name") in {"shadow-local", "shadow-auto"}:
                 params = item.setdefault("litellm_params", {})
-                if str(params.get("model", "")).startswith("ollama/"):
-                    params["model"] = "ollama/" + local_model
+                if str(params.get("model", "")).startswith(("ollama/", "ollama_chat/")):
+                    params["model"] = "ollama_chat/" + local_model
+                    params["think"] = False
     providers = enabled_models(values)
     cfg["model_list"].extend(providers)
     catalog = load_yaml(CATALOG, {"providers": []})
