@@ -163,6 +163,15 @@ def custom_provider_allows_fallback(provider):
 def build_config(values):
     import yaml
     cfg = yaml.safe_load(STARTER.read_text(encoding="utf-8"))
+    local_model = values.get("SHADOW_OLLAMA_MODEL")
+    if local_model:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", local_model):
+            raise ValueError("SHADOW_OLLAMA_MODEL must be a valid local Ollama model identifier.")
+        for item in cfg.get("model_list", []):
+            if item.get("model_name") in {"shadow-local", "shadow-auto"}:
+                params = item.setdefault("litellm_params", {})
+                if str(params.get("model", "")).startswith("ollama/"):
+                    params["model"] = "ollama/" + local_model
     providers = enabled_models(values)
     cfg["model_list"].extend(providers)
     catalog = load_yaml(CATALOG, {"providers": []})
@@ -320,6 +329,7 @@ def save_provider_credentials(payload):
     for provider in catalog.get("providers", []):
         allowed.add(provider["api_key_env"])
         allowed.update(provider.get("required_env", []))
+    allowed.add("SHADOW_OLLAMA_MODEL")
     for key in payload:
         if not isinstance(key, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,100}", key):
             raise ValueError("Invalid environment variable name.")
@@ -327,12 +337,14 @@ def save_provider_credentials(payload):
             raise ValueError(f"Credential variable is not part of the provider catalog: {key}")
         if key == "LITELLM_MASTER_KEY":
             raise ValueError("The local master key cannot be overwritten by provider setup.")
+        if key == "SHADOW_OLLAMA_MODEL" and (not isinstance(payload[key], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", payload[key])):
+            raise ValueError("Invalid local Ollama model identifier.")
     if any(not isinstance(value, str) or not value or any(ord(char) in {0, 10, 13} for char in value) for value in payload.values()):
         raise ValueError("Credential values must be non-empty single-line strings.")
     values = read_env()
     values.update(payload)
     write_env(values)
-    print(f"Saved {len(payload)} provider credential(s) to the private .env file.")
+    print(f"Saved {len(payload)} private provider setting(s) to the .env file.")
     return 0
 
 

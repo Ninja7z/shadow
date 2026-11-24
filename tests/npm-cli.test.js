@@ -14,7 +14,6 @@ import {
   parseDotEnv,
   checkOllama,
   ensurePython,
-  setLocalModel,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -186,38 +185,6 @@ test('missing Ollama binary is treated as optional', async () => {
   assert.deepEqual(await checkOllama({ executableFinder: () => null }), {
     installed: false, running: false, models: [],
   });
-});
-
-test('selecting an installed local model updates both local aliases and keeps private mode', async () => {
-  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-local-model-'));
-  try {
-    const configDir = path.join(installDir, 'config');
-    fs.mkdirSync(configDir, { recursive: true });
-    const configPath = path.join(configDir, 'shadow.yaml');
-    fs.writeFileSync(configPath, [
-      'model_list:',
-      '  - model_name: shadow-local',
-      '    litellm_params:',
-      '      model: ollama/llama3.2:3b',
-      '  - model_name: shadow-auto',
-      '    litellm_params:',
-      '      model: ollama/llama3.2:3b',
-      '  - model_name: shadow-remote',
-      '    litellm_params:',
-      '      model: openai/vendor/model',
-      '',
-    ].join('\n'), { mode: 0o600 });
-    const result = setLocalModel(installDir, 'qwen3.5:4b');
-    const { parse } = await import('yaml');
-    const saved = parse(fs.readFileSync(configPath, 'utf8'));
-    assert.equal(result.updated, 2);
-    assert.equal(saved.model_list[0].litellm_params.model, 'ollama/qwen3.5:4b');
-    assert.equal(saved.model_list[1].litellm_params.model, 'ollama/qwen3.5:4b');
-    assert.equal(saved.model_list[2].litellm_params.model, 'openai/vendor/model');
-    assert.equal(fs.statSync(configPath).mode & 0o777, 0o600);
-  } finally {
-    fs.rmSync(installDir, { recursive: true, force: true });
-  }
 });
 
 test('the npm package exposes a collision-safe shadow-gateway executable', () => {

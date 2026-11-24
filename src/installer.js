@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   cancel, confirm, intro, isCancel, log, note, outro, password, select, spinner, text,
 } from '@clack/prompts';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml } from 'yaml';
 
 const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = path.resolve(THIS_DIR, '..');
@@ -143,6 +143,15 @@ function mergePath(env, extraDirectory) {
   return { ...env, [key]: [extraDirectory, env[key]].filter(Boolean).join(path.delimiter) };
 }
 
+function withoutInheritedPythonEnv(env) {
+  const clean = { ...env };
+  delete clean.VIRTUAL_ENV;
+  delete clean.VIRTUAL_ENV_PROMPT;
+  delete clean.CONDA_PREFIX;
+  delete clean.PYTHONHOME;
+  return clean;
+}
+
 function run(command, args, options = {}) {
   const cwd = options.cwd;
   const env = options.env || process.env;
@@ -252,11 +261,7 @@ export async function ensureUv(installDir, { env = process.env } = {}) {
 export async function ensurePython(uvPath, { env = process.env } = {}) {
   // Do not let an activated project venv (e.g. a different Shadow project) become
   // the base interpreter for a fresh gateway installation.
-  const pythonEnv = { ...env, UV_MANAGED_PYTHON: '1', UV_NO_PROJECT: '1' };
-  delete pythonEnv.VIRTUAL_ENV;
-  delete pythonEnv.VIRTUAL_ENV_PROMPT;
-  delete pythonEnv.CONDA_PREFIX;
-  delete pythonEnv.PYTHONHOME;
+  const pythonEnv = { ...withoutInheritedPythonEnv(env), UV_MANAGED_PYTHON: '1', UV_NO_PROJECT: '1' };
   const findArgs = ['python', 'find', '--managed-python', '--no-project', PYTHON_VERSION];
   let found = await capture(uvPath, findArgs, { env: pythonEnv, timeoutMs: 30000 });
   if (found.code !== 0 || !found.stdout) {
@@ -278,7 +283,7 @@ async function runCore(installDir, args, options = {}) {
   if (!fs.existsSync(python)) throw new Error('Shadow Python environment is missing. Run shadow-gateway setup first.');
   return run(python, [path.join(installDir, 'scripts', 'shadow.py'), ...args], {
     cwd: installDir,
-    env: options.env || mergePath(process.env, path.join(installDir, 'bin')),
+    env: options.env || mergePath(withoutInheritedPythonEnv(process.env), path.join(installDir, 'bin')),
     input: options.input,
     timeoutMs: options.timeoutMs || 0,
   });
@@ -362,28 +367,10 @@ export async function checkOllama({ executableFinder = findExecutable, fetchImpl
   }
 }
 
-export function setLocalModel(installDir, modelName) {
-  if (typeof modelName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(modelName)) {
-    throw new Error('Invalid Ollama model name.');
-  }
-  const configPath = path.join(installDir, 'config', 'shadow.yaml');
-  const config = parseYaml(fs.readFileSync(configPath, 'utf8'));
-  let updated = 0;
-  for (const entry of config.model_list || []) {
-    if (!['shadow-local', 'shadow-auto'].includes(entry.model_name)) continue;
-    const params = entry.litellm_params || {};
-    if (typeof params.model === 'string' && params.model.startsWith('ollama/')) {
-      params.model = 'ollama/' + modelName;
-      entry.litellm_params = params;
-      updated += 1;
-    }
-  }
-  if (updated === 0) throw new Error('No local Shadow model aliases were found to configure.');
-  const tempPath = configPath + '.tmp';
-  fs.writeFileSync(tempPath, stringifyYaml(config), { mode: 0o600 });
-  fs.chmodSync(tempPath, 0o600);
-  fs.renameSync(tempPath, configPath);
-  return { updated, modelName };
+async function persistOllamaModel(installDir, modelName) {
+  await runCore(installDir, ['_import_credentials'], {
+    input: JSON.stringify({ SHADOW_OLLAMA_MODEL: modelName }),
+  });
 }
 
 async function installOllamaIfMissing() {
@@ -500,7 +487,7 @@ async function updateCliAndRuntime(installDir) {
 async function installCoreDependencies(installDir, packageRoot, packageVersion, { quiet = false } = {}) {
   const update = copyRuntime(packageRoot, installDir, packageVersion);
   const binDir = path.join(installDir, 'bin');
-  const currentEnv = mergePath(process.env, binDir);
+  const currentEnv = mergePath(withoutInheritedPythonEnv(process.env), binDir);
   const uvResult = await ensureUv(installDir, { env: currentEnv });
   const env = mergePath(currentEnv, path.dirname(uvResult.path));
   const pythonExe = await ensurePython(uvResult.path, { env });
@@ -583,8 +570,8 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
           cancel('Local model selection cancelled. The existing local configuration was preserved.');
           return 0;
         }
-        const result = setLocalModel(installed.installDir, selectedModel);
-        log.success('Local aliases configured · ollama/' + selectedModel + ' (' + result.updated + ' routes)');
+        await persistOllamaModel(installed.installDir, selectedModel);
+        log.success('Local model saved · ollama/' + selectedModel + ' (kept across refresh and updates)');
       } else {
         log.info('Ollama is ready, but no chat model is installed (embedding/reranking models are not used for chat).');
         const pull = await confirm({
@@ -599,7 +586,7 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
           spin.start('Downloading llama3.2:3b through Ollama');
           await run('ollama', ['pull', 'llama3.2:3b'], { cwd: installed.installDir, timeoutMs: 900000 });
           spin.stop('Starter model downloaded');
-          setLocalModel(installed.installDir, 'llama3.2:3b');
+          await persistOllamaModel(installed.installDir, 'llama3.2:3b');
         }
       }
     }
@@ -796,4 +783,4 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
   throw new Error('Unknown command: ' + command + '. Run shadow --help.');
 }
 
-export const __test__ = { getUvPath, mergePath, PRIVATE_RUNTIME_FILES, ensurePython };
+export const __test__ = { getUvPath, mergePath, withoutInheritedPythonEnv, PRIVATE_RUNTIME_FILES, ensurePython };

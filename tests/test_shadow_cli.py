@@ -38,6 +38,19 @@ class GeneratedConfigTests(unittest.TestCase):
         self.assertEqual(names, ["shadow-local", "shadow-auto"])
         self.assertEqual(config["router_settings"]["fallbacks"], [{"shadow-auto": ["shadow-local"]}])
 
+    def test_selected_ollama_model_survives_rebuilding_the_gateway_config(self):
+        config = shadow.build_config({
+            "LITELLM_MASTER_KEY": "local-secret",
+            "SHADOW_OLLAMA_MODEL": "qwen3.5:4b",
+        })
+        rows = {row["model_name"]: row["litellm_params"]["model"] for row in config["model_list"]}
+        self.assertEqual(rows["shadow-local"], "ollama/qwen3.5:4b")
+        self.assertEqual(rows["shadow-auto"], "ollama/qwen3.5:4b")
+
+    def test_invalid_ollama_model_setting_is_rejected_during_config_build(self):
+        with self.assertRaises(ValueError):
+            shadow.build_config({"LITELLM_MASTER_KEY": "local-secret", "SHADOW_OLLAMA_MODEL": "bad/model id"})
+
     def test_optional_providers_require_their_own_credentials(self):
         config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret", "GEMINI_API_KEY": "gemini-test", "CLOUDFLARE_WORKERS_AI_TOKEN": "cf-test"})
         names = [item["model_name"] for item in config["model_list"]]
@@ -243,6 +256,29 @@ class NpmCredentialBridgeTests(unittest.TestCase):
             self.assertEqual(loaded["GEMINI_API_KEY"], secret)
             self.assertNotIn(secret, output.getvalue())
             self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+
+    def test_import_credentials_persists_the_selected_local_ollama_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            env_path.write_text("LITELLM_MASTER_KEY=local-master\\n", encoding="utf-8")
+            with patch.object(shadow, "ENV_FILE", env_path):
+                result = shadow.save_provider_credentials({"SHADOW_OLLAMA_MODEL": "qwen3.5:4b"})
+                values = shadow.read_env()
+            self.assertEqual(result, 0)
+            self.assertEqual(values["SHADOW_OLLAMA_MODEL"], "qwen3.5:4b")
+            refreshed = shadow.build_config(values)
+            routes = {row["model_name"]: row["litellm_params"]["model"] for row in refreshed["model_list"]}
+            self.assertEqual(routes["shadow-local"], "ollama/qwen3.5:4b")
+            self.assertEqual(routes["shadow-auto"], "ollama/qwen3.5:4b")
+            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+
+    def test_import_credentials_rejects_invalid_local_ollama_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            with patch.object(shadow, "ENV_FILE", env_path):
+                with self.assertRaises(ValueError):
+                    shadow.save_provider_credentials({"SHADOW_OLLAMA_MODEL": "bad/model id"})
+            self.assertFalse(env_path.exists())
 
     def test_import_credentials_rejects_master_key_and_unknown_variables(self):
         with tempfile.TemporaryDirectory() as directory:
