@@ -24,21 +24,28 @@ Um repositório Git público não pode incluir chaves compartilhadas com seguran
 Clone o repositório e execute na pasta raiz:
 
 ```bash
-python scripts/shadow.py setup
+python scripts/shadow.py onboard
 ```
 
-Esse comando cria um ambiente isolado `.venv`, instala LiteLLM e dependências, copia `.env.example` para um `.env` privado, gera uma chave aleatória para o gateway local e cria `config/shadow.yaml`. Os arquivos gerados são ignorados pelo Git.
+Em um clone novo, esse comando cria o ambiente isolado `.venv`, instala LiteLLM e dependências, copia `.env.example` para um `.env` privado, gera uma chave mestra local, cria `config/shadow.yaml` e abre o menu interativo de onboarding. O menu verifica Ollama, conecta provedores do catálogo, cadastra endpoints próprios e mostra como configurar seus aplicativos. Os arquivos gerados são ignorados pelo Git.
 
-Instale um modelo local:
+Instale um modelo local se quiser inferência local:
 
 ```bash
 ollama pull llama3.2:3b
 ```
 
-Inicie a API:
+Inicie a API em outro terminal:
 
 ```bash
 python scripts/shadow.py start
+```
+
+Valide a instalação em um terceiro terminal:
+
+```bash
+python scripts/shadow.py validate
+curl -fsS http://127.0.0.1:4000/health/liveliness
 ```
 
 Por padrão, o serviço fica vinculado a `127.0.0.1:4000`. Ele não fica exposto à rede local nem à internet pública.
@@ -74,7 +81,7 @@ CLOUDFLARE_WORKERS_AI_TOKEN=seu-proprio-token
 python scripts/shadow.py refresh
 ```
 
-4. Reinicie o Shadow. Os novos aliases aparecerão em `/v1/models`. Somente entradas do catálogo marcadas explicitamente com `auto_fallback: true` podem ser usadas por `shadow-auto`. Rotas pagas, baseadas em créditos ou com mistura de opções gratuitas e pagas permanecem manuais por padrão. Selecione o alias explicitamente quando quiser usá-las. O Ollama local continua como fallback final.
+4. Reinicie o Shadow. Os novos aliases aparecerão em `/v1/models`. Somente entradas marcadas com `auto_fallback: true` e classificadas como exclusivamente gratuitas podem entrar em `shadow-auto`. Qualquer classificação que contenha `paid` ou `mixed` permanece manual, mesmo que a flag esteja ativa. Endpoints próprios começam em modo manual; APIs próprias gratuitas podem optar pelo fallback no assistente, enquanto APIs pagas/mistas exigem digitar `SIM`. O Ollama local continua como fallback final.
 
 Consulte `config/providers.catalog.yaml` para ver o catálogo, IDs de modelos, variáveis necessárias, classificação de acesso e links oficiais. Uma variável vazia não ativa um provedor.
 
@@ -88,7 +95,7 @@ Para ver quais variáveis opcionais de provedores estão habilitadas:
 python scripts/shadow.py configure
 ```
 
-O catálogo é uma lista inicial de integrações, não uma garantia de plano gratuito. Confirme preços e cotas atuais com cada provedor. Serviços pagos ficam fora de `shadow-auto` por padrão para evitar cobranças inesperadas. Você pode habilitar um provedor para fallback automático definindo `auto_fallback: true` na entrada correspondente, após revisar a cobrança.
+O catálogo é uma lista inicial de integrações, não uma garantia de plano gratuito. Confirme preços e cotas atuais com cada provedor. Apenas provedores classificados como exclusivamente gratuitos podem entrar em `shadow-auto`; serviços com acesso misto (gratuito + pago) ou baseados em créditos permanecem manuais, mesmo que `auto_fallback: true` esteja definido. Para endpoints próprios, o assistente exige consentimento explícito antes de incluir uma API paga ou mista no fallback.
 
 ## Conecte um cliente
 

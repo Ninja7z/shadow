@@ -4,14 +4,19 @@ This guide targets a fresh GitHub clone. It does not rely on the maintainer's ac
 
 ## 1. Start and validate Shadow
 
-From the repository directory:
+From the repository directory, prepare and configure the installation:
 
 ~~~bash
-python scripts/shadow.py setup
+python scripts/shadow.py onboard
+~~~
+
+In a separate terminal, start the API:
+
+~~~bash
 python scripts/shadow.py start
 ~~~
 
-In another terminal:
+Validate it from another terminal:
 
 ~~~bash
 python scripts/shadow.py validate

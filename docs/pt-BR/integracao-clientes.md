@@ -4,14 +4,19 @@ Guia para uma instalação nova clonada do GitHub. Não depende das contas, mode
 
 ## 1. Inicie e valide
 
-Na pasta do repositório:
+Na pasta do repositório, prepare e configure a instalação:
 
 ~~~bash
-python scripts/shadow.py setup
+python scripts/shadow.py onboard
+~~~
+
+Em um terminal separado, inicie a API:
+
+~~~bash
 python scripts/shadow.py start
 ~~~
 
-Em outro terminal:
+Valide em outro terminal:
 
 ~~~bash
 python scripts/shadow.py validate

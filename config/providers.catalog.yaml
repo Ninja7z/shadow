@@ -4,7 +4,7 @@ providers:
   - {id: groq, label: Groq, model_name: shadow-groq-oss, model: groq/openai/gpt-oss-120b, api_key_env: GROQ_API_KEY, access: free-tier-and-paid, auto_fallback: false, docs: https://console.groq.com/docs}
   - {id: openrouter, label: OpenRouter, model_name: shadow-openrouter-free, model: openrouter/openrouter/free, api_key_env: OPENROUTER_API_KEY, access: free-models-and-paid, auto_fallback: false, docs: https://openrouter.ai/docs}
   - {id: huggingface, label: Hugging Face, model_name: shadow-huggingface, model: openai/Qwen/Qwen3.5-4B, api_base: https://router.huggingface.co/v1, api_key_env: HF_TOKEN, access: credits-and-paid, auto_fallback: false, docs: https://huggingface.co/docs/inference-providers}
-  - {id: requesty, label: Requesty, model_name: shadow-requesty-free, model: openai/nvidia/nemotron-3.5-lightning-30b-a3b, api_base: https://router.requesty.ai/v1, api_key_env: REQUESTY_API_KEY, access: free-tier-and-paid, auto_fallback: true, docs: https://www.requesty.ai/models/free}
+  - {id: requesty, label: Requesty, model_name: shadow-requesty, model: openai/nvidia/nemotron-3.5-lightning-30b-a3b, api_base: https://router.requesty.ai/v1, api_key_env: REQUESTY_API_KEY, access: free-tier-and-paid, auto_fallback: false, docs: https://www.requesty.ai/models/free}
   - {id: gonka, label: Gonka Broker, model_name: shadow-gonka-free, model: openai/zai-org/GLM-5.3-Flash, api_base: https://proxy.gonkabroker.com/v1, api_key_env: GONKA_API_KEY, access: free-tier, auto_fallback: true, docs: https://docs.gonkabroker.com/reference/limits-and-quotas/}
   - id: bazaarlink
     label: BazaarLink

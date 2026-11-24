@@ -21,15 +21,15 @@ A public Git repository cannot safely include shared provider keys or promise un
 
 Clone the repository, then from its root:
 
-    python scripts/shadow.py setup
+    python scripts/shadow.py onboard
 
-This creates an isolated .venv, installs LiteLLM and dependencies, copies .env.example to a private .env, generates a random local gateway key, and creates config/shadow.yaml. The generated files are ignored by Git.
+On a fresh clone, this creates an isolated .venv, installs LiteLLM and dependencies, copies .env.example to a private .env, generates a random local gateway key, creates config/shadow.yaml and opens the interactive onboarding menu. The generated files are ignored by Git. The menu can check Ollama, connect a catalog provider, register custom endpoints and show client setup details.
 
-Install a local model:
+Install a local model if you want local inference:
 
     ollama pull llama3.2:3b
 
-Start the API:
+Start the API in a separate terminal:
 
     python scripts/shadow.py start
 
@@ -62,7 +62,7 @@ Use the generated LITELLM_MASTER_KEY from your private .env as the client key. N
 
        python scripts/shadow.py refresh
 
-4. Restart Shadow. The new aliases appear in /v1/models. Only catalog entries explicitly marked auto_fallback: true are eligible for shadow-auto. Paid, credit-based and mixed free/paid routes stay manual-only by default; select their alias explicitly when you want to use them. Local Ollama remains the final fallback.
+4. Restart Shadow. The new aliases appear in /v1/models. Only catalog entries marked `auto_fallback: true` and classified as free-only are eligible for `shadow-auto`. Any access label containing `paid` or `mixed` remains manual even if the flag is set. Custom endpoints start manual; free custom endpoints can opt in during the wizard, while paid/mixed custom endpoints require typing `SIM`. Local Ollama remains the final fallback.
 
 See config/providers.catalog.yaml for the provider catalog, model IDs, required environment variables, access classification and official setup links. A blank variable does not enable a provider. To register multiple custom endpoints without editing code or the public catalog, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI Chat Completions or Anthropic Messages endpoints, asks for the Base URL, exact model ID and access type, and reads the API key without echoing it. Keys stay in the private `.env`; endpoint metadata is stored in `config/providers.local.yaml`, which is ignored by Git. Run `refresh`, restart the gateway and use the `shadow-custom-<id>` alias shown in `/v1/models`. Custom endpoints are manual-only by default. Free endpoints can opt into automatic fallback; paid or mixed-access endpoints require typing `SIM` to confirm possible charges. APIs with proprietary protocols need a LiteLLM adapter. The legacy `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported. For a permanent reusable adapter, add a catalog entry with a LiteLLM model ID, API base and environment-variable name.
 
@@ -70,7 +70,7 @@ configure prints which optional provider variables are currently enabled:
 
     python scripts/shadow.py configure
 
-The catalog is a starter integration list, not a guarantee of a free plan. Confirm current prices and quotas with each provider before using it. Paid providers are deliberately excluded from shadow-auto by default to avoid surprise charges. You can opt a provider into automatic fallback by setting auto_fallback: true in its catalog entry, after reviewing its billing behavior.
+The catalog is a starter integration list, not a guarantee of a free plan. Confirm current prices and quotas with each provider before using it. Only providers classified as free-only can enter `shadow-auto`; mixed free/paid and credit-based providers stay manual even if `auto_fallback: true` is set. For custom endpoints, the wizard provides an explicit consent step before a paid or mixed route can join automatic fallback.
 
 ## Connect a client
 
