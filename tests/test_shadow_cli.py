@@ -20,6 +20,18 @@ shadow = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(shadow)
 
 
+def assert_private_env_file(test_case, path: Path):
+    if os.name == "nt":
+        result = subprocess.run(["icacls", str(path)], text=True, capture_output=True, check=True)
+        test_case.assertNotRegex(
+            result.stdout,
+            r"(?i)(?:Everyone|Authenticated Users|BUILTIN\\Users|\\Users):",
+            "The private .env file must not grant access to broad user groups.",
+        )
+    else:
+        test_case.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+
 class GeneratedConfigTests(unittest.TestCase):
     def test_env_writer_round_trips_values_portably(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -40,7 +52,7 @@ class GeneratedConfigTests(unittest.TestCase):
             import subprocess
             sourced = subprocess.run(["bash", "-c", 'set -a; source "$1"; printf %s "$CUSTOM_API_KEY"', "shadow-env-test", str(env_path)], text=True, capture_output=True, check=True)
             self.assertEqual(sourced.stdout, secret)
-            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+            assert_private_env_file(self, env_path)
 
     def test_local_only_config_has_no_remote_provider(self):
         config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret"})
@@ -213,7 +225,7 @@ class AddProviderWizardTests(unittest.TestCase):
             saved = yaml.safe_load(metadata)
             self.assertFalse(saved["providers"][0]["auto_fallback"])
             if hasattr(env_path.stat(), "st_mode"):
-                self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+                assert_private_env_file(self, env_path)
 
     def test_custom_provider_rejects_newline_in_api_key(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -270,7 +282,7 @@ class NpmCredentialBridgeTests(unittest.TestCase):
             self.assertIn("GEMINI_API_KEY=", saved)
             self.assertEqual(loaded["GEMINI_API_KEY"], secret)
             self.assertNotIn(secret, output.getvalue())
-            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+            assert_private_env_file(self, env_path)
 
     def test_import_credentials_persists_the_selected_local_ollama_model(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -285,7 +297,7 @@ class NpmCredentialBridgeTests(unittest.TestCase):
             routes = {row["model_name"]: row["litellm_params"]["model"] for row in refreshed["model_list"]}
             self.assertEqual(routes["shadow-local"], "ollama_chat/qwen3.5:4b")
             self.assertEqual(routes["shadow-auto"], "ollama_chat/qwen3.5:4b")
-            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+            assert_private_env_file(self, env_path)
 
     def test_import_credentials_rejects_invalid_local_ollama_model(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -347,7 +359,7 @@ class OnboardingTests(unittest.TestCase):
             self.assertIn("shadow-gemini-flash", generated)
             self.assertNotIn("gemini-private-test-key", generated)
             self.assertNotIn("gemini-private-test-key", output.getvalue())
-            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+            assert_private_env_file(self, env_path)
 
     def test_ollama_status_reports_missing_binary(self):
         with patch.object(shadow.shutil, "which", return_value=None):
@@ -367,7 +379,7 @@ class OnboardingTests(unittest.TestCase):
             self.assertEqual(result, 0)
             ensure.assert_called_once()
             self.assertIn("LITELLM_MASTER_KEY=sk-shadow-", env_path.read_text(encoding="utf-8"))
-            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+            assert_private_env_file(self, env_path)
             self.assertIn("_finish_setup", call.call_args_list[0].args[0])
             self.assertIn("onboard", call.call_args_list[1].args[0])
             self.assertNotIn("sk-shadow-", output.getvalue())
