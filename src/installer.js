@@ -241,7 +241,9 @@ export async function ensureUv(installDir, { env = process.env } = {}) {
       UV_NO_MODIFY_PATH: '1',
     };
     if (windows) {
-      const shell = findExecutable('powershell.exe', installEnv) || 'powershell.exe';
+      const shell = findExecutable('pwsh.exe', installEnv)
+        || findExecutable('powershell.exe', installEnv)
+        || 'powershell.exe';
       await run(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', installerPath], {
         env: installEnv, timeoutMs: 180000,
       });
