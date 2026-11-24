@@ -156,35 +156,35 @@ python scripts/shadow.py refresh
 
 5. Reinicie o Shadow para carregar a configuração atualizada.
 
-Para ver os provedores opcionais e o estado das variáveis locais:
+Para ver os provedores opcionais, conferir endpoints próprios e cadastrar uma nova API:
 
 ```bash
 python scripts/shadow.py configure
+python scripts/shadow.py add-provider
 ```
 
 Somente provedores marcados com `auto_fallback: true` no catálogo entram na cadeia automática quando suas credenciais necessárias estão configuradas. Os demais ficam disponíveis por alias, para seleção manual. O modelo local permanece como fallback final.
 
 ### Conectar qualquer endpoint compatível
 
-Não encontrou seu provedor no catálogo? Configure um endpoint próprio no `.env`.
+Não encontrou seu provedor no catálogo? Cadastre **quantos endpoints próprios precisar**, sem editar código ou o catálogo público:
 
-OpenAI-compatible:
-
-```env
-CUSTOM_OPENAI_API_KEY=sua-chave
-CUSTOM_OPENAI_BASE_URL=https://seu-endpoint/v1
-CUSTOM_OPENAI_MODEL=nome-do-modelo
+```bash
+python scripts/shadow.py add-provider
 ```
 
-Anthropic Messages-compatible:
+O assistente pergunta um identificador, nome, protocolo (OpenAI-compatible ou Anthropic Messages), Base URL, ID exato do modelo e tipo de acesso (gratuito, pago, misto ou desconhecido). A chave é digitada sem aparecer na tela e fica no `.env` privado. A definição do endpoint fica em `config/providers.local.yaml`, também privada e ignorada pelo Git.
 
-```env
-CUSTOM_ANTHROPIC_API_KEY=sua-chave
-CUSTOM_ANTHROPIC_BASE_URL=https://seu-endpoint
-CUSTOM_ANTHROPIC_MODEL=nome-do-modelo
+Depois execute:
+
+```bash
+python scripts/shadow.py refresh
+python scripts/shadow.py configure
 ```
 
-Depois execute `python scripts/shadow.py refresh`. Os aliases serão `shadow-custom-openai` e `shadow-custom-anthropic`, respectivamente. Rotas personalizadas são manuais por padrão e não entram automaticamente no fallback.
+Reinicie o gateway. Cada endpoint recebe um alias próprio, como `shadow-custom-minha-api`, disponível em `/v1/models`. Rotas cadastradas pelo assistente são manuais por padrão e não entram no fallback automático, evitando cobranças inesperadas. A URL deve implementar o protocolo escolhido; uma API proprietária ou incompatível precisa de um adaptador LiteLLM.
+
+O método antigo de endpoint único continua disponível por `.env`: `CUSTOM_OPENAI_API_KEY`, `CUSTOM_OPENAI_BASE_URL`, `CUSTOM_OPENAI_MODEL` e os equivalentes `CUSTOM_ANTHROPIC_*`.
 
 ## 🔁 Roteamento e fallback
 
@@ -246,7 +246,8 @@ Use esses testes de inferência conscientemente. Não os execute repetidamente c
 | --- | --- |
 | `scripts/shadow.py` | CLI de instalação, configuração, validação e inicialização. |
 | `config/shadow.example.yaml` | Configuração inicial local-first. |
-| `config/providers.catalog.yaml` | Catálogo de integrações opcionais. |
+| `config/providers.catalog.yaml` | Catálogo público de integrações opcionais. |
+| `config/providers.local.yaml` | Registro privado de endpoints próprios, criado pelo assistente e ignorado pelo Git. |
 | `config/shadow.runtime.example.yaml` | Exemplo sanitizado de configuração de roteamento. |
 | `scripts/smoke_test.py` | Verificações e testes de integração. |
 | `scripts/claude-route.sh` | Template de integração com Claude Code. |
@@ -257,7 +258,7 @@ Use esses testes de inferência conscientemente. Não os execute repetidamente c
 
 ## 🔐 Segurança e privacidade
 
-- Mantenha `.env`, `.venv/`, `config/shadow.yaml`, tokens, estados OAuth e arquivos de runtime fora do Git.
+- Mantenha `.env`, `.venv/`, `config/shadow.yaml`, `config/providers.local.yaml`, tokens, estados OAuth e arquivos de runtime fora do Git.
 - Nunca publique chaves de API, tokens de acesso, cookies, arquivos de sessão ou backups de credenciais.
 - Revise `git status` e `git diff --cached` antes de cada commit.
 - O gateway inicia em `127.0.0.1`. Não o exponha diretamente à rede ou à internet sem autenticação adequada, TLS, limites de taxa e configuração segura.
@@ -374,15 +375,16 @@ Add your own provider keys to the private `.env` file and regenerate the runtime
 python scripts/shadow.py refresh
 ```
 
-See which optional providers are configured:
+See which optional providers are configured, or register another custom endpoint:
 
 ```bash
 python scripts/shadow.py configure
+python scripts/shadow.py add-provider
 ```
 
 Only catalog entries explicitly marked `auto_fallback: true` join the automatic fallback chain when their required credentials are present. Other providers remain manual-selection routes by default. The local model remains the final fallback.
 
-For any OpenAI-compatible endpoint, set `CUSTOM_OPENAI_API_KEY`, `CUSTOM_OPENAI_BASE_URL` and `CUSTOM_OPENAI_MODEL`. For an Anthropic Messages-compatible endpoint, use `CUSTOM_ANTHROPIC_API_KEY`, `CUSTOM_ANTHROPIC_BASE_URL` and `CUSTOM_ANTHROPIC_MODEL`. Run `refresh` afterwards. Custom routes are manual by default.
+To register multiple custom endpoints without editing code, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI-compatible Chat Completions or Anthropic Messages endpoints, records each model alias, stores API keys only in the private `.env`, and stores endpoint metadata in the Git-ignored `config/providers.local.yaml`. Then run `refresh` and restart Shadow. Each endpoint gets its own alias such as `shadow-custom-my-api`. Custom endpoints are manual-only by default, so they cannot silently add paid usage to automatic fallback. APIs using proprietary protocols need a LiteLLM adapter. The legacy single-endpoint `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported.
 
 ### MCP Hub
 
@@ -425,7 +427,7 @@ Do not run inference tests repeatedly as health monitoring.
 
 ### Security and privacy
 
-Keep `.env`, `.venv/`, `config/shadow.yaml`, tokens, OAuth state and runtime files out of Git. Never commit API keys, access tokens, cookies, session files or credential backups.
+Keep `.env`, `.venv/`, `config/shadow.yaml`, `config/providers.local.yaml`, tokens, OAuth state and runtime files out of Git. Never commit API keys, access tokens, cookies, session files or credential backups.
 
 The gateway binds to loopback by default. Do not expose it directly to a network or the public internet without proper authentication, TLS, rate limits and a secure deployment configuration. Remote providers receive the requests routed to them; review each provider's privacy and retention terms before sending sensitive data.
 

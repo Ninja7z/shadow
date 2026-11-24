@@ -64,7 +64,7 @@ Use the generated LITELLM_MASTER_KEY from your private .env as the client key. N
 
 4. Restart Shadow. The new aliases appear in /v1/models. Only catalog entries explicitly marked auto_fallback: true are eligible for shadow-auto. Paid, credit-based and mixed free/paid routes stay manual-only by default; select their alias explicitly when you want to use them. Local Ollama remains the final fallback.
 
-See config/providers.catalog.yaml for the provider catalog, model IDs, required environment variables, access classification and official setup links. A blank variable does not enable a provider. You can add any OpenAI-compatible service without editing code by setting CUSTOM_OPENAI_API_KEY, CUSTOM_OPENAI_BASE_URL and CUSTOM_OPENAI_MODEL. For an Anthropic Messages-compatible service, set CUSTOM_ANTHROPIC_API_KEY, CUSTOM_ANTHROPIC_BASE_URL and CUSTOM_ANTHROPIC_MODEL. These appear as shadow-custom-openai and shadow-custom-anthropic. Custom routes are manual-only and are never inserted into automatic fallback by default. For a permanent reusable adapter, add a catalog entry with a LiteLLM model ID, API base and environment-variable name.
+See config/providers.catalog.yaml for the provider catalog, model IDs, required environment variables, access classification and official setup links. A blank variable does not enable a provider. To register multiple custom endpoints without editing code or the public catalog, run `python scripts/shadow.py add-provider`. The interactive wizard accepts OpenAI Chat Completions or Anthropic Messages endpoints, asks for the Base URL, exact model ID and access type, and reads the API key without echoing it. Keys stay in the private `.env`; endpoint metadata is stored in `config/providers.local.yaml`, which is ignored by Git. Run `refresh`, restart the gateway and use the `shadow-custom-<id>` alias shown in `/v1/models`. Custom endpoints are manual-only by default and never join automatic fallback. APIs with proprietary protocols need a LiteLLM adapter. The legacy `CUSTOM_OPENAI_*` and `CUSTOM_ANTHROPIC_*` variables remain supported. For a permanent reusable adapter, add a catalog entry with a LiteLLM model ID, API base and environment-variable name.
 
 configure prints which optional provider variables are currently enabled:
 
@@ -91,7 +91,8 @@ Provider feature compatibility varies. Tool calling, vision, streaming, reasonin
 ## Commands
 
     python scripts/shadow.py setup      # create local environment/config
-    python scripts/shadow.py configure  # show optional provider setup
+    python scripts/shadow.py configure  # show catalog and custom endpoints
+    python scripts/shadow.py add-provider  # register a custom endpoint interactively
     python scripts/shadow.py refresh    # regenerate config after editing .env
     python scripts/shadow.py validate   # validate generated aliases
     python scripts/shadow.py start      # run local API
@@ -100,7 +101,7 @@ The starter does not install Ollama or download models automatically. This avoid
 
 ## Security and sharing
 
-- .env, config/shadow.yaml, .venv, logs and runtime data are local and ignored by Git.
+- .env, config/shadow.yaml, config/providers.local.yaml, .venv, logs and runtime data are local and ignored by Git.
 - The generated master key is administrative. Keep it private and use it only for your local gateway.
 - The default bind address is loopback. Do not expose the gateway on 0.0.0.0 or the internet without TLS, authentication, rate limits and a proper key-management/database setup.
 - Never commit personal API keys, OAuth sessions, provider account IDs where sensitive, request logs or local backups.

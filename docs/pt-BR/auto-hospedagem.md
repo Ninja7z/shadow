@@ -78,7 +78,7 @@ python scripts/shadow.py refresh
 
 Consulte `config/providers.catalog.yaml` para ver o catálogo, IDs de modelos, variáveis necessárias, classificação de acesso e links oficiais. Uma variável vazia não ativa um provedor.
 
-É possível adicionar qualquer serviço OpenAI-compatible sem editar código usando `CUSTOM_OPENAI_API_KEY`, `CUSTOM_OPENAI_BASE_URL` e `CUSTOM_OPENAI_MODEL`. Para um serviço compatível com Anthropic Messages, use `CUSTOM_ANTHROPIC_API_KEY`, `CUSTOM_ANTHROPIC_BASE_URL` e `CUSTOM_ANTHROPIC_MODEL`. Eles aparecem como `shadow-custom-openai` e `shadow-custom-anthropic`. Rotas personalizadas são manuais por padrão e não entram automaticamente no fallback.
+Para cadastrar vários endpoints próprios sem editar código ou o catálogo público, execute `python scripts/shadow.py add-provider`. O assistente aceita endpoints OpenAI Chat Completions ou Anthropic Messages, pede Base URL, ID do modelo e tipo de acesso, e solicita a chave sem exibi-la. As chaves ficam no `.env` privado e os metadados em `config/providers.local.yaml`, arquivo ignorado pelo Git. Execute `refresh`, reinicie o gateway e use o alias `shadow-custom-<id>` exibido em `/v1/models`. Esses endpoints são manuais por padrão e não entram no fallback automático. APIs com protocolo proprietário precisam de um adaptador LiteLLM. As variáveis antigas `CUSTOM_OPENAI_*` e `CUSTOM_ANTHROPIC_*` continuam compatíveis.
 
 Para um adaptador permanente e reutilizável, adicione uma entrada ao catálogo com o ID do modelo LiteLLM, a API base e o nome da variável de ambiente.
 
@@ -110,7 +110,8 @@ A compatibilidade varia por provedor. Uso de ferramentas, visão, streaming, rac
 
 ```bash
 python scripts/shadow.py setup      # cria ambiente e configuração locais
-python scripts/shadow.py configure  # mostra configuração opcional de provedores
+python scripts/shadow.py configure  # mostra catálogo e endpoints próprios
+python scripts/shadow.py add-provider  # cadastra uma API própria interativamente
 python scripts/shadow.py refresh    # regenera config após editar .env
 python scripts/shadow.py validate   # valida aliases gerados
 python scripts/shadow.py start      # inicia a API local
@@ -120,7 +121,7 @@ A instalação inicial não instala o Ollama nem baixa modelos automaticamente. 
 
 ## Segurança e compartilhamento
 
-- `.env`, `config/shadow.yaml`, `.venv`, logs e dados de runtime são locais e ignorados pelo Git.
+- `.env`, `config/shadow.yaml`, `config/providers.local.yaml`, `.venv`, logs e dados de runtime são locais e ignorados pelo Git.
 - A chave mestra gerada é administrativa. Mantenha-a privada e use-a somente no gateway local.
 - O endereço padrão é loopback. Não exponha o gateway em `0.0.0.0` ou na internet sem TLS, autenticação, limites de taxa e uma configuração adequada de banco de dados/gerenciamento de chaves.
 - Nunca faça commit de chaves pessoais de API, sessões OAuth, IDs sensíveis de contas, logs de requisições ou backups locais.

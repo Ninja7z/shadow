@@ -43,6 +43,7 @@ google-cloud-cli-*.tar.gz
 
 # Machine-specific configuration
 config/shadow.yaml
+config/providers.local.yaml
 config/runtime.yaml
 config/local/
 
