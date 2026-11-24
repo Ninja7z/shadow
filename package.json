@@ -8,7 +8,7 @@
     "node": ">=20.12.0"
   },
   "bin": {
-    "shadow": "./bin/shadow.js"
+    "shadow": "bin/shadow.js"
   },
   "files": [
     "bin/**",
