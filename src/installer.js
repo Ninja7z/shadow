@@ -267,7 +267,7 @@ export async function ensurePython(uvPath, { env = process.env } = {}) {
 
 async function runCore(installDir, args, options = {}) {
   const python = getPythonVenvPath(installDir);
-  if (!fs.existsSync(python)) throw new Error('Shadow Python environment is missing. Run shadow setup first.');
+  if (!fs.existsSync(python)) throw new Error('Shadow Python environment is missing. Run shadow-gateway setup first.');
   return run(python, [path.join(installDir, 'scripts', 'shadow.py'), ...args], {
     cwd: installDir,
     env: options.env || mergePath(process.env, path.join(installDir, 'bin')),
@@ -556,7 +556,7 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
     initialValue: false,
   });
   if (isCancel(addCustom)) {
-    cancel('Setup paused. You can add an API later with shadow provider add.');
+    cancel('Setup paused. You can add an API later with shadow-gateway provider add.');
     return 0;
   }
   if (addCustom) {
@@ -569,7 +569,7 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
   await runCore(installed.installDir, ['validate']);
 
   const addGlobal = await confirm({
-    message: 'Install the permanent shadow command globally with npm?',
+    message: 'Install the permanent shadow-gateway command globally with npm?',
     initialValue: true,
   });
   let globalInstalled = false;
@@ -591,12 +591,12 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
 
   note([
     'Start the gateway:',
-    '  ' + (globalInstalled ? 'shadow start' : 'npx ' + PACKAGE_NAME + ' start'),
+    '  ' + (globalInstalled ? 'shadow-gateway start' : 'npx ' + PACKAGE_NAME + ' start'),
     '',
     'Useful commands:',
-    '  ' + (globalInstalled ? 'shadow status' : 'npx ' + PACKAGE_NAME + ' status'),
-    '  ' + (globalInstalled ? 'shadow doctor' : 'npx ' + PACKAGE_NAME + ' doctor'),
-    '  ' + (globalInstalled ? 'shadow provider add' : 'npx ' + PACKAGE_NAME + ' provider add'),
+    '  ' + (globalInstalled ? 'shadow-gateway status' : 'npx ' + PACKAGE_NAME + ' status'),
+    '  ' + (globalInstalled ? 'shadow-gateway doctor' : 'npx ' + PACKAGE_NAME + ' doctor'),
+    '  ' + (globalInstalled ? 'shadow-gateway provider add' : 'npx ' + PACKAGE_NAME + ' provider add'),
     '',
     'Install folder: ' + installed.installDir,
     'OpenAI-compatible: http://127.0.0.1:4000/v1',
@@ -642,7 +642,7 @@ async function showStatus(installDir) {
     return 0;
   } catch {
     log.warn('Gateway offline · ' + url);
-    log.info('Start it with: shadow start');
+    log.info('Start it with: shadow-gateway start');
     return 1;
   }
 }
@@ -660,7 +660,7 @@ async function runDoctor(installDir) {
   if (ollama.installed && ollama.running) log.success('Ollama: ' + ollama.models.length + ' model(s)');
   else log.info('Ollama: ' + (ollama.installed ? 'installed, not responding' : 'optional and not installed'));
   if (checks.some((entry) => !entry[1])) {
-    log.info('Run shadow setup to repair the local installation.');
+    log.info('Run shadow-gateway setup to repair the local installation.');
     return 1;
   }
   return showStatus(installDir);
@@ -671,23 +671,23 @@ function printHelp() {
     'Shadow · Self-hosted AI Gateway',
     '',
     'Usage:',
-    '  shadow                         Open the interactive terminal setup',
-    '  shadow setup                   Install, repair or configure Shadow',
-    '  shadow start [--port 4000]     Start the local API gateway',
-    '  shadow status                  Check the gateway and model aliases',
-    '  shadow doctor                  Diagnose the local installation',
-    '  shadow provider add            Register a custom API endpoint',
-    '  shadow provider list           Show configured/catalog providers',
-    '  shadow provider refresh        Regenerate the local gateway config',
-    '  shadow clients                 Show client integration guide locations',
-    '  shadow update                  Update the CLI and local runtime from npm',
+    '  shadow-gateway                         Open the interactive terminal setup',
+    '  shadow-gateway setup                   Install, repair or configure Shadow',
+    '  shadow-gateway start [--port 4000]     Start the local API gateway',
+    '  shadow-gateway status                  Check the gateway and model aliases',
+    '  shadow-gateway doctor                  Diagnose the local installation',
+    '  shadow-gateway provider add            Register a custom API endpoint',
+    '  shadow-gateway provider list           Show configured/catalog providers',
+    '  shadow-gateway provider refresh        Regenerate the local gateway config',
+    '  shadow-gateway clients                 Show client integration guide locations',
+    '  shadow-gateway update                  Update the CLI and local runtime from npm',
     '',
     'First install:',
     '  npx ' + PACKAGE_NAME,
     '',
     'Global install:',
     '  npm install --global ' + PACKAGE_NAME,
-    '  shadow start',
+    '  shadow-gateway start',
   ].join('\n'));
 }
 

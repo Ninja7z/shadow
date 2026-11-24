@@ -118,11 +118,16 @@ test('runtime update replaces managed files but never overwrites local credentia
   }
 });
 
+test('the npm package exposes a collision-safe shadow-gateway executable', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  assert.deepEqual(packageJson.bin, { 'shadow-gateway': 'bin/shadow.js' });
+});
+
 test('the CLI provides help without trying to bootstrap Python', () => {
   const script = path.resolve('bin/shadow.js');
   const result = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /npx shadow-gateway/);
-  assert.match(result.stdout, /shadow start/);
-  assert.match(result.stdout, /shadow doctor/);
+  assert.match(result.stdout, /shadow-gateway start/);
+  assert.match(result.stdout, /shadow-gateway doctor/);
 });

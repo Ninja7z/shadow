@@ -53,12 +53,12 @@ Pare de espalhar endpoints e chaves por cada aplicativo. Conecte seus provedores
 npx shadow-gateway
 ```
 
-O instalador conduz tudo pelo terminal: detecta dependências, prepara `uv` e Python 3.12 quando faltarem, instala o gateway, pergunta como você quer usar o Shadow, configura provedores e valida a instalação. No final, oferece instalar o comando permanente `shadow`. O pacote npm chama-se `shadow-gateway`; o executável instalado chama-se `shadow`.
+O instalador conduz tudo pelo terminal: detecta dependências, prepara `uv` e Python 3.12 quando faltarem, instala o gateway, pergunta como você quer usar o Shadow, configura provedores e valida a instalação. No final, oferece instalar o comando permanente `shadow-gateway`. O nome do pacote e do executável são iguais; isso evita conflito com outros comandos `shadow` já existentes.
 
 Depois da configuração:
 
 ```bash
-shadow start
+shadow-gateway start
 ```
 
 Sem instalação global, use `npx shadow-gateway start`. O instalador não instala Ollama ou baixa modelos grandes sem perguntar. Consulte o [guia completo de instalação pelo terminal](docs/pt-BR/instalacao-terminal.md).

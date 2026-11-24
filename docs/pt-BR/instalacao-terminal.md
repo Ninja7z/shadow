@@ -26,7 +26,7 @@ O assistente:
 6. Pergunta se você usará Ollama, provedores remotos ou ambos.
 7. Permite configurar provedores do catálogo e endpoints próprios.
 8. Valida a configuração e mostra como iniciar o gateway.
-9. Oferece instalar o comando permanente shadow globalmente via npm.
+9. Oferece instalar globalmente o comando permanente `shadow-gateway` via npm.
 10. Mostra os links para dar estrela e enviar feedback.
 
 As chaves de provedores são solicitadas em entrada oculta e gravadas somente no `.env` privado.
@@ -36,14 +36,14 @@ As chaves de provedores são solicitadas em entrada oculta e gravadas somente no
 Se você aceitou a instalação global:
 
 ```bash
-shadow start
-shadow status
-shadow doctor
-shadow provider add
-shadow provider list
-shadow provider refresh
-shadow clients
-shadow update
+shadow-gateway start
+shadow-gateway status
+shadow-gateway doctor
+shadow-gateway provider add
+shadow-gateway provider list
+shadow-gateway provider refresh
+shadow-gateway clients
+shadow-gateway update
 ```
 
 Se preferir executar sem instalação global:
@@ -70,8 +70,8 @@ Ollama é uma opção, não um requisito do gateway. Se não estiver instalado, 
 ## Diagnóstico
 
 ```bash
-shadow doctor
-shadow status
+shadow-gateway doctor
+shadow-gateway status
 ```
 
 - `doctor` verifica os arquivos locais e as dependências principais.

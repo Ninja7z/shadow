@@ -53,12 +53,12 @@ Stop scattering endpoints and upstream keys across every app. Connect providers 
 npx shadow-gateway
 ```
 
-The installer guides the entire setup in your terminal: detects dependencies, provisions `uv` and Python 3.12 when missing, installs the gateway, asks how you want to use Shadow, configures providers and validates the installation. At the end, it offers to install the permanent `shadow` command. The npm package is named `shadow-gateway`; its installed executable is `shadow`.
+The installer guides the entire setup in your terminal: detects dependencies, provisions `uv` and Python 3.12 when missing, installs the gateway, asks how you want to use Shadow, configures providers and validates the installation. At the end, it offers to install the permanent `shadow-gateway` command. The package and executable share the same name, avoiding conflicts with existing `shadow` commands.
 
 After setup:
 
 ```bash
-shadow start
+shadow-gateway start
 ```
 
 Without a global install, use `npx shadow-gateway start`. The installer does not install Ollama or download large models without asking. See the [complete terminal installation guide](docs/terminal-installation.md).

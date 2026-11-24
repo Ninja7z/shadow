@@ -26,7 +26,7 @@ The assistant:
 6. Asks whether you want Ollama, remote providers or both.
 7. Lets you configure catalog providers and custom endpoints.
 8. Validates the configuration and shows how to start the gateway.
-9. Offers to install the permanent global shadow command through npm.
+9. Offers to install the permanent global `shadow-gateway` command through npm.
 10. Shows the GitHub star and feedback links.
 
 Provider keys are requested through hidden prompts and saved only in the private `.env` file.
@@ -36,14 +36,14 @@ Provider keys are requested through hidden prompts and saved only in the private
 If you accepted the global CLI install:
 
 ```bash
-shadow start
-shadow status
-shadow doctor
-shadow provider add
-shadow provider list
-shadow provider refresh
-shadow clients
-shadow update
+shadow-gateway start
+shadow-gateway status
+shadow-gateway doctor
+shadow-gateway provider add
+shadow-gateway provider list
+shadow-gateway provider refresh
+shadow-gateway clients
+shadow-gateway update
 ```
 
 To run without a global installation:
@@ -70,8 +70,8 @@ Ollama is optional, not a gateway requirement. If it is missing, the assistant s
 ## Diagnostics
 
 ```bash
-shadow doctor
-shadow status
+shadow-gateway doctor
+shadow-gateway status
 ```
 
 - `doctor` checks local runtime files and core dependencies.
