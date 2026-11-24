@@ -1,8 +1,8 @@
 {
   "name": "shadow-gateway",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shadow self-hosted AI gateway installer and interactive terminal setup",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "engines": {
     "node": ">=20.12.0"
@@ -40,7 +40,9 @@
     "docs/assets/shadow-hero-pt.svg",
     "LICENSE",
     "README.md",
-    "README.en.md"
+    "README.en.md",
+    "docs/releasing.md",
+    "docs/pt-BR/publicacao.md"
   ],
   "scripts": {
     "test": "node --test tests/npm-cli.test.js",

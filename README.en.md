@@ -388,6 +388,8 @@ Unit tests use local fixtures and do not call external providers.
 | `docs/assets/shadow-hero*.svg` | Portuguese and English vector hero artwork. |
 | `docs/terminal-installation.md` | npm terminal installer and commands in English. |
 | `docs/pt-BR/instalacao-terminal.md` | Instalação e comandos do CLI npm em português. |
+| `docs/releasing.md` | Safe release process through GitHub Actions OIDC and npm staging. |
+| `docs/pt-BR/publicacao.md` | Processo de publicação OIDC e staging em português. |
 | `scripts/shadow.py` | Setup, onboarding, provider registration, refresh, validation and start. |
 | `config/shadow.example.yaml` | Local-first starter configuration. |
 | `config/providers.catalog.yaml` | Public catalog of optional providers. |

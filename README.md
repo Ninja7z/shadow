@@ -388,6 +388,8 @@ Os testes unitários usam fixtures locais e não chamam provedores externos.
 | `docs/assets/shadow-hero*.svg` | Capas vetoriais do projeto em PT-BR e EN. |
 | `docs/pt-BR/instalacao-terminal.md` | Instalação e comandos do CLI npm em português. |
 | `docs/terminal-installation.md` | npm terminal installer and commands in English. |
+| `docs/releasing.md` | Processo seguro de release via GitHub Actions OIDC e npm staging. |
+| `docs/pt-BR/publicacao.md` | Processo de publicação OIDC e staging em português. |
 | `scripts/shadow.py` | Setup, onboarding, cadastro de provedores, refresh, validação e start. |
 | `config/shadow.example.yaml` | Configuração local-first de referência. |
 | `config/providers.catalog.yaml` | Catálogo público de provedores opcionais. |
