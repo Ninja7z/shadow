@@ -1,3 +1,8 @@
+# Node/npm development artifacts
+node_modules/
+npm-debug.log*
+*.tgz
+
 # Secrets and local credentials
 API.txt
 **/API.txt

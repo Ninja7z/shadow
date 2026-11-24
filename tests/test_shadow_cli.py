@@ -227,6 +227,42 @@ class AddProviderWizardTests(unittest.TestCase):
         self.assertEqual(config["model_list"][1]["litellm_params"]["model"], "openai/vendor/model")
 
 
+class NpmCredentialBridgeTests(unittest.TestCase):
+    def test_import_credentials_allows_catalog_keys_and_keeps_them_private(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            env_path.write_text("LITELLM_MASTER_KEY=local-master\n", encoding="utf-8")
+            output = io.StringIO()
+            secret = "gemini secret with spaces"
+            with patch.object(shadow, "ENV_FILE", env_path), contextlib.redirect_stdout(output):
+                result = shadow.save_provider_credentials({"GEMINI_API_KEY": secret})
+                loaded = shadow.read_env()
+            saved = env_path.read_text(encoding="utf-8")
+            self.assertEqual(result, 0)
+            self.assertIn("GEMINI_API_KEY=", saved)
+            self.assertEqual(loaded["GEMINI_API_KEY"], secret)
+            self.assertNotIn(secret, output.getvalue())
+            self.assertEqual(env_path.stat().st_mode & 0o777, 0o600)
+
+    def test_import_credentials_rejects_master_key_and_unknown_variables(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            with patch.object(shadow, "ENV_FILE", env_path):
+                with self.assertRaises(ValueError):
+                    shadow.save_provider_credentials({"LITELLM_MASTER_KEY": "overwrite"})
+                with self.assertRaises(ValueError):
+                    shadow.save_provider_credentials({"UNKNOWN_TOKEN": "secret"})
+            self.assertFalse(env_path.exists())
+
+    def test_import_credentials_rejects_newlines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            with patch.object(shadow, "ENV_FILE", env_path):
+                with self.assertRaises(ValueError):
+                    shadow.save_provider_credentials({"GEMINI_API_KEY": "secret\nINJECTED=1"})
+            self.assertFalse(env_path.exists())
+
+
 class OnboardingTests(unittest.TestCase):
     def test_onboarding_menu_shows_client_setup_and_finishes(self):
         with tempfile.TemporaryDirectory() as directory:

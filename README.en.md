@@ -47,31 +47,30 @@ Stop scattering endpoints and upstream keys across every app. Connect providers 
 
 ## ⚡ One command to get started
 
-**Linux, macOS or Windows with Python 3.11+:**
+**Linux, macOS or Windows with Node.js 20.12+ and npm:**
+
+```bash
+npx shadow-gateway
+```
+
+The installer guides the entire setup in your terminal: detects dependencies, provisions `uv` and Python 3.12 when missing, installs the gateway, asks how you want to use Shadow, configures providers and validates the installation. At the end, it offers to install the permanent `shadow` command. The npm package is named `shadow-gateway`; its installed executable is `shadow`.
+
+After setup:
+
+```bash
+shadow start
+```
+
+Without a global install, use `npx shadow-gateway start`. The installer does not install Ollama or download large models without asking. See the [complete terminal installation guide](docs/terminal-installation.md).
+
+<details>
+<summary><strong>Install from source (developers)</strong></summary>
 
 ```bash
 git clone https://github.com/Ninja7z/shadow.git
 cd shadow
 python scripts/shadow.py onboard
-```
-
-The `onboard` command prepares an isolated environment, installs dependencies, creates your local master key and opens an interactive setup assistant.
-
-Then, in another terminal:
-
-```bash
-cd shadow
 python scripts/shadow.py start
-```
-
-<details>
-<summary><strong>Windows PowerShell</strong></summary>
-
-```powershell
-git clone https://github.com/Ninja7z/shadow.git
-cd shadow
-py -3 scripts/shadow.py onboard
-py -3 scripts/shadow.py start
 ```
 
 </details>
@@ -368,10 +367,11 @@ python scripts/smoke_test.py --tool-calls --model shadow-auto
 python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto
 ```
 
-Automated test suite:
+Automated test suites for the Python core and npm installer:
 
 ```bash
 python -m unittest discover -s tests -v
+npm test
 ```
 
 Unit tests use local fixtures and do not call external providers.
@@ -382,7 +382,12 @@ Unit tests use local fixtures and do not call external providers.
 |---|---|
 | `README.md` | Main page in Portuguese. |
 | `README.en.md` | Main page in English. |
+| `package.json` | npm package and `shadow` executable. |
+| `bin/shadow.js` | Cross-platform terminal launcher. |
+| `src/installer.js` | Interactive installer and runtime provisioning. |
 | `docs/assets/shadow-hero*.svg` | Portuguese and English vector hero artwork. |
+| `docs/terminal-installation.md` | npm terminal installer and commands in English. |
+| `docs/pt-BR/instalacao-terminal.md` | Instalação e comandos do CLI npm em português. |
 | `scripts/shadow.py` | Setup, onboarding, provider registration, refresh, validation and start. |
 | `config/shadow.example.yaml` | Local-first starter configuration. |
 | `config/providers.catalog.yaml` | Public catalog of optional providers. |

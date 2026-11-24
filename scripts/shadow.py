@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import os
 import re
 import secrets
@@ -298,10 +299,41 @@ def setup(_):
 
 
 def ensure_venv():
+    uv = shutil.which("uv")
     if not pybin().exists():
-        subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
-    subprocess.run([str(pybin()), "-m", "pip", "install", "--upgrade", "pip"], check=True)
-    subprocess.run([str(pybin()), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")], check=True)
+        if uv:
+            subprocess.run([uv, "venv", str(VENV), "--python", sys.executable], check=True)
+        else:
+            subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
+    if uv:
+        subprocess.run([uv, "pip", "install", "--python", str(pybin()), "-r", str(ROOT / "requirements.txt")], check=True)
+    else:
+        subprocess.run([str(pybin()), "-m", "pip", "install", "--upgrade", "pip"], check=True)
+        subprocess.run([str(pybin()), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")], check=True)
+
+
+def save_provider_credentials(payload):
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("No provider credentials supplied.")
+    catalog = load_yaml(CATALOG, {"providers": []})
+    allowed = set()
+    for provider in catalog.get("providers", []):
+        allowed.add(provider["api_key_env"])
+        allowed.update(provider.get("required_env", []))
+    for key in payload:
+        if not isinstance(key, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,100}", key):
+            raise ValueError("Invalid environment variable name.")
+        if key not in allowed and not (key.startswith("SHADOW_CUSTOM_") and key.endswith("_API_KEY")):
+            raise ValueError(f"Credential variable is not part of the provider catalog: {key}")
+        if key == "LITELLM_MASTER_KEY":
+            raise ValueError("The local master key cannot be overwritten by provider setup.")
+    if any(not isinstance(value, str) or not value or any(ord(char) in {0, 10, 13} for char in value) for value in payload.values()):
+        raise ValueError("Credential values must be non-empty single-line strings.")
+    values = read_env()
+    values.update(payload)
+    write_env(values)
+    print(f"Saved {len(payload)} provider credential(s) to the private .env file.")
+    return 0
 
 
 def finish_setup(_):
@@ -519,6 +551,15 @@ def onboard(_):
 
 
 def main():
+    # Private machine-readable hooks used by the npm launcher.
+    if len(sys.argv) > 1 and sys.argv[1] == "_import_credentials":
+        try:
+            payload = json.load(sys.stdin)
+            return int(save_provider_credentials(payload))
+        except (ValueError, json.JSONDecodeError) as error:
+            print(f"Credential import rejected: {error}", file=sys.stderr)
+            return 2
+
     # Private bootstrap hook used by setup/onboard; keep it out of public CLI help.
     if len(sys.argv) > 1 and sys.argv[1] == "_finish_setup":
         if not pybin().exists():

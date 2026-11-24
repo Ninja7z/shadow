@@ -47,31 +47,30 @@ Pare de espalhar endpoints e chaves por cada aplicativo. Conecte seus provedores
 
 ## ⚡ Comece em um comando
 
-**Linux, macOS ou Windows com Python 3.11+:**
+**Linux, macOS ou Windows com Node.js 20.12+ e npm:**
+
+```bash
+npx shadow-gateway
+```
+
+O instalador conduz tudo pelo terminal: detecta dependências, prepara `uv` e Python 3.12 quando faltarem, instala o gateway, pergunta como você quer usar o Shadow, configura provedores e valida a instalação. No final, oferece instalar o comando permanente `shadow`. O pacote npm chama-se `shadow-gateway`; o executável instalado chama-se `shadow`.
+
+Depois da configuração:
+
+```bash
+shadow start
+```
+
+Sem instalação global, use `npx shadow-gateway start`. O instalador não instala Ollama ou baixa modelos grandes sem perguntar. Consulte o [guia completo de instalação pelo terminal](docs/pt-BR/instalacao-terminal.md).
+
+<details>
+<summary><strong>Instalação a partir do código-fonte (desenvolvedores)</strong></summary>
 
 ```bash
 git clone https://github.com/Ninja7z/shadow.git
 cd shadow
 python scripts/shadow.py onboard
-```
-
-O comando `onboard` prepara o ambiente isolado, instala as dependências, gera sua chave mestra local e abre um assistente interativo.
-
-Depois, em outro terminal:
-
-```bash
-cd shadow
 python scripts/shadow.py start
-```
-
-<details>
-<summary><strong>Windows PowerShell</strong></summary>
-
-```powershell
-git clone https://github.com/Ninja7z/shadow.git
-cd shadow
-py -3 scripts/shadow.py onboard
-py -3 scripts/shadow.py start
 ```
 
 </details>
@@ -368,10 +367,11 @@ python scripts/smoke_test.py --tool-calls --model shadow-auto
 python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto
 ```
 
-Suíte automatizada:
+Suítes automatizadas do core Python e do instalador npm:
 
 ```bash
 python -m unittest discover -s tests -v
+npm test
 ```
 
 Os testes unitários usam fixtures locais e não chamam provedores externos.
@@ -382,7 +382,12 @@ Os testes unitários usam fixtures locais e não chamam provedores externos.
 |---|---|
 | `README.md` | Página principal em português. |
 | `README.en.md` | Página principal em inglês. |
+| `package.json` | Pacote npm e executável `shadow`. |
+| `bin/shadow.js` | Launcher de terminal multiplataforma. |
+| `src/installer.js` | Instalador interativo e provisionamento do runtime. |
 | `docs/assets/shadow-hero*.svg` | Capas vetoriais do projeto em PT-BR e EN. |
+| `docs/pt-BR/instalacao-terminal.md` | Instalação e comandos do CLI npm em português. |
+| `docs/terminal-installation.md` | npm terminal installer and commands in English. |
 | `scripts/shadow.py` | Setup, onboarding, cadastro de provedores, refresh, validação e start. |
 | `config/shadow.example.yaml` | Configuração local-first de referência. |
 | `config/providers.catalog.yaml` | Catálogo público de provedores opcionais. |
