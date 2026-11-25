@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest an improvement or new capability for Shadow Gateway.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to accomplish, and what is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you would like to see.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Who would benefit?
+      options:
+        - Most Shadow users
+        - Linux users
+        - Windows users
+        - macOS users
+        - Developers integrating a client
+        - Other / unsure
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing Issues and Discussions for a similar idea.
+          required: true
