@@ -1,0 +1,77 @@
+name: Bug report
+description: Report a reproducible problem with Shadow Gateway.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Shadow Gateway.
+
+        **Security:** Never include API keys, provider tokens, environment files, passwords, or the local gateway master key. Redact credentials and personal information from logs.
+  - type: input
+    id: version
+    attributes:
+      label: Shadow Gateway version
+      placeholder: e.g. 0.1.6
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime versions
+      description: Include Node.js and Python versions if relevant.
+      placeholder: Node v24.x, Python 3.12.x
+    validations:
+      required: false
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact commands, with secrets removed.
+      placeholder: |
+        1. Run ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only the relevant excerpt after removing credentials and personal data.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing Issues for the same problem.
+          required: true
+        - label: I removed API keys, tokens, passwords and private configuration from this report.
+          required: true
