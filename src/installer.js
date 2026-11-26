@@ -38,6 +38,8 @@ const PRIVATE_RUNTIME_FILES = new Set([
   '.env', 'config/shadow.yaml', 'config/providers.local.yaml', 'config/runtime.yaml',
 ]);
 
+const MANAGED_RUNTIME_FILES = [...RUNTIME_FILES, 'bin/uv', 'bin/uv.exe'];
+
 export function getInstallDir(env = process.env, home = os.homedir()) {
   return path.resolve((env.SHADOW_HOME || '').trim() || path.join(home, '.shadow'));
 }
@@ -491,19 +493,24 @@ async function runNpm(args, options = {}) {
 }
 
 async function updateCliAndRuntime(installDir) {
+  const release = acquireInstallLock(installDir);
   const spin = spinner();
-  spin.start('Updating Shadow CLI from the npm registry');
-  await runNpm(['install', '--global', PACKAGE_NAME + '@latest'], { cwd: installDir, timeoutMs: 300000 });
-  const rootSpec = npmCommandSpec(['root', '--global']);
-  const globalRoot = await capture(rootSpec.command, rootSpec.args, { timeoutMs: 30000 });
-  if (globalRoot.code !== 0 || !globalRoot.stdout) throw new Error('npm updated the CLI but its global package directory could not be found.');
-  const packageRoot = path.join(globalRoot.stdout.split(/\r?\n/u).at(-1).trim(), PACKAGE_NAME);
-  const packageJsonPath = path.join(packageRoot, 'package.json');
-  if (!fs.existsSync(packageJsonPath)) throw new Error('The updated Shadow package was not found in npm global modules.');
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-  await installCoreDependencies(installDir, packageRoot, packageJson.version, { quiet: true });
-  spin.stop('Shadow CLI and local runtime updated to ' + packageJson.version);
-  return 0;
+  try {
+    spin.start('Updating Shadow CLI from the npm registry');
+    await runNpm(['install', '--global', PACKAGE_NAME + '@latest'], { cwd: installDir, timeoutMs: 300000 });
+    const rootSpec = npmCommandSpec(['root', '--global']);
+    const globalRoot = await capture(rootSpec.command, rootSpec.args, { timeoutMs: 30000 });
+    if (globalRoot.code !== 0 || !globalRoot.stdout) throw new Error('npm updated the CLI but its global package directory could not be found.');
+    const packageRoot = path.join(globalRoot.stdout.split(/\r?\n/u).at(-1).trim(), PACKAGE_NAME);
+    const packageJsonPath = path.join(packageRoot, 'package.json');
+    if (!fs.existsSync(packageJsonPath)) throw new Error('The updated Shadow package was not found in npm global modules.');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    await installCoreDependenciesLocked(installDir, packageRoot, packageJson.version, { quiet: true });
+    spin.stop('Shadow CLI and local runtime updated to ' + packageJson.version);
+    return 0;
+  } finally {
+    release();
+  }
 }
 
 const INSTALL_STATE_FILE = '.shadow-install-state.json';
@@ -514,6 +521,9 @@ function managedRuntimePaths(installDir) {
     venv: path.join(root, '.venv'),
     cache: path.join(root, '.cache', 'shadow-installer'),
     state: path.join(root, INSTALL_STATE_FILE),
+    rollback: path.join(root, '.shadow-rollback'),
+    rollbackTemp: path.join(root, '.shadow-rollback.tmp'),
+    lock: path.join(root, '.shadow-install.lock'),
   };
 }
 
@@ -538,55 +548,287 @@ async function isRuntimeHealthy(venvPython) {
   return result.code === 0;
 }
 
-async function installCoreDependencies(installDir, packageRoot, packageVersion, { quiet = false, forceClean = false } = {}) {
-  const paths = managedRuntimePaths(installDir);
-  // Record an update before copying runtime files. If the process dies halfway
-  // through the sync, the next invocation knows it must rebuild dependencies.
-  let installedVersion = null;
-  try { installedVersion = JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion || null; }
-  catch { /* Fresh install or damaged manifest: copyRuntime will validate it. */ }
-  if (installedVersion && installedVersion !== packageVersion && !fs.existsSync(paths.state)) {
-    fs.mkdirSync(installDir, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(paths.state, JSON.stringify({ status: 'updating', packageVersion, startedAt: new Date().toISOString() }) + '\n', { mode: 0o600 });
-  }
-  const update = copyRuntime(packageRoot, installDir, packageVersion);
-  const interrupted = fs.existsSync(paths.state);
-  const binDir = path.join(installDir, 'bin');
-  const currentEnv = mergePath(withoutInheritedPythonEnv(process.env), binDir);
-  const uvResult = await ensureUv(installDir, { env: currentEnv });
-  const env = mergePath(currentEnv, path.dirname(uvResult.path));
-  const pythonExe = await ensurePython(uvResult.path, { env });
-  const venvPython = getPythonVenvPath(installDir);
-  const healthy = await isRuntimeHealthy(venvPython);
-  const rebuild = forceClean || interrupted || update.changed || !healthy;
+function writeInstallState(statePath, state) {
+  const tempPath = statePath + '.tmp';
+  fs.writeFileSync(tempPath, JSON.stringify(state, null, 2) + '\n', { mode: 0o600 });
+  fs.renameSync(tempPath, statePath);
+}
 
-  if (rebuild) {
-    fs.mkdirSync(installDir, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(paths.state, JSON.stringify({ status: 'installing', packageVersion, startedAt: new Date().toISOString() }) + '\n', { mode: 0o600 });
-    if (!quiet) log.info(interrupted ? 'An interrupted installation was detected. Rebuilding the managed runtime cleanly.' : 'Preparing a clean Shadow runtime installation.');
-    resetManagedRuntime(installDir);
-    // Recreate the marker after cleaning managed runtime files.
-    fs.writeFileSync(paths.state, JSON.stringify({ status: 'installing', packageVersion, startedAt: new Date().toISOString() }) + '\n', { mode: 0o600 });
+export function createRuntimeBackup(installDir, previousVersion, packageVersion) {
+  const paths = managedRuntimePaths(installDir);
+  fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
+  fs.mkdirSync(paths.rollbackTemp, { recursive: true, mode: 0o700 });
+  const existingFiles = [];
+  for (const relative of MANAGED_RUNTIME_FILES) {
+    const source = path.join(installDir, relative);
+    if (!fs.existsSync(source)) continue;
+    const destination = path.join(paths.rollbackTemp, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true, mode: 0o700 });
+    fs.copyFileSync(source, destination);
+    existingFiles.push(relative);
+  }
+  const manifestPath = path.join(installDir, '.shadow-cli.json');
+  const hadManifest = fs.existsSync(manifestPath);
+  if (hadManifest) fs.copyFileSync(manifestPath, path.join(paths.rollbackTemp, '.shadow-cli.json'));
+  const venvPath = paths.venv;
+  const hadVenv = fs.existsSync(venvPath);
+  const metadata = { previousVersion, packageVersion, existingFiles, hadManifest, hadVenv };
+  fs.writeFileSync(path.join(paths.rollbackTemp, 'backup.json'), JSON.stringify(metadata, null, 2) + '\n', { mode: 0o600 });
+  if (hadVenv) fs.renameSync(venvPath, path.join(paths.rollbackTemp, '.venv'));
+  try {
+    fs.rmSync(paths.rollback, { recursive: true, force: true });
+    fs.renameSync(paths.rollbackTemp, paths.rollback);
+    writeInstallState(paths.state, {
+      status: 'updating',
+      packageVersion,
+      previousVersion,
+      backupReady: true,
+      startedAt: new Date().toISOString(),
+    });
+    return metadata;
+  } catch (error) {
     try {
-      await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
-      if (!(await isRuntimeHealthy(venvPython))) throw new Error('The rebuilt Python runtime failed its import health check.');
-      fs.rmSync(paths.state, { force: true });
-    } catch (error) {
-      // Leave the marker in place. The next CLI invocation will clean and retry.
-      throw new Error('Clean runtime installation failed. User credentials and configuration were preserved. Run the command again to retry. ' + (error?.message || String(error)));
+      if (fs.existsSync(paths.rollback)) restoreRuntimeBackup(installDir);
+      else if (fs.existsSync(path.join(paths.rollbackTemp, '.venv')) && !fs.existsSync(paths.venv)) {
+        fs.renameSync(path.join(paths.rollbackTemp, '.venv'), paths.venv);
+      }
+      fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
+    } catch { /* Keep any recoverable backup on disk for the next invocation. */ }
+    throw error;
+  }
+}
+
+export function restoreRuntimeBackup(installDir) {
+  const paths = managedRuntimePaths(installDir);
+  if (!fs.existsSync(paths.rollback)) return false;
+  const metadataPath = path.join(paths.rollback, 'backup.json');
+  const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  const existing = new Set(metadata.existingFiles || []);
+  for (const relative of MANAGED_RUNTIME_FILES) {
+    const destination = path.join(installDir, relative);
+    const backup = path.join(paths.rollback, relative);
+    if (existing.has(relative)) {
+      if (!fs.existsSync(backup)) throw new Error('Rollback backup is incomplete: ' + relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true, mode: 0o700 });
+      fs.copyFileSync(backup, destination);
+    } else {
+      fs.rmSync(destination, { force: true });
     }
   }
 
-  const envFile = path.join(installDir, '.env');
-  const localConfig = path.join(installDir, 'config', 'shadow.yaml');
-  if (!fs.existsSync(envFile) || !fs.existsSync(localConfig)) {
-    await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
+  const manifestPath = path.join(installDir, '.shadow-cli.json');
+  const backupManifest = path.join(paths.rollback, '.shadow-cli.json');
+  if (metadata.hadManifest) {
+    if (!fs.existsSync(backupManifest)) throw new Error('Rollback backup is missing the previous runtime manifest.');
+    fs.copyFileSync(backupManifest, manifestPath);
+  } else {
+    fs.rmSync(manifestPath, { force: true });
   }
+
+  if (metadata.hadVenv) {
+    const backupVenv = path.join(paths.rollback, '.venv');
+    if (fs.existsSync(backupVenv)) {
+      fs.rmSync(paths.venv, { recursive: true, force: true });
+      fs.renameSync(backupVenv, paths.venv);
+    } else if (!fs.existsSync(paths.venv)) {
+      throw new Error('Rollback backup is missing the previous Python environment.');
+    }
+  } else {
+    fs.rmSync(paths.venv, { recursive: true, force: true });
+  }
+
   securePrivatePaths(installDir);
-  if (!quiet && update.changed && update.previousVersion) {
-    log.success('Shadow runtime updated from ' + update.previousVersion + ' to ' + packageVersion + '.');
+  writeInstallState(paths.state, { status: 'rolled_back', restoredAt: new Date().toISOString() });
+  try {
+    fs.rmSync(paths.rollback, { recursive: true, force: true });
+    fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
+    fs.rmSync(paths.state, { force: true });
+    fs.rmSync(paths.state + '.tmp', { force: true });
+  } catch { /* The rolled_back marker makes cleanup resumable on the next run. */ }
+  return true;
+}
+
+export function recoverInterruptedInstall(installDir) {
+  const paths = managedRuntimePaths(installDir);
+  let state = null;
+  try { state = JSON.parse(fs.readFileSync(paths.state, 'utf8')); } catch { /* Missing or legacy marker. */ }
+  if (state?.status === 'committed' || state?.status === 'rolled_back') {
+    // A crash during backup cleanup must never try to restore a partially
+    // deleted generation after the new generation was committed/restored.
+    fs.rmSync(paths.rollback, { recursive: true, force: true });
+    fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
+    fs.rmSync(paths.state, { force: true });
+    fs.rmSync(paths.state + '.tmp', { force: true });
+    return { recovered: true, rolledBack: state.status === 'rolled_back' };
   }
-  return { installDir, env, uvPath: uvResult.path, pythonExe, venvPython, update, rebuilt: rebuild };
+  if (fs.existsSync(paths.rollback)) {
+    restoreRuntimeBackup(installDir);
+    return { recovered: true, rolledBack: true };
+  }
+  // A legacy marker without a rollback generation came from the older
+  // clean-rebuild installer. Rebuild it safely rather than trusting partial files.
+  if (fs.existsSync(paths.state)) {
+    fs.rmSync(paths.state, { force: true });
+    fs.rmSync(paths.state + '.tmp', { force: true });
+    return { recovered: true, rolledBack: false };
+  }
+  if (fs.existsSync(paths.rollbackTemp)) {
+    const tempVenv = path.join(paths.rollbackTemp, '.venv');
+    if (fs.existsSync(tempVenv) && !fs.existsSync(paths.venv)) fs.renameSync(tempVenv, paths.venv);
+    fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
+  }
+  return { recovered: false, rolledBack: false };
+}
+
+async function installCoreDependenciesLocked(installDir, packageRoot, packageVersion, { quiet = false, forceClean = false } = {}) {
+  const paths = managedRuntimePaths(installDir);
+  const recovery = recoverInterruptedInstall(installDir);
+  let installedVersion = null;
+  try {
+    installedVersion = JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion || null;
+  } catch { /* Fresh installation or missing manifest. */ }
+
+  const transaction = Boolean(installedVersion && (installedVersion !== packageVersion || forceClean));
+  if (transaction) createRuntimeBackup(installDir, installedVersion, packageVersion);
+
+  try {
+    const update = copyRuntime(packageRoot, installDir, packageVersion);
+    const interrupted = fs.existsSync(paths.state);
+    const binDir = path.join(installDir, 'bin');
+    const currentEnv = mergePath(withoutInheritedPythonEnv(process.env), binDir);
+    const uvResult = await ensureUv(installDir, { env: currentEnv });
+    const env = mergePath(currentEnv, path.dirname(uvResult.path));
+    const pythonExe = await ensurePython(uvResult.path, { env });
+    const venvPython = getPythonVenvPath(installDir);
+    const healthy = await isRuntimeHealthy(venvPython);
+    const rebuild = forceClean || interrupted || update.changed || !healthy;
+
+    if (rebuild) {
+      fs.mkdirSync(installDir, { recursive: true, mode: 0o700 });
+      if (!transaction) {
+        writeInstallState(paths.state, {
+          status: 'installing', packageVersion, startedAt: new Date().toISOString(),
+        });
+      }
+      if (!quiet) {
+        log.info(recovery.rolledBack
+          ? 'An interrupted update was rolled back. Preparing the restored runtime.'
+          : interrupted
+            ? 'An interrupted installation was detected. Rebuilding the managed runtime cleanly.'
+            : 'Preparing a clean Shadow runtime installation.');
+      }
+      resetManagedRuntime(installDir);
+      writeInstallState(paths.state, {
+        status: transaction ? 'updating' : 'installing',
+        packageVersion,
+        previousVersion: installedVersion,
+        backupReady: transaction,
+        startedAt: new Date().toISOString(),
+      });
+      await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
+      if (!(await isRuntimeHealthy(venvPython))) throw new Error('The rebuilt Python runtime failed its import health check.');
+    }
+
+    const envFile = path.join(installDir, '.env');
+    const localConfig = path.join(installDir, 'config', 'shadow.yaml');
+    if (!fs.existsSync(envFile) || !fs.existsSync(localConfig)) {
+      await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
+    }
+    securePrivatePaths(installDir);
+
+    // Commit point: only discard the previous generation after the new
+    // runtime has passed its import check and required user config exists.
+    if (!fs.existsSync(envFile) || !fs.existsSync(localConfig)) {
+      throw new Error('Runtime validation failed: required local configuration is missing.');
+    }
+    writeInstallState(paths.state, { status: 'committed', packageVersion, committedAt: new Date().toISOString() });
+    let cleanupDeferred = false;
+    try {
+      fs.rmSync(paths.rollback, { recursive: true, force: true });
+      fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
+      fs.rmSync(paths.state, { force: true });
+      fs.rmSync(paths.state + '.tmp', { force: true });
+    } catch { cleanupDeferred = true; }
+    if (cleanupDeferred && !quiet) log.warn('Update succeeded. Final rollback cleanup will resume on the next Shadow command.');
+
+    if (!quiet && update.changed && update.previousVersion) {
+      log.success('Shadow runtime updated from ' + update.previousVersion + ' to ' + packageVersion + '.');
+    }
+    return { installDir, env, uvPath: uvResult.path, pythonExe, venvPython, update, rebuilt: rebuild };
+  } catch (error) {
+    if (transaction && fs.existsSync(paths.rollback)) {
+      try {
+        restoreRuntimeBackup(installDir);
+        throw new Error('Update failed. The previous working Shadow runtime was restored. ' + (error?.message || String(error)));
+      } catch (rollbackError) {
+        if (rollbackError.message.startsWith('Update failed. The previous working Shadow runtime was restored.')) {
+          throw rollbackError;
+        }
+        throw new Error('Update failed and automatic rollback could not finish. The previous generation was retained for recovery. ' + (rollbackError?.message || String(rollbackError)));
+      }
+    }
+    // For a first installation there is no previous generation. Keep the
+    // marker so the next invocation knows to clean and retry.
+    throw new Error((transaction ? 'Shadow update failed. ' : 'Clean runtime installation failed. User credentials and configuration were preserved. ') +
+      (error?.message || String(error)) + (transaction ? '' : ' Run the command again to retry.'));
+  }
+}
+
+
+export function acquireInstallLock(installDir) {
+  const paths = managedRuntimePaths(installDir);
+  fs.mkdirSync(installDir, { recursive: true, mode: 0o700 });
+  const lockInfo = { pid: process.pid, hostname: os.hostname(), startedAt: new Date().toISOString() };
+  let fd;
+  try {
+    fd = fs.openSync(paths.lock, 'wx', 0o600);
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    let existing = null;
+    try { existing = JSON.parse(fs.readFileSync(paths.lock, 'utf8')); } catch { /* Treat unreadable locks as active. */ }
+    if (!existing || existing.hostname !== os.hostname() || !Number.isInteger(existing.pid)) {
+      throw new Error('Another Shadow installation operation may be active. Lock retained at ' + paths.lock);
+    }
+    let alive = true;
+    try { process.kill(existing.pid, 0); } catch (probeError) { alive = probeError.code !== 'ESRCH'; }
+    if (alive) throw new Error('Another Shadow installation operation is already running (PID ' + existing.pid + ').');
+    const stalePath = paths.lock + '.stale-' + process.pid + '-' + Date.now();
+    try { fs.renameSync(paths.lock, stalePath); }
+    catch (renameError) {
+      throw new Error('The Shadow installation lock changed while it was being recovered. Retry the command.');
+    }
+    try {
+      fd = fs.openSync(paths.lock, 'wx', 0o600);
+    } catch (createError) {
+      fs.rmSync(stalePath, { force: true });
+      if (createError.code === 'EEXIST') throw new Error('Another Shadow installation operation started concurrently.');
+      throw createError;
+    }
+    fs.rmSync(stalePath, { force: true });
+  }
+  try {
+    fs.writeFileSync(fd, JSON.stringify(lockInfo) + '\n');
+  } catch (writeError) {
+    fs.closeSync(fd);
+    fs.rmSync(paths.lock, { force: true });
+    throw writeError;
+  }
+  fs.closeSync(fd);
+  return () => {
+    try {
+      const current = JSON.parse(fs.readFileSync(paths.lock, 'utf8'));
+      if (current.pid === lockInfo.pid && current.startedAt === lockInfo.startedAt) fs.rmSync(paths.lock, { force: true });
+    } catch { /* The lock may already have been recovered or removed. */ }
+  };
+}
+
+async function installCoreDependencies(installDir, packageRoot, packageVersion, options = {}) {
+  const release = acquireInstallLock(installDir);
+  try {
+    return await installCoreDependenciesLocked(installDir, packageRoot, packageVersion, options);
+  } finally {
+    release();
+  }
 }
 
 async function ensureInstalled({ packageVersion, packageRoot = PACKAGE_ROOT, quiet = false } = {}) {
@@ -858,32 +1100,89 @@ async function runDoctor(installDir) {
 function printHelp() {
   console.log([
     'Shadow · Self-hosted AI Gateway',
+    'Commands and explanations / Comandos e explicações',
     '',
-    'Usage:',
-    '  shadow-gateway                         Open the interactive terminal setup',
-    '  shadow-gateway setup                   Install, repair or configure Shadow',
-    '  shadow-gateway start [--port 4000]     Start the local API gateway',
-    '  shadow-gateway status                  Check the gateway and model aliases',
-    '  shadow-gateway doctor                  Diagnose the local installation',
-    '  shadow-gateway provider add            Register a custom API endpoint',
-    '  shadow-gateway provider list           Show configured/catalog providers',
-    '  shadow-gateway provider refresh        Regenerate the local gateway config',
-    '  shadow-gateway clients                 Show client integration guide locations',
-    '  shadow-repository                      Open the Shadow GitHub repository (⭐ star)',
-    '  shadow-feedback                        Open GitHub feedback and bug reports',
-    '  shadow-gateway repository              Same as shadow-repository',
-    '  shadow-gateway feedback                 Same as shadow-feedback',
-    '  shadow-gateway update                  Update the CLI and local runtime from npm',
-    '  shadow-gateway reinstall               Clean-rebuild managed dependencies; preserve credentials',
+    'GENERAL / GERAL',
+    '  shadow-help',
+    '    EN: Display this complete command list.',
+    '    PT: Exibe esta lista completa de comandos.',
+    '  shadow-gateway',
+    '    EN: Launch the interactive setup wizard (same as setup).',
+    '    PT: Inicia o assistente interativo de configuração (equivalente a setup).',
+    '  shadow-gateway setup',
+    '    EN: Open the interactive installer to install, repair or configure Shadow.',
+    '    PT: Abre o instalador interativo para instalar, reparar ou configurar a Shadow.',
+    '  shadow-gateway onboard',
+    '    EN: Alias for the interactive setup wizard.',
+    '    PT: Atalho para o assistente interativo de configuração.',
+    '  shadow-gateway --help | -h | help',
+    '    EN: Display the complete command reference.',
+    '    PT: Exibe a referência completa de comandos.',
+    '  shadow-gateway --version | -v | version',
+    '    EN: Print the installed CLI version.',
+    '    PT: Exibe a versão instalada do CLI.',
     '',
-    'First install:',
-    '  npx ' + PACKAGE_NAME,
+    'GATEWAY / SERVIDOR',
+    '  shadow-gateway start [--port 4000]',
+    '    EN: Start the local API gateway, optionally on a custom port.',
+    '    PT: Inicia o gateway de API local, opcionalmente em uma porta personalizada.',
+    '  shadow-gateway status',
+    '    EN: Check gateway health and configured model aliases.',
+    '    PT: Verifica a saúde do gateway e os aliases de modelos configurados.',
+    '  shadow-gateway doctor',
+    '    EN: Diagnose the installation, runtime and configuration without repairing them.',
+    '    PT: Diagnostica a instalação, o ambiente e as configurações sem fazer reparos.',
     '',
-    'Global install:',
-    '  npm install --global ' + PACKAGE_NAME,
-    '  shadow-gateway start',
+    'PROVIDERS / PROVEDORES',
+    '  shadow-gateway provider [list]',
+    '    EN: Show the provider catalog, activation status and custom providers.',
+    '    PT: Mostra o catálogo de provedores, o status de ativação e os provedores personalizados.',
+    '  shadow-gateway provider add',
+    '    EN: Add a custom provider or API endpoint.',
+    '    PT: Adiciona um provedor personalizado ou endpoint de API.',
+    '  shadow-gateway provider refresh',
+    '    EN: Regenerate the local gateway configuration from current provider settings.',
+    '    PT: Regenera a configuração local do gateway com as definições atuais dos provedores.',
     '',
-    'Community:',
+    'CLIENTS / CLIENTES',
+    '  shadow-gateway clients',
+    '    EN: Show the locations of setup guides for supported AI clients.',
+    '    PT: Mostra onde encontrar os guias de integração dos clientes de IA compatíveis.',
+    '',
+    'MAINTENANCE / MANUTENÇÃO',
+    '  shadow-gateway update',
+    '    EN: Update the Shadow CLI and managed runtime using the published npm package.',
+    '    PT: Atualiza o CLI da Shadow e o ambiente gerenciado usando o pacote publicado no npm.',
+    '  shadow-gateway reinstall',
+    '    EN: Clean-rebuild Shadow-managed dependencies; preserve credentials, API keys, user data and custom configuration.',
+    '    PT: Reconstrói do zero as dependências gerenciadas pela Shadow; preserva chaves de API, dados e configurações personalizadas.',
+    '',
+    'COMMUNITY / COMUNIDADE',
+    '  shadow-repository',
+    '    EN: Open the official GitHub repository. Star the project to support its growth.',
+    '    PT: Abre o repositório oficial no GitHub. Deixe sua estrela para apoiar o crescimento do projeto.',
+    '  shadow-feedback',
+    '    EN: Open GitHub to send feedback, report bugs or suggest improvements.',
+    '    PT: Abre o GitHub para enviar feedback, relatar bugs ou sugerir melhorias.',
+    '  shadow-gateway repository',
+    '    EN: Alias for shadow-repository.',
+    '    PT: Atalho equivalente ao comando shadow-repository.',
+    '  shadow-gateway feedback',
+    '    EN: Alias for shadow-feedback.',
+    '    PT: Atalho equivalente ao comando shadow-feedback.',
+    '',
+    'INSTALLATION / INSTALAÇÃO',
+    '  npx shadow-gateway',
+    '    EN: Run the interactive installer without a global installation.',
+    '    PT: Executa o instalador interativo sem instalação global.',
+    '  npm install --global shadow-gateway',
+    '    EN: Install the Shadow CLI globally.',
+    '    PT: Instala o CLI da Shadow globalmente.',
+    '',
+    'EXAMPLES / EXEMPLOS',
+    '  shadow-gateway provider list',
+    '  shadow-gateway start --port 4000',
+    '  shadow-gateway doctor',
     '  shadow-repository',
     '  shadow-feedback',
   ].join('\n'));

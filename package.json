@@ -10,7 +10,8 @@
   "bin": {
     "shadow-gateway": "bin/shadow.js",
     "shadow-repository": "bin/repository.js",
-    "shadow-feedback": "bin/feedback.js"
+    "shadow-feedback": "bin/feedback.js",
+    "shadow-help": "bin/help.js"
   },
   "files": [
     "bin/**",

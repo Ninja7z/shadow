@@ -20,6 +20,9 @@ import {
   checkForCliUpdate,
   inspectInstallation,
   resetManagedRuntime,
+  createRuntimeBackup,
+  recoverInterruptedInstall,
+  acquireInstallLock,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -281,7 +284,7 @@ test('missing Ollama binary is treated as optional', async () => {
 
 test('the npm package exposes a collision-safe shadow-gateway executable', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
-  assert.deepEqual(packageJson.bin, { 'shadow-gateway': 'bin/shadow.js', 'shadow-repository': 'bin/repository.js', 'shadow-feedback': 'bin/feedback.js' });
+  assert.deepEqual(packageJson.bin, { 'shadow-gateway': 'bin/shadow.js', 'shadow-repository': 'bin/repository.js', 'shadow-feedback': 'bin/feedback.js', 'shadow-help': 'bin/help.js' });
 });
 
 test('doctor diagnoses a missing install without bootstrapping or creating files', { skip: process.platform === 'win32' }, () => {
@@ -370,6 +373,7 @@ test('CLI help documents the clean reinstall command', () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /shadow-gateway reinstall/u);
   assert.match(result.stdout, /preserve credentials/u);
+  assert.match(result.stdout, /provider catalog, activation status and custom providers/u);
 });
 
 test('CLI help documents repository and feedback commands', () => {
@@ -463,4 +467,129 @@ test('community subcommands route to the repository and feedback destinations', 
   assert.ok(source.includes("const ISSUES_URL = GITHUB_REPO + '/issues/new/choose';"));
   assert.ok(source.includes("openExternal(GITHUB_REPO)"));
   assert.ok(source.includes("openExternal(ISSUES_URL)"));
+});
+
+
+test('shadow-help is a dedicated executable and prints bilingual explanations for every CLI command', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  assert.equal(packageJson.bin['shadow-help'], 'bin/help.js');
+  assert.equal(fs.existsSync(path.resolve('bin/help.js')), true);
+  const result = spawnSync(process.execPath, ['bin/help.js'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  for (const command of [
+    'shadow-help', 'shadow-gateway setup', 'shadow-gateway onboard', 'shadow-gateway start',
+    'shadow-gateway status', 'shadow-gateway doctor',
+    'shadow-gateway provider list', 'shadow-gateway provider add',
+    'shadow-gateway provider refresh', 'shadow-gateway clients',
+    'shadow-gateway update', 'shadow-gateway reinstall',
+    'shadow-repository', 'shadow-feedback',
+  ]) assert.match(result.stdout, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
+  assert.match(result.stdout, /EN:/u);
+  assert.match(result.stdout, /PT:/u);
+  assert.match(result.stdout, /preserve credentials/u);
+  assert.match(result.stdout, /provider catalog, activation status and custom providers/u);
+});
+
+
+test('runtime update rollback restores the previous runtime generation and keeps private user files', () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-rollback-'));
+  const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-rollback-package-'));
+  try {
+    for (const relative of RUNTIME_FILES) {
+      const source = path.join(packageRoot, relative);
+      fs.mkdirSync(path.dirname(source), { recursive: true });
+      fs.writeFileSync(source, 'v1:' + relative);
+    }
+    copyRuntime(packageRoot, installDir, '0.1.0');
+    const removedInOldGeneration = 'docs/client-integrations.md';
+    fs.rmSync(path.join(installDir, removedInOldGeneration));
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'previous-python'), 'old environment');
+    fs.mkdirSync(path.join(installDir, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, 'bin', 'uv'), 'previous uv');
+    fs.writeFileSync(path.join(installDir, '.env'), 'API_KEY=keep-private');
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'local: true');
+
+    createRuntimeBackup(installDir, '0.1.0', '0.2.0');
+    assert.equal(fs.existsSync(path.join(installDir, '.venv')), false);
+    for (const relative of RUNTIME_FILES) {
+      fs.writeFileSync(path.join(packageRoot, relative), 'v2:' + relative);
+    }
+    copyRuntime(packageRoot, installDir, '0.2.0');
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'new-python'), 'new environment');
+
+    const recovered = recoverInterruptedInstall(installDir);
+    assert.deepEqual(recovered, { recovered: true, rolledBack: true });
+    assert.equal(fs.readFileSync(path.join(installDir, 'scripts/shadow.py'), 'utf8'), 'v1:scripts/shadow.py');
+    assert.equal(fs.existsSync(path.join(installDir, removedInOldGeneration)), false);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion, '0.1.0');
+    assert.equal(fs.readFileSync(path.join(installDir, '.venv', 'bin', 'previous-python'), 'utf8'), 'old environment');
+    assert.equal(fs.existsSync(path.join(installDir, '.venv', 'bin', 'new-python')), false);
+    assert.equal(fs.readFileSync(path.join(installDir, 'bin', 'uv'), 'utf8'), 'previous uv');
+    assert.equal(fs.readFileSync(path.join(installDir, '.env'), 'utf8'), 'API_KEY=keep-private');
+    assert.equal(fs.readFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'utf8'), 'local: true');
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback')), false);
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-install-state.json')), false);
+  } finally {
+    fs.rmSync(installDir, { recursive: true, force: true });
+    fs.rmSync(packageRoot, { recursive: true, force: true });
+  }
+});
+
+test('install lock blocks concurrent operations and releases cleanly', () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-lock-'));
+  try {
+    const release = acquireInstallLock(installDir);
+    assert.throws(() => acquireInstallLock(installDir), /already running/u);
+    release();
+    const releaseAgain = acquireInstallLock(installDir);
+    releaseAgain();
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-install.lock')), false);
+  } finally {
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
+});
+
+test('recovery restores the previous venv if the process stops while preparing the rollback generation', () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-rollback-prep-'));
+  try {
+    const tempBackup = path.join(installDir, '.shadow-rollback.tmp');
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), 'previous environment');
+    fs.mkdirSync(tempBackup, { recursive: true });
+    fs.writeFileSync(path.join(tempBackup, 'backup.json'), JSON.stringify({ previousVersion: '0.1.0', packageVersion: '0.2.0', existingFiles: [], hadManifest: false, hadVenv: true }));
+    fs.renameSync(path.join(installDir, '.venv'), path.join(tempBackup, '.venv'));
+    const recovered = recoverInterruptedInstall(installDir);
+    assert.deepEqual(recovered, { recovered: false, rolledBack: false });
+    assert.equal(fs.readFileSync(path.join(installDir, '.venv', 'bin', 'python'), 'utf8'), 'previous environment');
+    assert.equal(fs.existsSync(tempBackup), false);
+  } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
+});
+
+test('install lock reclaims a dead same-host process but does not steal an unreadable lock', () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-lock-stale-'));
+  const lockPath = path.join(installDir, '.shadow-install.lock');
+  try {
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, hostname: os.hostname(), startedAt: 'old' }));
+    const release = acquireInstallLock(installDir);
+    release();
+    fs.writeFileSync(lockPath, 'not-json');
+    assert.throws(() => acquireInstallLock(installDir), /Lock retained/u);
+  } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
+});
+
+test('committed update marker prevents recovery from restoring a partially cleaned backup', () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-commit-cleanup-'));
+  try {
+    fs.mkdirSync(path.join(installDir, '.shadow-rollback'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.shadow-rollback', 'partial'), 'already being cleaned');
+    fs.writeFileSync(path.join(installDir, '.shadow-cli.json'), JSON.stringify({ packageVersion: '0.2.0' }));
+    fs.writeFileSync(path.join(installDir, '.shadow-install-state.json'), JSON.stringify({ status: 'committed', packageVersion: '0.2.0' }));
+    const recovered = recoverInterruptedInstall(installDir);
+    assert.deepEqual(recovered, { recovered: true, rolledBack: false });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion, '0.2.0');
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback')), false);
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-install-state.json')), false);
+  } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
 });
