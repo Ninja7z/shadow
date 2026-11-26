@@ -264,6 +264,8 @@ Aliases comuns:
 
 Use sempre o `id` exato retornado por `/v1/models`. Não suponha que todo alias esteja presente em uma instalação nova.
 
+**Nota sobre instalações sem banco:** algumas versões do LiteLLM retornam `400 no_db_connection` ao consultar `/v1/models` quando a autenticação por master key está ativa sem PostgreSQL. O Shadow continua protegido e carrega os aliases do arquivo local. Nesse caso, use `shadow-gateway status` para ver os aliases configurados e cadastre-os manualmente no seletor do cliente. Não desative a autenticação para contornar esse comportamento.
+
 ### Clientes compatíveis
 
 <div align="center">

@@ -14,6 +14,8 @@ import {
   parseDotEnv,
   checkOllama,
   ensurePython,
+  showStatus,
+  getConfiguredAliases,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -210,4 +212,39 @@ test('the CLI provides help without trying to bootstrap Python', () => {
   assert.match(result.stdout, /npx shadow-gateway/);
   assert.match(result.stdout, /shadow-gateway start/);
   assert.match(result.stdout, /shadow-gateway doctor/);
+});
+
+
+test('status falls back to local aliases when LiteLLM DB-less auth blocks model discovery', async () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-status-db-less-'));
+  const originalFetch = globalThis.fetch;
+  const messages = [];
+  const originalWarn = console.warn;
+  const originalLog = console.log;
+  try {
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.env'), 'LITELLM_MASTER_KEY=test-key\n');
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), [
+      'model_list:',
+      '  - model_name: shadow-local',
+      '    litellm_params: { model: ollama_chat/test }',
+      '  - model_name: shadow-auto',
+      '    litellm_params: { model: ollama_chat/test }',
+      '  - model_name: shadow-custom-demo',
+      '    litellm_params: { model: openai/test }',
+    ].join('\n'));
+    globalThis.fetch = async (url) => url.endsWith('/health/liveliness')
+      ? { ok: true, status: 200 }
+      : { ok: false, status: 400, json: async () => ({ error: { type: 'no_db_connection' } }) };
+    console.warn = (...args) => messages.push(args.join(' '));
+    console.log = (...args) => messages.push(args.join(' '));
+    assert.deepEqual(getConfiguredAliases(installDir), ['shadow-local', 'shadow-auto', 'shadow-custom-demo']);
+    const result = await showStatus(installDir);
+    assert.equal(result, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    console.log = originalLog;
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
 });

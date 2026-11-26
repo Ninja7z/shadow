@@ -668,7 +668,18 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
   return 0;
 }
 
-async function showStatus(installDir) {
+export function getConfiguredAliases(installDir) {
+  const configPath = path.join(installDir, 'config', 'shadow.yaml');
+  try {
+    const config = parseYaml(fs.readFileSync(configPath, 'utf8')) || {};
+    return [...new Set((Array.isArray(config.model_list) ? config.model_list : [])
+      .map((item) => item?.model_name).filter((name) => typeof name === 'string' && name))];
+  } catch {
+    return [];
+  }
+}
+
+export async function showStatus(installDir) {
   const envPath = path.join(installDir, '.env');
   const env = fs.existsSync(envPath) ? parseDotEnv(fs.readFileSync(envPath, 'utf8')) : {};
   const url = process.env.SHADOW_BASE_URL || 'http://127.0.0.1:4000';
@@ -686,9 +697,22 @@ async function showStatus(installDir) {
       });
       if (models.ok) {
         const data = await models.json();
-        log.success((Array.isArray(data.data) ? data.data.length : 0) + ' model aliases available.');
+        log.success((Array.isArray(data.data) ? data.data.length : 0) + ' model aliases available through the API.');
       } else {
-        log.warn('Model catalog responded with HTTP ' + models.status + '.');
+        let error = {};
+        try { error = (await models.json()).error || {}; } catch { /* Non-JSON upstream response. */ }
+        if (models.status === 400 && error.type === 'no_db_connection') {
+          const aliases = getConfiguredAliases(installDir);
+          if (aliases.length) {
+            log.warn('LiteLLM model discovery requires a database with master-key auth in this runtime.');
+            log.success(aliases.length + ' model aliases loaded from your local Shadow config: ' + aliases.join(', '));
+            log.info('You can enter these aliases manually in clients while API catalog discovery is unavailable.');
+          } else {
+            log.warn('Model catalog needs a database and no local aliases could be read.');
+          }
+        } else {
+          log.warn('Model catalog responded with HTTP ' + models.status + '.');
+        }
       }
     } else {
       log.warn('Local master key is missing from the private .env file.');

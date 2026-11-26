@@ -91,7 +91,7 @@ shadow-gateway status
 ```
 
 - `doctor` checks local runtime files and core dependencies.
-- `status` queries the health endpoint and local model catalog.
+- `status` queries the health endpoint and model catalog. If DB-less LiteLLM blocks authenticated catalog discovery, it falls back to aliases in the local config and explains how to enter them manually.
 - `provider add` registers an OpenAI-compatible or Anthropic Messages custom API.
 - `provider refresh` regenerates the gateway configuration.
 

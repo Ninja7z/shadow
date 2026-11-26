@@ -264,6 +264,8 @@ Common aliases:
 
 Always use the exact `id` returned by `/v1/models`. Do not assume every alias exists in a fresh installation.
 
+**DB-less installation note:** some LiteLLM versions return `400 no_db_connection` from `/v1/models` when master-key authentication is enabled without PostgreSQL. Shadow remains protected and reads aliases from its local config. In this case, run `shadow-gateway status` to see configured aliases and add them manually in your client's model picker. Do not disable authentication as a workaround.
+
 ### Compatible clients
 
 <div align="center">

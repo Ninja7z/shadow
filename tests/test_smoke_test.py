@@ -59,6 +59,39 @@ class GatewayChecksTests(unittest.TestCase):
         self.assertEqual(report.failed, 0)
         self.assertTrue(all("127.0.0.1:4000" in call.args[0] for call in request.call_args_list))
 
+
+    def test_configured_aliases_reads_only_model_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            config = Path(temp) / "shadow.yaml"
+            config.write_text(
+                "model_list:\n  - model_name: shadow-local\n  - model_name: shadow-auto\n  - model_name: shadow-local\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(smoke.configured_aliases(config), ["shadow-auto", "shadow-local"])
+
+    def test_db_less_master_key_catalog_error_uses_local_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env_file = root / ".env"
+            env_file.write_text("LITELLM_MASTER_KEY=test-master\n")
+            config_file = root / "config" / "shadow.yaml"
+            config_file.parent.mkdir()
+            config_file.write_text(
+                "model_list:\n  - model_name: shadow-local\n  - model_name: shadow-auto\n",
+                encoding="utf-8",
+            )
+            args = SimpleNamespace(base_url="http://127.0.0.1:4000", timeout=5, env_file=env_file)
+            report = smoke.Reporter()
+            payload = {"error": {"type": "no_db_connection", "message": "No connected db."}}
+            with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
+                with patch.object(smoke, "http_json", side_effect=[(200, {}), (400, payload)]):
+                    with redirect_stdout(io.StringIO()):
+                        base, aliases = smoke.safe_checks(args, report)
+            self.assertEqual(base, "http://127.0.0.1:4000")
+            self.assertEqual(aliases, ["shadow-auto", "shadow-local"])
+            self.assertEqual(report.failed, 0)
+            self.assertEqual(report.passed, 4)
+
     def test_safe_checks_reports_missing_master_key(self) -> None:
         args = SimpleNamespace(base_url="http://127.0.0.1:4000", timeout=5)
         report = smoke.Reporter()
@@ -149,6 +182,20 @@ class ResponseShapeTests(unittest.TestCase):
         anthropic_call.assert_called_once()
         self.assertEqual(report.passed, 1)
         self.assertEqual(report.failed, 0)
+
+    def test_http_json_preserves_structured_http_error_for_diagnosis(self) -> None:
+        import json
+        import urllib.error
+        from io import BytesIO
+
+        error = urllib.error.HTTPError(
+            "http://127.0.0.1:4000/v1/models", 400, "Bad Request", {},
+            BytesIO(json.dumps({"error": {"type": "no_db_connection"}}).encode()),
+        )
+        with patch.object(smoke.urllib.request, "urlopen", side_effect=error):
+            status, data = smoke.http_json("http://127.0.0.1:4000/v1/models")
+        self.assertEqual(status, 400)
+        self.assertEqual(data, {"error": {"type": "no_db_connection"}})
 
     def test_http_json_distinguishes_timeout_from_unreachable(self) -> None:
         import urllib.error

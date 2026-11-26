@@ -19,8 +19,10 @@ python scripts/smoke_test.py
 This is the default and recommended frequent check. It performs no inference. It checks:
 
 - Gateway liveliness.
-- Authenticated model catalog access.
+- Authenticated model catalog access when supported by the installed LiteLLM build.
 - Presence of the standard shadow-local and shadow-auto aliases.
+
+If LiteLLM returns `400 no_db_connection` for the catalog in a DB-less, master-key-protected installation, the script falls back to the local `config/shadow.yaml` and validates its aliases. This is a discovery limitation in that LiteLLM runtime, not a reason to disable gateway authentication. Clients can use the aliases shown by `shadow-gateway status` manually.
 
 Use another gateway or env file when needed:
 

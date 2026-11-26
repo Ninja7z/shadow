@@ -44,7 +44,7 @@ Use the returned model id exactly. Common aliases include:
 - **shadow-custom-<id>:** custom endpoints registered with the interactive wizard.
 - Other aliases: catalog providers enabled with your own credentials.
 
-If an alias is not returned by /v1/models, do not assume it exists.
+If an alias is not returned by /v1/models, do not assume it exists. On DB-less LiteLLM builds, master-key auth may return `400 no_db_connection` for model discovery. Run `shadow-gateway status` to read the locally configured aliases and enter them manually in the client. Keep authentication enabled.
 
 ## 3. Configure each client
 

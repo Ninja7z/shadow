@@ -67,7 +67,12 @@ def http_json(
                 parsed = None
             return response.status, parsed if isinstance(parsed, dict) else None
     except urllib.error.HTTPError as exc:
-        return exc.code, None
+        try:
+            raw = exc.read(3_000_000)
+            parsed = json.loads(raw)
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            parsed = None
+        return exc.code, parsed if isinstance(parsed, dict) else None
     except urllib.error.URLError as exc:
         if isinstance(exc.reason, TimeoutError):
             return -1, None
@@ -111,6 +116,24 @@ def _bearer(key: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {key}"}
 
 
+def configured_aliases(config_file: Path) -> list[str]:
+    """Read model aliases from Shadow's local config when LiteLLM discovery is unavailable."""
+    try:
+        import yaml
+
+        config = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return []
+    models = config.get("model_list", []) if isinstance(config, dict) else []
+    if not isinstance(models, list):
+        return []
+    return sorted({
+        item["model_name"]
+        for item in models
+        if isinstance(item, dict) and isinstance(item.get("model_name"), str) and item["model_name"]
+    })
+
+
 def safe_checks(args: argparse.Namespace, report: Reporter) -> tuple[str, list[str]]:
     base = args.base_url.rstrip("/")
     master_key = os.environ.get("LITELLM_MASTER_KEY", "")
@@ -131,6 +154,18 @@ def safe_checks(args: argparse.Namespace, report: Reporter) -> tuple[str, list[s
         timeout=args.timeout,
     )
     if code != 200 or not data:
+        error = data.get("error", {}) if isinstance(data, dict) else {}
+        if code == 400 and isinstance(error, dict) and error.get("type") == "no_db_connection":
+            config_file = getattr(args, "config_file", args.env_file.parent / "config" / "shadow.yaml")
+            aliases = configured_aliases(config_file)
+            if aliases:
+                report.ok("local model configuration", f"{len(aliases)} aliases loaded; LiteLLM API discovery needs a database")
+                for required in ("shadow-local", "shadow-auto"):
+                    if required in aliases:
+                        report.ok(f"required alias {required}")
+                    else:
+                        report.fail(f"required alias {required}", "missing from local config")
+                return base, aliases
         report.fail("gateway model catalog", f"HTTP {status_text(code)}")
         return base, []
 

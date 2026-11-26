@@ -19,8 +19,10 @@ python scripts/smoke_test.py
 Este é o modo padrão e recomendado para verificações frequentes. Não executa inferência. Ele verifica:
 
 - Disponibilidade do gateway.
-- Acesso autenticado ao catálogo de modelos.
+- Acesso autenticado ao catálogo de modelos quando suportado pela versão instalada do LiteLLM.
 - Presença dos aliases padrão shadow-local e shadow-auto.
+
+Se o LiteLLM retornar `400 no_db_connection` no catálogo em uma instalação sem banco e protegida por master key, o script usa `config/shadow.yaml` local para validar os aliases. Isso é uma limitação de descoberta desse runtime LiteLLM, não um motivo para desativar a autenticação. Use os aliases exibidos por `shadow-gateway status` manualmente nos clientes.
 
 Use outro gateway ou arquivo de ambiente quando necessário:
 

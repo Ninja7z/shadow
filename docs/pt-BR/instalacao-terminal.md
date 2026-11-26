@@ -91,7 +91,7 @@ shadow-gateway status
 ```
 
 - `doctor` verifica os arquivos locais e as dependências principais.
-- `status` consulta o health endpoint e o catálogo de modelos da API local.
+- `status` consulta o health endpoint e o catálogo de modelos. Se o LiteLLM sem banco bloquear a descoberta autenticada, o comando usa os aliases da configuração local e explica como cadastrá-los manualmente.
 - `provider add` cadastra uma API própria OpenAI-compatible ou Anthropic Messages.
 - `provider refresh` regenera a configuração do gateway.
 

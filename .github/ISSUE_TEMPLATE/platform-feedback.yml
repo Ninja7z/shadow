@@ -34,7 +34,7 @@ body:
     id: shadow_version
     attributes:
       label: Shadow Gateway version
-      placeholder: e.g. 0.1.6
+      placeholder: e.g. 0.1.7
     validations:
       required: true
   - type: input
