@@ -105,3 +105,10 @@ shadow-gateway status
 - Remote providers remain subject to the quotas, terms, prices and privacy policies of your own accounts.
 
 The product is terminal-only at this stage. The `web-shadow` command and local web interface will be introduced only after the CLI and gateway are complete and stable.
+
+
+### Clean reinstall and interrupted setup recovery
+
+If a setup is interrupted or the managed Python environment fails its health check, the next Shadow CLI invocation automatically rebuilds the managed `.venv` from the hash-locked `requirements.lock`. The installer records an installation-state marker before rebuilding; if the process is interrupted again, the next run retries the clean rebuild.
+
+To request a clean rebuild manually, run `shadow-gateway reinstall` (or `npx shadow-gateway reinstall`). The command asks for confirmation and removes only the Shadow-managed `.venv` and installer cache. It preserves `.env`, local provider credentials, `config/`, user data, Ollama installations and models, and shared package caches.

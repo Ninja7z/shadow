@@ -429,3 +429,8 @@ shadow-feedback    # enviar feedback, sugestão ou relatar um problema
 ```
 
 O CLI consulta a versão mais recente do npm no máximo uma vez a cada 24 horas e avisa quando há atualização. A consulta tem timeout curto, é silenciosa quando offline e nunca atualiza o Shadow automaticamente. Para atualizar manualmente: `npm install --global shadow-gateway@latest`.
+
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the reliability-first plan through 1.0.0, including the optional local web interface, and the maintenance direction for 1.x.

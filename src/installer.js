@@ -506,34 +506,87 @@ async function updateCliAndRuntime(installDir) {
   return 0;
 }
 
-async function installCoreDependencies(installDir, packageRoot, packageVersion, { quiet = false } = {}) {
+const INSTALL_STATE_FILE = '.shadow-install-state.json';
+
+function managedRuntimePaths(installDir) {
+  const root = path.resolve(installDir);
+  return {
+    venv: path.join(root, '.venv'),
+    cache: path.join(root, '.cache', 'shadow-installer'),
+    state: path.join(root, INSTALL_STATE_FILE),
+  };
+}
+
+export function resetManagedRuntime(installDir) {
+  const root = path.resolve(installDir);
+  const paths = managedRuntimePaths(root);
+  // Deliberately narrow: never remove .env, config/, user data, Ollama models,
+  // the shared uv cache, or files outside the exact Shadow-managed paths.
+  for (const target of [paths.venv, paths.cache]) {
+    if (path.dirname(target) !== root && !target.startsWith(root + path.sep)) {
+      throw new Error('Refusing to clean a path outside the Shadow installation.');
+    }
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+  fs.mkdirSync(path.dirname(paths.cache), { recursive: true, mode: 0o700 });
+  return paths;
+}
+
+async function isRuntimeHealthy(venvPython) {
+  if (!fs.existsSync(venvPython)) return false;
+  const result = await capture(venvPython, ['-c', 'import litellm, yaml'], { timeoutMs: 30000 });
+  return result.code === 0;
+}
+
+async function installCoreDependencies(installDir, packageRoot, packageVersion, { quiet = false, forceClean = false } = {}) {
+  const paths = managedRuntimePaths(installDir);
+  // Record an update before copying runtime files. If the process dies halfway
+  // through the sync, the next invocation knows it must rebuild dependencies.
+  let installedVersion = null;
+  try { installedVersion = JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion || null; }
+  catch { /* Fresh install or damaged manifest: copyRuntime will validate it. */ }
+  if (installedVersion && installedVersion !== packageVersion && !fs.existsSync(paths.state)) {
+    fs.mkdirSync(installDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(paths.state, JSON.stringify({ status: 'updating', packageVersion, startedAt: new Date().toISOString() }) + '\n', { mode: 0o600 });
+  }
   const update = copyRuntime(packageRoot, installDir, packageVersion);
+  const interrupted = fs.existsSync(paths.state);
   const binDir = path.join(installDir, 'bin');
   const currentEnv = mergePath(withoutInheritedPythonEnv(process.env), binDir);
   const uvResult = await ensureUv(installDir, { env: currentEnv });
   const env = mergePath(currentEnv, path.dirname(uvResult.path));
   const pythonExe = await ensurePython(uvResult.path, { env });
   const venvPython = getPythonVenvPath(installDir);
+  const healthy = await isRuntimeHealthy(venvPython);
+  const rebuild = forceClean || interrupted || update.changed || !healthy;
 
-  if (!fs.existsSync(venvPython)) {
-    await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], {
-      cwd: installDir, env,
-    });
-  } else if (update.changed) {
-    await run(uvResult.path, [
-      'pip', 'install', '--require-hashes', '--python', venvPython, '-r', path.join(installDir, 'requirements.lock'),
-    ], { cwd: installDir, env });
+  if (rebuild) {
+    fs.mkdirSync(installDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(paths.state, JSON.stringify({ status: 'installing', packageVersion, startedAt: new Date().toISOString() }) + '\n', { mode: 0o600 });
+    if (!quiet) log.info(interrupted ? 'An interrupted installation was detected. Rebuilding the managed runtime cleanly.' : 'Preparing a clean Shadow runtime installation.');
+    resetManagedRuntime(installDir);
+    // Recreate the marker after cleaning managed runtime files.
+    fs.writeFileSync(paths.state, JSON.stringify({ status: 'installing', packageVersion, startedAt: new Date().toISOString() }) + '\n', { mode: 0o600 });
+    try {
+      await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
+      if (!(await isRuntimeHealthy(venvPython))) throw new Error('The rebuilt Python runtime failed its import health check.');
+      fs.rmSync(paths.state, { force: true });
+    } catch (error) {
+      // Leave the marker in place. The next CLI invocation will clean and retry.
+      throw new Error('Clean runtime installation failed. User credentials and configuration were preserved. Run the command again to retry. ' + (error?.message || String(error)));
+    }
   }
 
   const envFile = path.join(installDir, '.env');
   const localConfig = path.join(installDir, 'config', 'shadow.yaml');
-  if (!fs.existsSync(venvPython) || !fs.existsSync(envFile) || !fs.existsSync(localConfig)) {
+  if (!fs.existsSync(envFile) || !fs.existsSync(localConfig)) {
     await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
   }
+  securePrivatePaths(installDir);
   if (!quiet && update.changed && update.previousVersion) {
     log.success('Shadow runtime updated from ' + update.previousVersion + ' to ' + packageVersion + '.');
   }
-  return { installDir, env, uvPath: uvResult.path, pythonExe, venvPython, update };
+  return { installDir, env, uvPath: uvResult.path, pythonExe, venvPython, update, rebuilt: rebuild };
 }
 
 async function ensureInstalled({ packageVersion, packageRoot = PACKAGE_ROOT, quiet = false } = {}) {
@@ -901,6 +954,13 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
 
   const installDir = getInstallDir();
   if (command === 'update') return updateCliAndRuntime(installDir);
+  if (command === 'reinstall') {
+    const approved = await confirm({ message: 'Remove and recreate only Shadow-managed dependencies? Credentials and local configuration will be preserved.', initialValue: false });
+    if (isCancel(approved) || !approved) { log.info('Reinstallation cancelled.'); return 0; }
+    await installCoreDependencies(installDir, packageRoot, packageVersion, { forceClean: true });
+    log.success('Clean Shadow runtime installed. Your credentials and configuration were preserved.');
+    return 0;
+  }
   if (command === 'clients') {
     note([
       path.join(installDir, 'docs', 'client-integrations.md'),
@@ -929,4 +989,4 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
   throw new Error('Unknown command: ' + command + '. Run shadow --help.');
 }
 
-export const __test__ = { getUvPath, mergePath, withoutInheritedPythonEnv, PRIVATE_RUNTIME_FILES, ensurePython };
+export const __test__ = { getUvPath, mergePath, withoutInheritedPythonEnv, PRIVATE_RUNTIME_FILES, ensurePython, INSTALL_STATE_FILE };

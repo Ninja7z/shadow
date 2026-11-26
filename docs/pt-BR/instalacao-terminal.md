@@ -105,3 +105,10 @@ shadow-gateway status
 - Provedores remotos continuam sujeitos às cotas, termos, preços e políticas das suas próprias contas.
 
 A ferramenta é totalmente terminal nesta fase. O comando `web-shadow` e uma interface web em localhost só serão introduzidos depois que o fluxo CLI e o gateway estiverem completos e estabilizados.
+
+
+### Reinstalação limpa e recuperação de instalação interrompida
+
+Se a instalação for interrompida ou o ambiente Python gerenciado falhar na verificação de integridade, a próxima execução da CLI reconstruirá automaticamente o `.venv` usando o `requirements.lock` com hashes. Um marcador de estado registra a instalação em andamento; se o processo for interrompido novamente, a próxima execução tentará a reconstrução limpa.
+
+Para solicitar uma reconstrução manual, execute `shadow-gateway reinstall` (ou `npx shadow-gateway reinstall`). O comando pede confirmação e remove somente o `.venv` e o cache do instalador gerenciados pela Shadow. Preserva `.env`, credenciais de provedores, `config/`, dados do usuário, instalações e modelos do Ollama e caches compartilhados de pacotes.

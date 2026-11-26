@@ -19,6 +19,7 @@ import {
   compareVersions,
   checkForCliUpdate,
   inspectInstallation,
+  resetManagedRuntime,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -77,6 +78,28 @@ test('Python venv paths use platform-specific executable locations', () => {
   const root = path.join(os.tmpdir(), 'shadow-paths');
   assert.equal(getPythonVenvPath(root, 'linux'), path.join(root, '.venv', 'bin', 'python'));
   assert.equal(getPythonVenvPath(root, 'win32'), path.join(root, '.venv', 'Scripts', 'python.exe'));
+});
+
+test('clean runtime reset removes only Shadow-managed dependencies and preserves user data', () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-clean-reset-'));
+  try {
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), 'broken');
+    fs.mkdirSync(path.join(installDir, '.cache', 'shadow-installer'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.cache', 'shadow-installer', 'partial'), 'partial');
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.env'), 'API_KEY=keep-me');
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'model_list: []');
+    fs.writeFileSync(path.join(installDir, 'user-data.db'), 'keep-me-too');
+    resetManagedRuntime(installDir);
+    assert.equal(fs.existsSync(path.join(installDir, '.venv')), false);
+    assert.equal(fs.existsSync(path.join(installDir, '.cache', 'shadow-installer')), false);
+    assert.equal(fs.readFileSync(path.join(installDir, '.env'), 'utf8'), 'API_KEY=keep-me');
+    assert.equal(fs.readFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'utf8'), 'model_list: []');
+    assert.equal(fs.readFileSync(path.join(installDir, 'user-data.db'), 'utf8'), 'keep-me-too');
+  } finally {
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
 });
 
 test('runtime sync preserves user credentials and local configuration', () => {
