@@ -420,3 +420,12 @@ The Shadow license does not grant rights to third-party APIs, models, SDKs or se
   <p><a href="https://github.com/Ninja7z/shadow">⭐ Visit the repository</a> · <a href="https://github.com/Ninja7z/shadow/issues">Report an issue</a></p>
   <sub>Shadow · Self-hosted AI Gateway</sub>
 </div>
+
+### Community and updates
+
+```bash
+shadow-repository  # open the repository and leave a ⭐
+shadow-feedback    # send feedback, suggestions, or report a bug
+```
+
+The CLI checks npm for a newer release at most once every 24 hours and notifies you when one is available. The check has a short timeout, stays silent offline, and never updates Shadow automatically. To update manually: `npm install --global shadow-gateway@latest`.

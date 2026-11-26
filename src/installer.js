@@ -16,6 +16,9 @@ const PACKAGE_NAME = 'shadow-gateway';
 const GITHUB_REPO = 'https://github.com/Ninja7z/shadow';
 const STAR_URL = GITHUB_REPO + '/stargazers';
 const ISSUES_URL = GITHUB_REPO + '/issues/new/choose';
+const REGISTRY_LATEST_URL = 'https://registry.npmjs.org/' + PACKAGE_NAME + '/latest';
+const UPDATE_CHECK_TTL_MS = 24 * 60 * 60 * 1000;
+const UPDATE_CHECK_FAILURE_TTL_MS = 60 * 60 * 1000;
 
 export const RUNTIME_FILES = [
   '.env.example', 'requirements.txt', 'LICENSE',
@@ -652,19 +655,18 @@ async function interactiveInstall(packageVersion, packageRoot = PACKAGE_ROOT) {
     '  ' + (globalInstalled ? 'shadow-gateway doctor' : 'npx ' + PACKAGE_NAME + ' doctor'),
     '  ' + (globalInstalled ? 'shadow-gateway provider add' : 'npx ' + PACKAGE_NAME + ' provider add'),
     '',
+    'Community:',
+    '  ' + (globalInstalled ? 'shadow-repository' : 'npx -p ' + PACKAGE_NAME + ' shadow-repository') + '  (⭐ star the repository)',
+    '  ' + (globalInstalled ? 'shadow-feedback' : 'npx -p ' + PACKAGE_NAME + ' shadow-feedback') + '  (feedback and bug reports)',
+    '',
     'Install folder: ' + installed.installDir,
     'OpenAI-compatible: http://127.0.0.1:4000/v1',
     'Anthropic Messages: http://127.0.0.1:4000',
   ].join('\n'), 'You are ready');
-  log.message('⭐ Like Shadow? Leave a star: ' + STAR_URL);
-  log.message('💬 Missing something or hit a problem? Feedback: ' + ISSUES_URL);
+  log.message('⭐ Give Shadow a star: run shadow-repository');
+  log.message('💬 Share feedback or report a problem: run shadow-feedback');
+  log.message('You can also open these links anytime with the commands above.');
   outro('Shadow is ready. Your gateway, your rules.');
-
-  const feedback = await confirm({
-    message: 'Would you like to open the GitHub feedback page now?',
-    initialValue: false,
-  });
-  if (feedback === true) openExternal(ISSUES_URL);
   return 0;
 }
 
@@ -758,6 +760,10 @@ function printHelp() {
     '  shadow-gateway provider list           Show configured/catalog providers',
     '  shadow-gateway provider refresh        Regenerate the local gateway config',
     '  shadow-gateway clients                 Show client integration guide locations',
+    '  shadow-repository                      Open the Shadow GitHub repository (⭐ star)',
+    '  shadow-feedback                        Open GitHub feedback and bug reports',
+    '  shadow-gateway repository              Same as shadow-repository',
+    '  shadow-gateway feedback                 Same as shadow-feedback',
     '  shadow-gateway update                  Update the CLI and local runtime from npm',
     '',
     'First install:',
@@ -766,7 +772,58 @@ function printHelp() {
     'Global install:',
     '  npm install --global ' + PACKAGE_NAME,
     '  shadow-gateway start',
+    '',
+    'Community:',
+    '  shadow-repository',
+    '  shadow-feedback',
   ].join('\n'));
+}
+
+
+export function compareVersions(current, latest) {
+  const parse = (value) => String(value).replace(/^v/u, '').split(/[+-]/u, 1)[0].split('.').map((part) => Number(part));
+  const a = parse(current); const b = parse(latest);
+  if (a.length !== 3 || b.length !== 3 || [...a, ...b].some((part) => !Number.isInteger(part) || part < 0)) return 0;
+  for (let i = 0; i < 3; i += 1) { if (b[i] > a[i]) return 1; if (b[i] < a[i]) return -1; }
+  return 0;
+}
+
+export async function checkForCliUpdate(currentVersion, {
+  installDir = getInstallDir(), fetchImpl = globalThis.fetch, now = Date.now(),
+} = {}) {
+  if (!currentVersion) return null;
+  const cachePath = path.join(installDir, '.cache', 'npm-update-check.json');
+  try {
+    const cached = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    const ttl = cached.latestVersion ? UPDATE_CHECK_TTL_MS : UPDATE_CHECK_FAILURE_TTL_MS;
+    if (cached.checkedAt && now - cached.checkedAt < ttl) {
+      return cached.latestVersion && compareVersions(currentVersion, cached.latestVersion) > 0 ? cached.latestVersion : null;
+    }
+  } catch { /* No valid cache: check the registry. */ }
+  const writeCache = (latestVersion) => {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true, mode: 0o700 });
+    const tempPath = cachePath + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify({ checkedAt: now, latestVersion }) + '\n', { mode: 0o600 });
+    fs.renameSync(tempPath, cachePath);
+  };
+  try {
+    const response = await fetchImpl(REGISTRY_LATEST_URL, { signal: AbortSignal.timeout(1800), headers: { Accept: 'application/json' } });
+    if (!response.ok) { writeCache(null); return null; }
+    const metadata = await response.json();
+    const latestVersion = typeof metadata.version === 'string' ? metadata.version : '';
+    if (!latestVersion) { writeCache(null); return null; }
+    writeCache(latestVersion);
+    return compareVersions(currentVersion, latestVersion) > 0 ? latestVersion : null;
+  } catch { try { writeCache(null); } catch { /* Cache is optional. */ } return null; }
+}
+
+async function announceCliUpdate(currentVersion) {
+  const latest = await checkForCliUpdate(currentVersion);
+  if (latest) {
+    log.warn('A new Shadow CLI version is available: ' + latest + ' (you have ' + currentVersion + ').');
+    log.info('Update with: npm install --global ' + PACKAGE_NAME + '@latest');
+    log.info('Or run: npx ' + PACKAGE_NAME + '@latest');
+  }
 }
 
 export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT } = {}) {
@@ -780,6 +837,10 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
     printHelp();
     return 0;
   }
+
+  await announceCliUpdate(packageVersion);
+  if (command === 'repository' || command === 'shadow-repository') { openExternal(GITHUB_REPO); return 0; }
+  if (command === 'feedback' || command === 'shadow-feedback') { openExternal(ISSUES_URL); return 0; }
 
   const installDir = getInstallDir();
   if (command === 'update') return updateCliAndRuntime(installDir);

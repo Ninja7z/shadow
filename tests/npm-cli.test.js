@@ -16,6 +16,8 @@ import {
   ensurePython,
   showStatus,
   getConfiguredAliases,
+  compareVersions,
+  checkForCliUpdate,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -202,7 +204,7 @@ test('missing Ollama binary is treated as optional', async () => {
 
 test('the npm package exposes a collision-safe shadow-gateway executable', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
-  assert.deepEqual(packageJson.bin, { 'shadow-gateway': 'bin/shadow.js' });
+  assert.deepEqual(packageJson.bin, { 'shadow-gateway': 'bin/shadow.js', 'shadow-repository': 'bin/repository.js', 'shadow-feedback': 'bin/feedback.js' });
 });
 
 test('the CLI provides help without trying to bootstrap Python', () => {
@@ -247,4 +249,56 @@ test('status falls back to local aliases when LiteLLM DB-less auth blocks model 
     console.log = originalLog;
     fs.rmSync(installDir, { recursive: true, force: true });
   }
+});
+
+
+test('npm package exposes dedicated repository and feedback commands', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  assert.equal(packageJson.bin['shadow-repository'], 'bin/repository.js');
+  assert.equal(packageJson.bin['shadow-feedback'], 'bin/feedback.js');
+  for (const file of ['bin/repository.js', 'bin/feedback.js']) assert.equal(fs.existsSync(path.resolve(file)), true);
+});
+
+test('CLI help documents repository and feedback commands', () => {
+  const result = spawnSync(process.execPath, [path.resolve('bin/shadow.js'), '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /shadow-repository/u);
+  assert.match(result.stdout, /shadow-feedback/u);
+});
+
+test('version comparison detects newer npm releases', () => {
+  assert.equal(compareVersions('0.1.7', '0.1.8'), 1);
+  assert.equal(compareVersions('0.1.8', '0.1.7'), -1);
+  assert.equal(compareVersions('0.1.7', '0.1.7'), 0);
+  assert.equal(compareVersions('invalid', '0.1.8'), 0);
+});
+
+test('update check caches registry metadata and returns only newer versions', async () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-update-check-'));
+  let requests = 0;
+  try {
+    const fetchImpl = async () => { requests += 1; return { ok: true, json: async () => ({ version: '0.1.8' }) }; };
+    assert.equal(await checkForCliUpdate('0.1.7', { installDir, fetchImpl, now: 100000 }), '0.1.8');
+    assert.equal(await checkForCliUpdate('0.1.7', { installDir, fetchImpl, now: 100001 }), '0.1.8');
+    assert.equal(requests, 1);
+    assert.equal(await checkForCliUpdate('0.1.8', { installDir, fetchImpl, now: 100002 }), null);
+  } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
+});
+
+test('update check fails silently when registry is unavailable', async () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-update-offline-'));
+  try {
+    assert.equal(await checkForCliUpdate('0.1.7', { installDir, fetchImpl: async () => { throw new Error('offline'); } }), null);
+  } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
+});
+
+test('offline update checks are throttled for one hour', async () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-update-throttle-'));
+  let requests = 0;
+  try {
+    const fetchImpl = async () => { requests += 1; throw new Error('offline'); };
+    assert.equal(await checkForCliUpdate('0.1.7', { installDir, fetchImpl, now: 100000 }), null);
+    assert.equal(await checkForCliUpdate('0.1.7', { installDir, fetchImpl, now: 100001 }), null);
+    assert.equal(requests, 1);
+  } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
 });
