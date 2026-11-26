@@ -72,7 +72,11 @@ jobs:
           Move-Item $pack[0].filename $archive -Force
           npm install --global $archive --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw "Global npm installation failed" }
-          shadow-gateway --version
+          $commands = @("shadow-gateway.cmd", "shadow-repository.cmd", "shadow-feedback.cmd")
+          foreach ($command in $commands) {
+            if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Missing npm Windows command shim: $command" }
+          }
+          shadow-gateway.cmd --version
           if ($LASTEXITCODE -ne 0) { throw "Windows shadow-gateway shim failed" }
-          shadow-gateway --help
+          shadow-gateway.cmd --help
           if ($LASTEXITCODE -ne 0) { throw "Windows CLI help failed" }

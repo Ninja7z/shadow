@@ -302,3 +302,32 @@ test('offline update checks are throttled for one hour', async () => {
     assert.equal(requests, 1);
   } finally { fs.rmSync(installDir, { recursive: true, force: true }); }
 });
+
+
+test('dedicated community commands display update notices and open their own URLs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-community-cli-'));
+  const home = path.join(root, 'home');
+  const bin = path.join(root, 'bin');
+  const cache = path.join(home, '.cache');
+  const urls = path.join(root, 'opened-urls.txt');
+  fs.mkdirSync(cache, { recursive: true });
+  fs.mkdirSync(bin, { recursive: true });
+  try {
+    fs.writeFileSync(path.join(cache, 'npm-update-check.json'), JSON.stringify({ checkedAt: Date.now(), latestVersion: '999.0.0' }));
+    fs.writeFileSync(path.join(bin, 'xdg-open'), '#!/bin/sh\nprintf "%s\\n" "$1" >> "$SHADOW_CAPTURED_URLS"\n', { mode: 0o755 });
+    const env = { ...process.env, SHADOW_HOME: home, SHADOW_CAPTURED_URLS: urls, PATH: bin + path.delimiter + process.env.PATH };
+    const installedVersion = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')).version;
+    for (const [file, expectedUrl] of [
+      ['repository.js', 'https://github.com/Ninja7z/shadow'],
+      ['feedback.js', 'https://github.com/Ninja7z/shadow/issues/new/choose'],
+    ]) {
+      const result = spawnSync(process.execPath, [path.resolve('bin', file)], { encoding: 'utf8', env, timeout: 5000 });
+      assert.equal(result.status, 0, result.stderr);
+      assert.ok((result.stdout + result.stderr).includes(`A new Shadow CLI version is available: 999.0.0 (you have ${installedVersion}).`));
+      const opened = fs.readFileSync(urls, 'utf8').trim().split(/\r?\n/u);
+      assert.equal(opened.at(-1), expectedUrl);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

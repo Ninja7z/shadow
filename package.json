@@ -1,6 +1,6 @@
 {
   "name": "shadow-gateway",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Shadow self-hosted AI gateway installer and interactive terminal setup",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
