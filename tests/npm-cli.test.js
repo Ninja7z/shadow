@@ -365,6 +365,13 @@ test('npm package exposes dedicated repository and feedback commands', () => {
   for (const file of ['bin/repository.js', 'bin/feedback.js']) assert.equal(fs.existsSync(path.resolve(file)), true);
 });
 
+test('CLI help documents the clean reinstall command', () => {
+  const result = spawnSync(process.execPath, ['bin/shadow.js', '--help'], { encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /shadow-gateway reinstall/u);
+  assert.match(result.stdout, /preserve credentials/u);
+});
+
 test('CLI help documents repository and feedback commands', () => {
   const result = spawnSync(process.execPath, [path.resolve('bin/shadow.js'), '--help'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);

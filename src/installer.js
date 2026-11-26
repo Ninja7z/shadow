@@ -874,6 +874,7 @@ function printHelp() {
     '  shadow-gateway repository              Same as shadow-repository',
     '  shadow-gateway feedback                 Same as shadow-feedback',
     '  shadow-gateway update                  Update the CLI and local runtime from npm',
+    '  shadow-gateway reinstall               Clean-rebuild managed dependencies; preserve credentials',
     '',
     'First install:',
     '  npx ' + PACKAGE_NAME,
