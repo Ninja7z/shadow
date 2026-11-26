@@ -19,6 +19,7 @@
     "config/mcp-hub.example.json",
     ".env.example",
     "requirements.txt",
+    "requirements.lock",
     "scripts/shadow.py",
     "scripts/smoke_test.py",
     "scripts/validate_config.py",

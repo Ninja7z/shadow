@@ -8,7 +8,7 @@ O instalador oficial do Shadow é distribuído como pacote npm. Ele prepara o ga
 - Internet durante a instalação de uv, Python e dependências do gateway.
 - Linux, macOS ou Windows em x64/ARM64.
 
-Python e uv não precisam estar previamente instalados. O instalador provisiona uv e um runtime Python 3.12 gerenciado pelo próprio usuário, sem reutilizar um ambiente virtual ativado de outro projeto. Ollama é opcional; o instalador detecta o serviço pela API HTTP local e pede confirmação antes de baixar um modelo grande.
+Python e uv não precisam estar previamente instalados. As dependências do runtime são fixadas em um lockfile multiplataforma com hashes dos pacotes, para que instalações novas e atualizações usem o mesmo conjunto de dependências. O instalador provisiona uv e um runtime Python 3.12 gerenciado pelo próprio usuário, sem reutilizar um ambiente virtual ativado de outro projeto. Ollama é opcional; o instalador detecta o serviço pela API HTTP local e pede confirmação antes de baixar um modelo grande.
 
 ## Primeira instalação
 

@@ -1,2 +1,4 @@
-litellm[proxy]>=1.110.2,<2
-PyYAML>=6.0,<7
+# Runtime dependency versions are deliberately pinned. Update them only after
+# exercising the gateway and the supported Linux/macOS/Windows CI matrix.
+litellm[proxy]==1.110.3
+PyYAML==6.0.4

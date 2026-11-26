@@ -8,7 +8,7 @@ Shadow is distributed as an npm package with an interactive terminal installer. 
 - Internet access while uv, Python and gateway dependencies are installed.
 - Linux, macOS or Windows on x64/ARM64.
 
-Python and uv do not need to be installed in advance. The installer provisions uv and a managed Python 3.12 runtime in the user's space, without reusing an activated virtual environment from another project. Ollama is optional; the installer detects it through its local HTTP API and asks before downloading a large model.
+Python and uv do not need to be installed in advance. Runtime dependencies are pinned in a cross-platform lockfile with package hashes, so fresh installs and upgrades use the same tested dependency set. The installer provisions uv and a managed Python 3.12 runtime in the user's space, without reusing an activated virtual environment from another project. Ollama is optional; the installer detects it through its local HTTP API and asks before downloading a large model.
 
 ## First installation
 

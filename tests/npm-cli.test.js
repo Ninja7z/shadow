@@ -319,6 +319,16 @@ test('status falls back to local aliases when LiteLLM DB-less auth blocks model 
 });
 
 
+test('Python runtime is hash-locked and included in the npm package', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  const lock = fs.readFileSync(path.resolve('requirements.lock'), 'utf8');
+  assert.ok(packageJson.files.includes('requirements.lock'));
+  assert.ok(RUNTIME_FILES.includes('requirements.lock'));
+  assert.match(lock, /^litellm==1\.110\.3/mu);
+  assert.match(lock, /^pyyaml==6\.0\.4/mu);
+  assert.match(lock, /--hash=sha256:/u);
+});
+
 test('package manifest and lockfile expose identical npm command shims', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.resolve('package-lock.json'), 'utf8'));

@@ -59,6 +59,13 @@ jobs:
       - name: Test npm CLI
         run: npm test
 
+      - name: Verify hash-locked Python runtime
+        run: |
+          python -m pip install --disable-pip-version-check uv
+          uv venv "$RUNNER_TEMP/shadow-lock-check"
+          uv pip install --python "$RUNNER_TEMP/shadow-lock-check/bin/python" --require-hashes -r requirements.lock
+          "$RUNNER_TEMP/shadow-lock-check/bin/python" -c "import litellm, yaml; print('Locked runtime imports OK')"
+
       - name: Compile Python core
         run: python -m py_compile scripts/shadow.py scripts/smoke_test.py
 

@@ -315,11 +315,12 @@ def ensure_venv():
             subprocess.run([uv, "venv", str(VENV), "--python", sys.executable], check=True)
         else:
             subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
+    requirements = ROOT / ("requirements.lock" if (ROOT / "requirements.lock").exists() else "requirements.txt")
     if uv:
-        subprocess.run([uv, "pip", "install", "--python", str(pybin()), "-r", str(ROOT / "requirements.txt")], check=True)
+        subprocess.run([uv, "pip", "install", "--require-hashes", "--python", str(pybin()), "-r", str(requirements)], check=True)
     else:
         subprocess.run([str(pybin()), "-m", "pip", "install", "--upgrade", "pip"], check=True)
-        subprocess.run([str(pybin()), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")], check=True)
+        subprocess.run([str(pybin()), "-m", "pip", "install", "--require-hashes", "-r", str(requirements)], check=True)
 
 
 def save_provider_credentials(payload):

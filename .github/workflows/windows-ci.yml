@@ -44,6 +44,14 @@ jobs:
       - name: Install Python test dependency
         run: python -m pip install --disable-pip-version-check "PyYAML>=6,<7"
 
+      - name: Verify pinned Python runtime lock and hashes
+        if: matrix.node-version == '24'
+        run: |
+          python -m pip install --disable-pip-version-check uv
+          uv venv "$env:RUNNER_TEMP/shadow-lock-check"
+          uv pip install --python "$env:RUNNER_TEMP/shadow-lock-check/Scripts/python.exe" --require-hashes -r requirements.lock
+          & "$env:RUNNER_TEMP/shadow-lock-check/Scripts/python.exe" -c "import litellm, yaml; print('Locked runtime imports OK')"
+
       - name: Provision uv and managed Python through the Shadow installer
         shell: pwsh
         run: |

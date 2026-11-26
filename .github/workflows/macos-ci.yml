@@ -44,6 +44,14 @@ jobs:
       - name: Install Python test dependency
         run: python -m pip install --disable-pip-version-check "PyYAML>=6,<7"
 
+      - name: Verify pinned Python runtime lock and hashes
+        if: matrix.node-version == '24'
+        run: |
+          python -m pip install --disable-pip-version-check uv
+          uv venv "$RUNNER_TEMP/shadow-lock-check"
+          uv pip install --python "$RUNNER_TEMP/shadow-lock-check/bin/python" --require-hashes -r requirements.lock
+          "$RUNNER_TEMP/shadow-lock-check/bin/python" -c "import litellm, yaml; print('Locked runtime imports OK')"
+
       - name: Test npm CLI and macOS-compatible launchers
         run: npm test
 

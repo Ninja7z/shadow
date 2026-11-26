@@ -21,7 +21,7 @@ const UPDATE_CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 const UPDATE_CHECK_FAILURE_TTL_MS = 60 * 60 * 1000;
 
 export const RUNTIME_FILES = [
-  '.env.example', 'requirements.txt', 'LICENSE',
+  '.env.example', 'requirements.txt', 'requirements.lock', 'LICENSE',
   'config/shadow.example.yaml', 'config/providers.catalog.yaml',
   'config/shadow.runtime.example.yaml', 'config/mcp-hub.example.json',
   'scripts/shadow.py', 'scripts/smoke_test.py', 'scripts/validate_config.py',
@@ -521,7 +521,7 @@ async function installCoreDependencies(installDir, packageRoot, packageVersion, 
     });
   } else if (update.changed) {
     await run(uvResult.path, [
-      'pip', 'install', '--python', venvPython, '-r', path.join(installDir, 'requirements.txt'),
+      'pip', 'install', '--require-hashes', '--python', venvPython, '-r', path.join(installDir, 'requirements.lock'),
     ], { cwd: installDir, env });
   }
 
