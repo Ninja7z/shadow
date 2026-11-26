@@ -93,6 +93,19 @@ export function findExecutable(name, env = process.env, home = os.homedir()) {
   return null;
 }
 
+function securePrivatePaths(installDir) {
+  if (process.platform === 'win32') return;
+  for (const directory of [installDir, path.join(installDir, 'config')]) {
+    if (fs.existsSync(directory)) fs.chmodSync(directory, 0o700);
+  }
+  for (const relative of PRIVATE_RUNTIME_FILES) {
+    const target = path.join(installDir, relative);
+    if (fs.existsSync(target) && fs.statSync(target).isFile()) fs.chmodSync(target, 0o600);
+  }
+  const manifest = path.join(installDir, '.shadow-cli.json');
+  if (fs.existsSync(manifest)) fs.chmodSync(manifest, 0o600);
+}
+
 export function copyRuntime(packageRoot, installDir, packageVersion, { force = false } = {}) {
   const manifestPath = path.join(installDir, '.shadow-cli.json');
   let previousVersion = null;
@@ -126,6 +139,7 @@ export function copyRuntime(packageRoot, installDir, packageVersion, { force = f
   const tempPath = manifestPath + '.tmp';
   fs.writeFileSync(tempPath, JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 });
   fs.renameSync(tempPath, manifestPath);
+  securePrivatePaths(installDir);
   return { changed, copied, previousVersion, manifestPath };
 }
 
@@ -727,20 +741,62 @@ export async function showStatus(installDir) {
   }
 }
 
-async function runDoctor(installDir) {
+export function inspectInstallation(installDir, { platform = process.platform } = {}) {
+  const check = (label, ok, detail = '') => ({ label, ok: Boolean(ok), detail });
+  const envPath = path.join(installDir, '.env');
+  const configPath = path.join(installDir, 'config', 'shadow.yaml');
+  const pythonPath = getPythonVenvPath(installDir, platform);
+  const litellmPath = path.join(installDir, '.venv', platform === 'win32' ? 'Scripts/litellm.exe' : 'bin/litellm');
   const checks = [
-    ['Runtime directory', fs.existsSync(installDir)],
-    ['Private environment', fs.existsSync(path.join(installDir, '.env'))],
-    ['Gateway configuration', fs.existsSync(path.join(installDir, 'config', 'shadow.yaml'))],
-    ['Python environment', fs.existsSync(getPythonVenvPath(installDir))],
-    ['LiteLLM executable', fs.existsSync(path.join(installDir, '.venv', process.platform === 'win32' ? 'Scripts/litellm.exe' : 'bin/litellm'))],
+    check('Runtime directory', fs.existsSync(installDir), installDir),
+    check('CLI runtime manifest', fs.existsSync(path.join(installDir, '.shadow-cli.json'))),
+    check('Python environment', fs.existsSync(pythonPath)),
+    check('LiteLLM executable', fs.existsSync(litellmPath)),
   ];
-  for (const [label, ok] of checks) (ok ? log.success : log.error)(label + ': ' + (ok ? 'OK' : 'missing'));
+
+  let env = {};
+  if (fs.existsSync(envPath)) {
+    try { env = parseDotEnv(fs.readFileSync(envPath, 'utf8')); }
+    catch { /* Report unreadable environment without exposing its contents. */ }
+  }
+  checks.push(check('Private environment', fs.existsSync(envPath) && Object.keys(env).length > 0));
+  checks.push(check('Local master key', typeof env.LITELLM_MASTER_KEY === 'string' && env.LITELLM_MASTER_KEY.length >= 16));
+
+  let configOk = false;
+  let configDetail = 'missing';
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = parseYaml(fs.readFileSync(configPath, 'utf8')) || {};
+      const names = Array.isArray(config.model_list) ? config.model_list.map((item) => item?.model_name).filter(Boolean) : [];
+      configOk = new Set(names).size === names.length && names.includes('shadow-local') && names.includes('shadow-auto');
+      configDetail = configOk ? names.length + ' model aliases' : 'required aliases missing or duplicated';
+    } catch {
+      configDetail = 'invalid YAML';
+    }
+  }
+  checks.push(check('Gateway configuration', configOk, configDetail));
+
+  if (platform !== 'win32') {
+    for (const [label, target] of [['.env permissions', envPath], ['Gateway config permissions', configPath]]) {
+      let privateMode = false;
+      try { privateMode = (fs.statSync(target).mode & 0o077) === 0; } catch { /* Missing file is reported by its own check. */ }
+      checks.push(check(label, privateMode, privateMode ? 'owner-only' : 'must be chmod 600'));
+    }
+  }
+  return checks;
+}
+
+async function runDoctor(installDir) {
+  const checks = inspectInstallation(installDir);
+  for (const item of checks) {
+    const detail = item.detail ? ' · ' + item.detail : '';
+    (item.ok ? log.success : log.error)(item.label + ': ' + (item.ok ? 'OK' : 'PROBLEM') + detail);
+  }
   const ollama = await checkOllama();
   if (ollama.installed && ollama.running) log.success('Ollama: ' + ollama.models.length + ' model(s)');
-  else log.info('Ollama: ' + (ollama.installed ? 'installed, not responding' : 'optional and not installed'));
-  if (checks.some((entry) => !entry[1])) {
-    log.info('Run shadow-gateway setup to repair the local installation.');
+  else log.info('Ollama: ' + (ollama.installed ? 'installed, not responding (optional)' : 'optional and not installed'));
+  if (checks.some((entry) => !entry.ok)) {
+    log.info('Run shadow-gateway setup to repair the local installation. Existing credentials and local configuration are preserved.');
     return 1;
   }
   return showStatus(installDir);
@@ -838,6 +894,7 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
     return 0;
   }
 
+  if (command === 'doctor') return runDoctor(getInstallDir());
   await announceCliUpdate(packageVersion);
   if (command === 'repository' || command === 'shadow-repository') { openExternal(GITHUB_REPO); return 0; }
   if (command === 'feedback' || command === 'shadow-feedback') { openExternal(ISSUES_URL); return 0; }
@@ -862,7 +919,6 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
     return runCore(installed.installDir, ['start']);
   }
   if (command === 'status') return showStatus(installDir);
-  if (command === 'doctor') return runDoctor(installDir);
   if (command === 'provider') {
     const subcommand = args.shift() || 'list';
     if (subcommand === 'add') return runCore(installDir, ['add-provider']);

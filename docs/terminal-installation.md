@@ -90,7 +90,8 @@ shadow-gateway doctor
 shadow-gateway status
 ```
 
-- `doctor` checks local runtime files and core dependencies.
+- `doctor` performs a read-only diagnosis: runtime manifest, isolated Python and LiteLLM executables, private master key, YAML model aliases and POSIX secret-file permissions. It does not silently install or modify files while diagnosing.
+- `setup` is the repair path. It synchronizes managed runtime files and dependencies while preserving `.env` and local provider configuration.
 - `status` queries the health endpoint and model catalog. If DB-less LiteLLM blocks authenticated catalog discovery, it falls back to aliases in the local config and explains how to enter them manually.
 - `provider add` registers an OpenAI-compatible or Anthropic Messages custom API.
 - `provider refresh` regenerates the gateway configuration.

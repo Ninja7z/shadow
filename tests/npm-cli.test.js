@@ -18,6 +18,7 @@ import {
   getConfiguredAliases,
   compareVersions,
   checkForCliUpdate,
+  inspectInstallation,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -135,6 +136,59 @@ test('runtime update replaces managed files but never overwrites local credentia
   }
 });
 
+test('runtime sync locks down private installation files on POSIX', { skip: process.platform === 'win32' }, () => {
+  const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-package-permissions-'));
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-install-permissions-'));
+  try {
+    for (const relative of RUNTIME_FILES) {
+      const source = path.join(packageRoot, relative);
+      fs.mkdirSync(path.dirname(source), { recursive: true });
+      fs.writeFileSync(source, 'package:' + relative);
+    }
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.env'), 'LITELLM_MASTER_KEY=private-master-key');
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'model_list: []');
+    fs.chmodSync(installDir, 0o755);
+    fs.chmodSync(path.join(installDir, '.env'), 0o644);
+    copyRuntime(packageRoot, installDir, '0.1.0');
+    assert.equal(fs.statSync(installDir).mode & 0o777, 0o700);
+    assert.equal(fs.statSync(path.join(installDir, 'config')).mode & 0o777, 0o700);
+    assert.equal(fs.statSync(path.join(installDir, '.env')).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.join(installDir, 'config', 'shadow.yaml')).mode & 0o777, 0o600);
+  } finally {
+    fs.rmSync(packageRoot, { recursive: true, force: true });
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
+});
+
+test('doctor inspects configuration and private permissions without exposing secrets', { skip: process.platform === 'win32' }, () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-doctor-inspect-'));
+  try {
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true, mode: 0o700 });
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, '.shadow-cli.json'), JSON.stringify({ packageVersion: '0.1.9' }), { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, '.env'), 'LITELLM_MASTER_KEY=do-not-print-this-secret\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), '', { mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'litellm'), '', { mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'model_list:\n  - model_name: shadow-local\n    litellm_params: {}\n  - model_name: shadow-auto\n    litellm_params: {}\n', { mode: 0o600 });
+    const checks = inspectInstallation(installDir);
+    assert.ok(checks.every((item) => item.ok), JSON.stringify(checks));
+    assert.equal(JSON.stringify(checks).includes('do-not-print-this-secret'), false);
+    fs.chmodSync(path.join(installDir, '.env'), 0o644);
+    const unsafe = inspectInstallation(installDir);
+    assert.equal(unsafe.find((item) => item.label === '.env permissions').ok, false);
+  } finally {
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
+});
+
+test('doctor reports missing runtime instead of silently installing it', () => {
+  const installDir = path.join(os.tmpdir(), 'shadow-doctor-missing-' + process.pid);
+  const checks = inspectInstallation(installDir);
+  assert.ok(checks.some((item) => item.label === 'Runtime directory' && !item.ok));
+  assert.ok(checks.some((item) => item.label === 'Local master key' && !item.ok));
+});
+
 test('Python provisioning ignores an activated unrelated project venv', { skip: process.platform === 'win32' }, async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-python-provision-'));
   try {
@@ -205,6 +259,19 @@ test('missing Ollama binary is treated as optional', async () => {
 test('the npm package exposes a collision-safe shadow-gateway executable', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
   assert.deepEqual(packageJson.bin, { 'shadow-gateway': 'bin/shadow.js', 'shadow-repository': 'bin/repository.js', 'shadow-feedback': 'bin/feedback.js' });
+});
+
+test('doctor diagnoses a missing install without bootstrapping or creating files', { skip: process.platform === 'win32' }, () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-doctor-cli-'));
+  const installDir = path.join(root, 'not-installed');
+  try {
+    const result = spawnSync(process.execPath, [path.resolve('bin/shadow.js'), 'doctor'], {
+      encoding: 'utf8', env: { ...process.env, SHADOW_HOME: installDir }, timeout: 12000,
+    });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stdout + result.stderr, /CLI runtime manifest: PROBLEM/u);
+    assert.equal(fs.existsSync(installDir), false, 'doctor must not create even update-cache files');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test('the CLI provides help without trying to bootstrap Python', () => {

@@ -90,7 +90,8 @@ shadow-gateway doctor
 shadow-gateway status
 ```
 
-- `doctor` verifica os arquivos locais e as dependências principais.
+- `doctor` faz um diagnóstico somente de leitura: manifesto do runtime, Python isolado, executável LiteLLM, chave mestra privada, aliases YAML e permissões POSIX dos arquivos secretos. Não instala nem altera arquivos durante o diagnóstico.
+- `setup` é o caminho de reparo. Sincroniza arquivos gerenciados e dependências, preservando `.env` e a configuração local dos provedores.
 - `status` consulta o health endpoint e o catálogo de modelos. Se o LiteLLM sem banco bloquear a descoberta autenticada, o comando usa os aliases da configuração local e explica como cadastrá-los manualmente.
 - `provider add` cadastra uma API própria OpenAI-compatible ou Anthropic Messages.
 - `provider refresh` regenera a configuração do gateway.
