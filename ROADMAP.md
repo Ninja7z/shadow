@@ -21,3 +21,7 @@ After the complete 1.0.0 release, work shifts to maintenance and incremental evo
 - `.env`, local configuration, user data, Ollama installations/models, and shared caches are never part of automatic cleanup.
 - The CLI records an installation-state marker so a later invocation can recognize an interrupted operation.
 - Manual `reinstall` requires confirmation and follows the same narrow cleanup boundary.
+
+## Community and growth
+
+The community goal is 1,000 GitHub stars during the five months beginning on the public release date of `shadow-gateway@0.2.0`. This is an ambitious target, not a guarantee. The launch baseline and ethical growth plan are documented in [`docs/project/GROWTH-PLAN-1000-STARS.md`](docs/project/GROWTH-PLAN-1000-STARS.md). The project handoff for future development sessions is [`docs/project/HANDOFF-2026-11-26.md`](docs/project/HANDOFF-2026-11-26.md).
