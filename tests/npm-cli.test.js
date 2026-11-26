@@ -304,7 +304,7 @@ test('offline update checks are throttled for one hour', async () => {
 });
 
 
-test('dedicated community commands display update notices and open their own URLs', () => {
+test('dedicated community commands display update notices and open their own URLs', { skip: process.platform === 'win32' }, () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-community-cli-'));
   const home = path.join(root, 'home');
   const bin = path.join(root, 'bin');
@@ -314,7 +314,8 @@ test('dedicated community commands display update notices and open their own URL
   fs.mkdirSync(bin, { recursive: true });
   try {
     fs.writeFileSync(path.join(cache, 'npm-update-check.json'), JSON.stringify({ checkedAt: Date.now(), latestVersion: '999.0.0' }));
-    fs.writeFileSync(path.join(bin, 'xdg-open'), '#!/bin/sh\nprintf "%s\\n" "$1" >> "$SHADOW_CAPTURED_URLS"\n', { mode: 0o755 });
+    const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+    fs.writeFileSync(path.join(bin, opener), '#!/bin/sh\nprintf "%s\\n" "$1" >> "$SHADOW_CAPTURED_URLS"\n', { mode: 0o755 });
     const env = { ...process.env, SHADOW_HOME: home, SHADOW_CAPTURED_URLS: urls, PATH: bin + path.delimiter + process.env.PATH };
     const installedVersion = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')).version;
     for (const [file, expectedUrl] of [
@@ -329,5 +330,15 @@ test('dedicated community commands display update notices and open their own URL
     }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test('dedicated community wrappers pass package version into the update checker', () => {
+  for (const [file, command] of [['bin/repository.js', 'repository'], ['bin/feedback.js', 'feedback']]) {
+    const source = fs.readFileSync(path.resolve(file), 'utf8');
+    assert.match(source, /createRequire\(import\.meta\.url\)/u);
+    assert.ok(source.includes("const { version } = require('../package.json');"));
+    assert.ok(source.includes(`runCli(['${command}'], { packageVersion: version })`));
   }
 });
