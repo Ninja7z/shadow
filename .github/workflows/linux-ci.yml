@@ -1,0 +1,76 @@
+name: Linux terminal compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-terminal:
+    name: Ubuntu 24.04 · Node ${{ matrix.node-version }} + Python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20.12.0", "22", "24"]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install Python test dependency
+        run: python -m pip install --disable-pip-version-check "PyYAML>=6,<7"
+
+      - name: Provision uv and managed Python through the Shadow installer
+        shell: bash
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; import os from "node:os"; import path from "node:path"; import { ensureUv, ensurePython } from "./src/installer.js"; const installDir = fs.mkdtempSync(path.join(os.tmpdir(), "shadow-linux-bootstrap-")); try { const uv = await ensureUv(installDir); console.log(`uv: ${uv.path}`); const python = await ensurePython(uv.path); console.log(`Managed Python: ${python}`); if (!fs.existsSync(python)) process.exit(1); } finally { fs.rmSync(installDir, { recursive: true, force: true }); }'
+
+      - name: Test npm CLI and Linux command launchers
+        run: npm test
+
+      - name: Compile Python runtime and tests
+        run: python -m py_compile scripts/shadow.py scripts/smoke_test.py tests/test_shadow_cli.py tests/test_smoke_test.py
+
+      - name: Test Python runtime on Linux
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate example configurations
+        run: |
+          python scripts/validate_config.py config/shadow.example.yaml
+          python scripts/validate_config.py config/shadow.runtime.example.yaml
+
+      - name: Verify npm package contents and Linux command launchers
+        shell: bash
+        run: |
+          npm pack --json > "$RUNNER_TEMP/shadow-pack.json"
+          ARCHIVE=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))[0].filename)' "$RUNNER_TEMP/shadow-pack.json")
+          npm install --prefix "$RUNNER_TEMP/shadow-install" "./$ARCHIVE" --no-audit --no-fund
+          for command in shadow-gateway shadow-repository shadow-feedback; do
+            test -x "$RUNNER_TEMP/shadow-install/node_modules/.bin/$command"
+          done
+          "$RUNNER_TEMP/shadow-install/node_modules/.bin/shadow-gateway" --version
+          "$RUNNER_TEMP/shadow-install/node_modules/.bin/shadow-gateway" --help

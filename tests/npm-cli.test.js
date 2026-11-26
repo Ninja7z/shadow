@@ -252,6 +252,12 @@ test('status falls back to local aliases when LiteLLM DB-less auth blocks model 
 });
 
 
+test('package manifest and lockfile expose identical npm command shims', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.resolve('package-lock.json'), 'utf8'));
+  assert.deepEqual(lock.packages[''].bin, packageJson.bin);
+});
+
 test('npm package exposes dedicated repository and feedback commands', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
   assert.equal(packageJson.bin['shadow-repository'], 'bin/repository.js');
