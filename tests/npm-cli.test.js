@@ -304,7 +304,7 @@ test('offline update checks are throttled for one hour', async () => {
 });
 
 
-test('dedicated community commands display update notices and open their own URLs', { skip: process.platform === 'win32' }, () => {
+test('dedicated community commands display update notices and open their own URLs', { skip: process.platform !== 'linux' }, () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-community-cli-'));
   const home = path.join(root, 'home');
   const bin = path.join(root, 'bin');
@@ -341,4 +341,13 @@ test('dedicated community wrappers pass package version into the update checker'
     assert.ok(source.includes("const { version } = require('../package.json');"));
     assert.ok(source.includes(`runCli(['${command}'], { packageVersion: version })`));
   }
+});
+
+
+test('community subcommands route to the repository and feedback destinations', () => {
+  const source = fs.readFileSync(path.resolve('src/installer.js'), 'utf8');
+  assert.ok(source.includes("const GITHUB_REPO = 'https://github.com/Ninja7z/shadow';"));
+  assert.ok(source.includes("const ISSUES_URL = GITHUB_REPO + '/issues/new/choose';"));
+  assert.ok(source.includes("openExternal(GITHUB_REPO)"));
+  assert.ok(source.includes("openExternal(ISSUES_URL)"));
 });
