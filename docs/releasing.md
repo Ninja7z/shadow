@@ -24,6 +24,16 @@ The script first checks npm whoami and the live latest dist-tag, then applies np
 
 To inspect the exact registry change without credentials or writes, run **npm run deprecate:legacy -- --plan**.
 
+If npm requires a one-time password (2FA), enter it only in your local terminal. On Linux/macOS, this prompts without echoing the code and passes it only to the npm process.
+
+```bash
+read -rsp "npm 2FA code: " NPM_OTP; echo
+npm_config_otp="$NPM_OTP" npm run deprecate:legacy
+unset NPM_OTP
+```
+
+Do not paste one-time passwords into chat, source files, shell history, or GitHub secrets.
+
 ## Trusted publisher configuration
 
 - Publisher: GitHub Actions
