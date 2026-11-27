@@ -12,6 +12,16 @@ As versões da Shadow usam Trusted Publishing (OIDC do GitHub Actions) e publica
 6. Revise o pacote staged no npm, inspecione seu conteúdo e aprove com 2FA. O workflow não possui permissão de publicação direta nem de alteração de dist-tags.
 7. Depois da aprovação, confira a versão pública e a tag `latest`.
 
+## Aviso de atualização para versões antigas
+
+As versões até **0.1.6** (incluindo pré-lançamentos anteriores a **0.1.7**) foram publicadas antes do verificador de atualização do CLI. Depois de autenticar como responsável pelo pacote no npm, aplique um aviso de depreciação no registro.
+
+Execute **npm login** e depois **npm run deprecate:legacy**.
+
+O script primeiro verifica npm whoami e a versão da tag latest; depois aplica npm deprecate para o intervalo shadow-gateway@<0.1.7. O npm mostra o aviso quando alguém instala uma dessas versões antigas e na página de cada versão marcada. Isso não altera binários já instalados: quem já usa um CLI antigo ainda precisa executar um comando npm para instalar a versão mais recente. O comando não remove versões, não substitui tarballs, não publica pacote novo e não altera dist-tags.
+
+Para conferir exatamente o que será aplicado, sem autenticação ou gravação no registro, execute **npm run deprecate:legacy -- --plan**.
+
 ## Configuração do Trusted Publisher
 
 - Publisher: GitHub Actions

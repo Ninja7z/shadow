@@ -14,6 +14,16 @@ Shadow releases use npm Trusted Publishing (GitHub Actions OIDC) and npm staged 
 8. Review the staged package in npm, inspect its contents, and approve it with 2FA. The staged workflow does not have direct-publish or dist-tag permissions.
 9. Verify the live version and `latest` dist-tag after approval.
 
+## Legacy version update notice
+
+Versions through **0.1.6** (including prereleases below **0.1.7**) predate the built-in CLI update checker. After authenticating as an npm package owner, apply a registry deprecation notice to those releases.
+
+Run **npm login**, then **npm run deprecate:legacy**.
+
+The script first checks npm whoami and the live latest dist-tag, then applies npm deprecate for the range shadow-gateway@<0.1.7. npm shows the notice when users install one of these old versions and on each deprecated version's npm page. This does not change existing installed binaries, so a user who already has an old CLI must still invoke npm to install the latest release. The command does not unpublish versions, replace tarballs, publish a new package, or change dist-tags.
+
+To inspect the exact registry change without credentials or writes, run **npm run deprecate:legacy -- --plan**.
+
 ## Trusted publisher configuration
 
 - Publisher: GitHub Actions

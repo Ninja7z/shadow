@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import crypto from 'node:crypto';
+import { getDeprecationPlan, LEGACY_VERSION_RANGE, LEGACY_PACKAGE_SPEC, buildLegacyDeprecationMessage } from '../scripts/deprecate-legacy-versions.mjs';
 import {
   RUNTIME_FILES,
   copyRuntime,
@@ -1160,4 +1161,66 @@ test('uv bootstrap download must match the pinned SHA-256 when integrity is requ
 test('pinned uv bootstrap hashes are defined for Unix and Windows installers', () => {
   assert.match(__test__.UV_INSTALLER_SHA256.unix, /^[a-f0-9]{64}$/u);
   assert.match(__test__.UV_INSTALLER_SHA256.win32, /^[a-f0-9]{64}$/u);
+});
+
+
+test('legacy deprecation helper is included in the npm package file allowlist', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  assert.ok(packageJson.files.includes('scripts/deprecate-legacy-versions.mjs'));
+  assert.ok(fs.existsSync(path.resolve('scripts/deprecate-legacy-versions.mjs')));
+  assert.equal(packageJson.scripts['deprecate:legacy'], 'node scripts/deprecate-legacy-versions.mjs');
+});
+
+test('legacy release update notice targets every published version through 0.1.6', () => {
+  const plan = getDeprecationPlan();
+  assert.equal(LEGACY_VERSION_RANGE, '<0.1.7');
+  assert.equal(LEGACY_PACKAGE_SPEC, 'shadow-gateway@<0.1.7');
+  assert.equal(plan.package, 'shadow-gateway');
+  assert.equal(plan.range, '<0.1.7');
+  assert.match(plan.message, /UPDATE AVAILABLE/u);
+  assert.match(plan.message, /npm install --global shadow-gateway@latest/u);
+  assert.match(plan.message, /github.com\/Ninja7z\/shadow\/releases/u);
+});
+
+test('legacy update notice plan is printable without npm credentials or registry writes', () => {
+  const result = spawnSync(
+    process.execPath,
+    ['scripts/deprecate-legacy-versions.mjs', '--plan'],
+    { cwd: path.resolve('.'), encoding: 'utf8', env: { ...process.env, npm_execpath: '' } },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /shadow-gateway@<0.1.7/u);
+  assert.match(result.stdout, /No registry changes made/u);
+});
+
+test('legacy notice message always points users to the current npm tag', () => {
+  assert.match(buildLegacyDeprecationMessage(), /shadow-gateway@latest/u);
+});
+
+test('legacy deprecation verifies auth and latest before applying the version range', async () => {
+  const { main } = await import('../scripts/deprecate-legacy-versions.mjs');
+  const calls = [];
+  const status = main({
+    argv: [],
+    env: { npm_execpath: '/mock/npm-cli.js' },
+    run: (args) => { calls.push(args); return 0; },
+  });
+  assert.equal(status, 0);
+  assert.deepEqual(calls, [
+    ['whoami'],
+    ['view', 'shadow-gateway@latest', 'version'],
+    ['deprecate', 'shadow-gateway@<0.1.7', getDeprecationPlan().message],
+  ]);
+});
+
+test('legacy deprecation stops before registry mutation when npm authentication fails', async () => {
+  const { main } = await import('../scripts/deprecate-legacy-versions.mjs');
+  const calls = [];
+  const status = main({
+    argv: [],
+    env: { npm_execpath: '/mock/npm-cli.js' },
+    run: (args) => { calls.push(args); return 1; },
+  });
+  assert.equal(status, 1);
+  assert.deepEqual(calls, [['whoami']]);
 });
