@@ -598,7 +598,7 @@ export function createRuntimeBackup(installDir, previousVersion, packageVersion)
   }
 }
 
-export function restoreRuntimeBackup(installDir) {
+export function restoreRuntimeBackup(installDir, { onRestoreStep } = {}) {
   const paths = managedRuntimePaths(installDir);
   if (!fs.existsSync(paths.rollback)) return false;
   const metadataPath = path.join(paths.rollback, 'backup.json');
@@ -614,6 +614,7 @@ export function restoreRuntimeBackup(installDir) {
     } else {
       fs.rmSync(destination, { force: true });
     }
+    onRestoreStep?.('runtime-file', relative);
   }
 
   const manifestPath = path.join(installDir, '.shadow-cli.json');
@@ -624,6 +625,7 @@ export function restoreRuntimeBackup(installDir) {
   } else {
     fs.rmSync(manifestPath, { force: true });
   }
+  onRestoreStep?.('manifest');
 
   if (metadata.hadVenv) {
     const backupVenv = path.join(paths.rollback, '.venv');
@@ -636,6 +638,7 @@ export function restoreRuntimeBackup(installDir) {
   } else {
     fs.rmSync(paths.venv, { recursive: true, force: true });
   }
+  onRestoreStep?.('venv');
 
   securePrivatePaths(installDir);
   writeInstallState(paths.state, { status: 'rolled_back', restoredAt: new Date().toISOString() });
