@@ -40,13 +40,21 @@ python scripts/smoke_test.py --tool-calls --model shadow-auto
 
 This sends one short structured status_check tool request through the selected alias. It is a real inference request and may consume provider quota or incur charges. Choose an alias known to support tool calling.
 
+## Optional Chat Completions streaming tool-call check
+
+~~~bash
+python scripts/smoke_test.py --stream-tool-calls --model shadow-auto
+~~~
+
+This consumes the OpenAI Chat Completions SSE stream, joins fragmented tool-call arguments, and requires the terminal [DONE] marker. It is a real inference request and may consume provider quota or incur charges.
+
 ## Optional OpenAI Responses API function-call check
 
 ~~~bash
 python scripts/smoke_test.py --responses-tools --responses-model shadow-auto
 ~~~
 
-This exercises the native /v1/responses contract (input, Responses function tools, function_call output items, and max_output_tokens). It is separate from Chat Completions and is not translated into a messages payload. The endpoint is available in the pinned LiteLLM version. This is a real inference request and may consume provider quota or incur charges.
+This exercises the native /v1/responses contract (input, Responses function tools, function_call output items, and max_output_tokens). It is separate from Chat Completions and is not translated into a messages payload. LiteLLM exposes this route for compatible providers, but support depends on the selected upstream adapter/model. This is a real inference request and may consume provider quota or incur charges.
 
 ## Optional Anthropic Messages tool-use check
 
@@ -56,12 +64,22 @@ python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto
 
 This sends one Anthropic Messages tool_use request through the selected alias using the native x-api-key and anthropic-version headers expected by Anthropic SDK clients. The alias must be available and its upstream route must support the requested capability. This is a real inference request and may consume provider quota or incur charges.
 
+## Optional Anthropic Messages streaming tool-use check
+
+~~~bash
+python scripts/smoke_test.py --anthropic-stream-tools --anthropic-model shadow-auto
+~~~
+
+This consumes Anthropic Messages SSE events, joins input_json_delta fragments, and requires message_stop before passing. It uses the native x-api-key and anthropic-version headers. It is a real inference request and may consume provider quota or incur charges.
+
 Use a longer inference timeout for slow providers:
 
 ~~~bash
 python scripts/smoke_test.py --tool-calls --model shadow-auto --inference-timeout 60
 python scripts/smoke_test.py --responses-tools --responses-model shadow-auto --inference-timeout 60
+python scripts/smoke_test.py --stream-tool-calls --model shadow-auto --inference-timeout 60
 python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto --inference-timeout 60
+python scripts/smoke_test.py --anthropic-stream-tools --anthropic-model shadow-auto --inference-timeout 60
 ~~~
 
 Do not run inference checks in a tight monitoring loop.

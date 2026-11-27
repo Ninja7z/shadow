@@ -83,9 +83,80 @@ def http_json(
         return 0, None
 
 
+def http_sse_events(
+    url: str,
+    *,
+    method: str = "POST",
+    payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: int = 150,
+    max_bytes: int = 2_000_000,
+) -> tuple[int, list[dict[str, Any]]]:
+    """Read a bounded Server-Sent Events response and retain JSON data events only."""
+    request_headers = {"Accept": "text/event-stream"}
+    if headers:
+        request_headers.update(headers)
+    body = None
+    if payload is not None:
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        request_headers.setdefault("Content-Type", "application/json")
+    request = urllib.request.Request(url, data=body, headers=request_headers, method=method)
+    events: list[dict[str, Any]] = []
+    data_lines: list[str] = []
+    total_bytes = 0
+
+    def flush_event() -> None:
+        if not data_lines:
+            return
+        raw = "\n".join(data_lines)
+        data_lines.clear()
+        if raw == "[DONE]":
+            events.append({"_sse_done": True})
+            return
+        try:
+            parsed = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return
+        if isinstance(parsed, dict):
+            events.append(parsed)
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            while True:
+                raw_line = response.readline(65_537)
+                if not raw_line:
+                    break
+                total_bytes += len(raw_line)
+                if total_bytes > max_bytes or (
+                    len(raw_line) > 65_536 and not raw_line.endswith(b"\n")
+                ):
+                    return -2, events
+                line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+                if not line:
+                    flush_event()
+                elif line.startswith(":"):
+                    continue
+                elif line.startswith("data:"):
+                    data_lines.append(line[5:].lstrip(" "))
+            flush_event()
+            return response.status, events
+    except urllib.error.HTTPError as exc:
+        return exc.code, events
+    except urllib.error.URLError as exc:
+        if isinstance(exc.reason, TimeoutError):
+            return -1, events
+        return 0, events
+    except TimeoutError:
+        return -1, events
+    except OSError:
+        return 0, events
+
+
 def status_text(code: int) -> str:
     if code == -1:
         return "timeout"
+    if code == -2:
+        return "response exceeded the configured size limit"
     return str(code) if code else "unreachable"
 
 
@@ -261,6 +332,170 @@ def _chat_tool_call(
     return valid, detail if valid else detail + "; tool_call missing/invalid"
 
 
+def _chat_stream_tool_call(
+    base: str, master_key: str, alias: str, status: str, timeout: int
+) -> tuple[bool, str]:
+    """Exercise OpenAI Chat Completions SSE and join fragmented tool-call arguments."""
+    payload = {
+        "model": alias,
+        "messages": [{
+            "role": "user",
+            "content": f"Call status_check now with status exactly {status}. Do not answer in prose.",
+        }],
+        "tools": [{
+            "type": "function",
+            "function": {
+                "name": "status_check",
+                "description": "Record a smoke-test status",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"status": {"type": "string"}},
+                    "required": ["status"],
+                    "additionalProperties": False,
+                },
+            },
+        }],
+        "tool_choice": "auto",
+        "max_tokens": 192,
+        "stream": True,
+    }
+    code, events = http_sse_events(
+        f"{base}/v1/chat/completions",
+        method="POST",
+        payload=payload,
+        headers=_bearer(master_key),
+        timeout=timeout,
+    )
+    if code != 200:
+        return False, f"HTTP {status_text(code)}"
+
+    calls: dict[int, dict[str, str]] = {}
+    model = alias
+    stream_done = any(event.get("_sse_done") is True for event in events)
+    for event in events:
+        if isinstance(event.get("model"), str):
+            model = event["model"]
+        choices = event.get("choices")
+        if not isinstance(choices, list):
+            continue
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            delta = choice.get("delta")
+            if not isinstance(delta, dict):
+                continue
+            fragments = delta.get("tool_calls")
+            if not isinstance(fragments, list):
+                continue
+            for fragment in fragments:
+                if not isinstance(fragment, dict):
+                    continue
+                index = fragment.get("index", 0)
+                if not isinstance(index, int):
+                    continue
+                item = calls.setdefault(index, {"name": "", "arguments": ""})
+                function = fragment.get("function")
+                if not isinstance(function, dict):
+                    continue
+                if isinstance(function.get("name"), str):
+                    item["name"] += function["name"]
+                if isinstance(function.get("arguments"), str):
+                    item["arguments"] += function["arguments"]
+
+    valid = False
+    for item in calls.values():
+        if item["name"] != "status_check":
+            continue
+        try:
+            arguments = json.loads(item["arguments"])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(arguments, dict) and arguments.get("status") == status:
+            valid = True
+            break
+    valid = valid and stream_done
+    detail = f"model={model}; events={len(events)}; done={stream_done}"
+    return valid, detail if valid else detail + "; streamed tool_call missing/invalid or stream incomplete"
+
+
+def _anthropic_stream_tool_call(
+    base: str, master_key: str, alias: str, status: str, timeout: int
+) -> tuple[bool, str]:
+    """Exercise Anthropic Messages SSE and assemble input_json_delta fragments."""
+    payload = {
+        "model": alias,
+        "max_tokens": 128,
+        "messages": [{
+            "role": "user",
+            "content": f"Call status_check now with status exactly {status}. Do not answer in prose.",
+        }],
+        "tools": [{
+            "name": "status_check",
+            "description": "Record a smoke-test status",
+            "input_schema": {
+                "type": "object",
+                "properties": {"status": {"type": "string"}},
+                "required": ["status"],
+                "additionalProperties": False,
+            },
+        }],
+        "tool_choice": {"type": "tool", "name": "status_check"},
+        "stream": True,
+    }
+    code, events = http_sse_events(
+        f"{base}/v1/messages",
+        method="POST",
+        payload=payload,
+        headers={"x-api-key": master_key, "anthropic-version": "2023-06-01"},
+        timeout=timeout,
+    )
+    if code != 200:
+        return False, f"HTTP {status_text(code)}"
+
+    blocks: dict[int, dict[str, Any]] = {}
+    stop_reason = "unknown"
+    stream_done = any(event.get("type") == "message_stop" for event in events)
+    for event in events:
+        event_type = event.get("type")
+        if event_type == "content_block_start":
+            index = event.get("index")
+            block = event.get("content_block")
+            if isinstance(index, int) and isinstance(block, dict) and block.get("type") == "tool_use":
+                initial_input = block.get("input")
+                blocks[index] = {
+                    "name": block.get("name") if isinstance(block.get("name"), str) else "",
+                    "input": initial_input if isinstance(initial_input, dict) else {},
+                    "partial_json": "",
+                }
+        elif event_type == "content_block_delta":
+            index = event.get("index")
+            delta = event.get("delta")
+            if isinstance(index, int) and index in blocks and isinstance(delta, dict):
+                if delta.get("type") == "input_json_delta" and isinstance(delta.get("partial_json"), str):
+                    blocks[index]["partial_json"] += delta["partial_json"]
+        elif event_type == "message_delta":
+            delta = event.get("delta")
+            if isinstance(delta, dict) and isinstance(delta.get("stop_reason"), str):
+                stop_reason = delta["stop_reason"]
+
+    valid = False
+    for block in blocks.values():
+        if block["name"] != "status_check":
+            continue
+        arguments = block["input"]
+        if block["partial_json"]:
+            try:
+                arguments = json.loads(block["partial_json"])
+            except json.JSONDecodeError:
+                continue
+        if isinstance(arguments, dict) and arguments.get("status") == status:
+            valid = True
+            break
+    valid = valid and stream_done
+    detail = f"stop={stop_reason}; events={len(events)}; message_stop={stream_done}"
+    return valid, detail if valid else detail + "; streamed tool_use missing/invalid or stream incomplete"
+
+
 def _responses_tool_call(
     base: str, master_key: str, alias: str, status: str, timeout: int
 ) -> tuple[bool, str]:
@@ -393,6 +628,16 @@ def inference_checks(
             )
             (report.ok if ok else report.fail)("Chat Completions tool call", detail)
 
+    if getattr(args, "stream_tool_calls", False):
+        alias = args.model
+        if alias not in aliases:
+            report.fail("Chat Completions streaming tool call", f"alias {alias!r} is not in /v1/models")
+        else:
+            ok, detail = _chat_stream_tool_call(
+                base, master_key, alias, "SHADOW_SMOKE_CHAT_STREAM", args.inference_timeout
+            )
+            (report.ok if ok else report.fail)("Chat Completions streaming tool call", detail)
+
     if getattr(args, "responses_tools", False):
         alias = args.responses_model
         if alias not in aliases:
@@ -402,6 +647,16 @@ def inference_checks(
                 base, master_key, alias, "SHADOW_SMOKE_RESPONSES", args.inference_timeout
             )
             (report.ok if ok else report.fail)("OpenAI Responses tool call", detail)
+
+    if getattr(args, "anthropic_stream_tools", False):
+        alias = args.anthropic_model
+        if alias not in aliases:
+            report.fail("Anthropic Messages streaming tool_use", f"alias {alias!r} is not in /v1/models")
+        else:
+            ok, detail = _anthropic_stream_tool_call(
+                base, master_key, alias, "SHADOW_SMOKE_ANTHROPIC_STREAM", args.inference_timeout
+            )
+            (report.ok if ok else report.fail)("Anthropic Messages streaming tool_use", detail)
 
     if args.anthropic_tools:
         alias = args.anthropic_model
@@ -442,6 +697,11 @@ def parse_args() -> argparse.Namespace:
         help="Alias to test through OpenAI Chat Completions",
     )
     parser.add_argument(
+        "--stream-tool-calls",
+        action="store_true",
+        help="Send one OpenAI Chat Completions streaming tool-call request through --model",
+    )
+    parser.add_argument(
         "--responses-model",
         default="shadow-auto",
         help="Alias to test through the native OpenAI Responses API",
@@ -462,6 +722,11 @@ def parse_args() -> argparse.Namespace:
         help="Send one structured tool-call inference request through --model",
     )
     parser.add_argument(
+        "--anthropic-stream-tools",
+        action="store_true",
+        help="Send one Anthropic Messages streaming tool_use request through --anthropic-model",
+    )
+    parser.add_argument(
         "--anthropic-tools",
         action="store_true",
         help="Send one Anthropic Messages tool_use inference request through --anthropic-model",
@@ -475,14 +740,23 @@ def main() -> int:
     report = Reporter()
     print("Shadow smoke test")
     print(f"Gateway: {args.base_url}")
-    print(
-        "Mode: "
-        + ("Chat Completions tool call" if args.tool_calls else "safe GET checks")
-        + (" + OpenAI Responses function_call" if args.responses_tools else "")
-        + (" + Anthropic Messages tool_use" if args.anthropic_tools else "")
-    )
+    modes = []
+    if args.tool_calls:
+        modes.append("Chat Completions tool call")
+    if args.responses_tools:
+        modes.append("OpenAI Responses function_call")
+    if args.stream_tool_calls:
+        modes.append("Chat Completions streaming tool call")
+    if args.anthropic_tools:
+        modes.append("Anthropic Messages tool_use")
+    if args.anthropic_stream_tools:
+        modes.append("Anthropic Messages streaming tool_use")
+    print("Mode: " + (" + ".join(modes) if modes else "safe GET checks"))
     base, aliases = safe_checks(args, report)
-    if args.tool_calls or args.responses_tools or args.anthropic_tools:
+    if (
+        args.tool_calls or args.responses_tools or args.anthropic_tools
+        or args.stream_tool_calls or args.anthropic_stream_tools
+    ):
         inference_checks(args, base, aliases, report)
     return report.summary()
 

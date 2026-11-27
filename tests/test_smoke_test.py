@@ -45,7 +45,9 @@ class GatewayChecksTests(unittest.TestCase):
             args = smoke.parse_args()
         self.assertFalse(args.tool_calls)
         self.assertFalse(args.responses_tools)
+        self.assertFalse(args.stream_tool_calls)
         self.assertFalse(args.anthropic_tools)
+        self.assertFalse(args.anthropic_stream_tools)
         self.assertEqual(args.responses_model, "shadow-auto")
         self.assertEqual(args.anthropic_model, "shadow-auto")
 
@@ -179,6 +181,43 @@ class ResponseShapeTests(unittest.TestCase):
                 self.assertFalse(ok)
                 self.assertIn("tool_call missing/invalid", detail)
 
+    def test_chat_stream_tool_call_joins_argument_fragments_and_requires_done(self) -> None:
+        events = [
+            {"model": "test-model", "choices": [{"delta": {"tool_calls": [{
+                "index": 0,
+                "function": {"name": "status_check", "arguments": '{"status":"'}
+            }]}}]},
+            {"choices": [{"delta": {"tool_calls": [{
+                "index": 0,
+                "function": {"arguments": 'EXPECTED"}'}
+            }]}}]},
+            {"_sse_done": True},
+        ]
+        with patch.object(smoke, "http_sse_events", return_value=(200, events)) as request:
+            ok, detail = smoke._chat_stream_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+            )
+        self.assertTrue(ok)
+        self.assertIn("done=True", detail)
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "http://127.0.0.1:4000/v1/chat/completions")
+        self.assertTrue(kwargs["payload"]["stream"])
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
+
+    def test_chat_stream_tool_call_rejects_incomplete_stream(self) -> None:
+        events = [{
+            "choices": [{"delta": {"tool_calls": [{
+                "index": 0,
+                "function": {"name": "status_check", "arguments": '{"status":"EXPECTED"}'}
+            }]}}],
+        }]
+        with patch.object(smoke, "http_sse_events", return_value=(200, events)):
+            ok, detail = smoke._chat_stream_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+            )
+        self.assertFalse(ok)
+        self.assertIn("stream incomplete", detail)
+
     def test_responses_tool_call_uses_native_openai_responses_contract(self) -> None:
         fake = {
             "id": "resp_test",
@@ -258,6 +297,46 @@ class ResponseShapeTests(unittest.TestCase):
                     )
                 self.assertFalse(ok)
                 self.assertIn("tool_use missing/invalid", detail)
+
+    def test_anthropic_stream_tool_use_joins_input_json_deltas(self) -> None:
+        events = [
+            {"type": "message_start", "message": {"id": "msg_test"}},
+            {"type": "content_block_start", "index": 0, "content_block": {
+                "type": "tool_use", "id": "tool_test", "name": "status_check", "input": {}
+            }},
+            {"type": "content_block_delta", "index": 0, "delta": {
+                "type": "input_json_delta", "partial_json": '{"status":"'
+            }},
+            {"type": "content_block_delta", "index": 0, "delta": {
+                "type": "input_json_delta", "partial_json": 'EXPECTED"}'
+            }},
+            {"type": "message_delta", "delta": {"stop_reason": "tool_use"}},
+            {"type": "message_stop"},
+        ]
+        with patch.object(smoke, "http_sse_events", return_value=(200, events)) as request:
+            ok, detail = smoke._anthropic_stream_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-anthropic", "EXPECTED", 1
+            )
+        self.assertTrue(ok)
+        self.assertIn("message_stop=True", detail)
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "http://127.0.0.1:4000/v1/messages")
+        self.assertTrue(kwargs["payload"]["stream"])
+        self.assertEqual(kwargs["headers"]["x-api-key"], "local-test-key")
+        self.assertEqual(kwargs["headers"]["anthropic-version"], "2023-06-01")
+
+    def test_anthropic_stream_tool_use_rejects_stream_without_message_stop(self) -> None:
+        events = [
+            {"type": "content_block_start", "index": 0, "content_block": {
+                "type": "tool_use", "name": "status_check", "input": {"status": "EXPECTED"}
+            }},
+        ]
+        with patch.object(smoke, "http_sse_events", return_value=(200, events)):
+            ok, detail = smoke._anthropic_stream_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-anthropic", "EXPECTED", 1
+            )
+        self.assertFalse(ok)
+        self.assertIn("stream incomplete", detail)
 
     def test_anthropic_messages_uses_native_api_key_header(self) -> None:
         fake = {
@@ -350,6 +429,67 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertEqual(report.passed, 1)
         self.assertEqual(report.failed, 0)
 
+    def test_openai_stream_only_uses_chat_stream_route(self) -> None:
+        args = SimpleNamespace(
+            tool_calls=False,
+            stream_tool_calls=True,
+            responses_tools=False,
+            anthropic_tools=False,
+            anthropic_stream_tools=False,
+            model="shadow-openai-stream",
+            inference_timeout=30,
+        )
+        report = smoke.Reporter()
+        with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
+            with patch.object(smoke, "_chat_stream_tool_call", return_value=(True, "done=True")) as stream:
+                with patch.object(smoke, "_chat_tool_call") as non_stream:
+                    with patch.object(smoke, "_responses_tool_call") as responses:
+                        with redirect_stdout(io.StringIO()):
+                            smoke.inference_checks(
+                                args, "http://127.0.0.1:4000", ["shadow-openai-stream"], report
+                            )
+        stream.assert_called_once()
+        non_stream.assert_not_called()
+        responses.assert_not_called()
+        self.assertEqual(report.passed, 1)
+
+    def test_anthropic_stream_only_uses_selected_anthropic_alias(self) -> None:
+        args = SimpleNamespace(
+            tool_calls=False,
+            stream_tool_calls=False,
+            responses_tools=False,
+            anthropic_tools=False,
+            anthropic_stream_tools=True,
+            model="shadow-auto",
+            anthropic_model="shadow-anthropic-stream",
+            inference_timeout=50,
+        )
+        report = smoke.Reporter()
+        with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
+            with patch.object(
+                smoke, "_anthropic_stream_tool_call", return_value=(True, "message_stop=True")
+            ) as stream:
+                with patch.object(smoke, "_anthropic_tool_call") as non_stream:
+                    with patch.object(smoke, "_chat_stream_tool_call") as openai_stream:
+                        with redirect_stdout(io.StringIO()):
+                            smoke.inference_checks(
+                                args,
+                                "http://127.0.0.1:4000",
+                                ["shadow-anthropic-stream"],
+                                report,
+                            )
+        stream.assert_called_once_with(
+            "http://127.0.0.1:4000",
+            "test-master",
+            "shadow-anthropic-stream",
+            "SHADOW_SMOKE_ANTHROPIC_STREAM",
+            50,
+        )
+        non_stream.assert_not_called()
+        openai_stream.assert_not_called()
+        self.assertEqual(report.passed, 1)
+        self.assertEqual(report.failed, 0)
+
     def test_anthropic_only_does_not_send_chat_tool_calls(self) -> None:
         args = SimpleNamespace(
             tool_calls=False,
@@ -370,6 +510,45 @@ class ResponseShapeTests(unittest.TestCase):
         anthropic_call.assert_called_once()
         self.assertEqual(report.passed, 1)
         self.assertEqual(report.failed, 0)
+
+    def test_http_sse_parser_reads_json_data_events_and_done_marker(self) -> None:
+        class FakeResponse(io.BytesIO):
+            status = 200
+
+        body = (
+            b": keep-alive\n\n"
+            b"event: message\n"
+            b'data: {"type":"message_start","value":1}\n\n'
+            b'data: {"type":"message_stop"}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        with patch.object(smoke.urllib.request, "urlopen", return_value=FakeResponse(body)):
+            status, events = smoke.http_sse_events(
+                "http://127.0.0.1:4000/v1/messages", timeout=1
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(events, [
+            {"type": "message_start", "value": 1},
+            {"type": "message_stop"},
+            {"_sse_done": True},
+        ])
+
+    def test_http_sse_parser_enforces_total_response_limit(self) -> None:
+        class FakeResponse(io.BytesIO):
+            status = 200
+
+        with patch.object(
+            smoke.urllib.request,
+            "urlopen",
+            return_value=FakeResponse(b"data: " + (b"x" * 100) + b"\\n\\n"),
+        ):
+            status, events = smoke.http_sse_events(
+                "http://127.0.0.1:4000/v1/chat/completions",
+                timeout=1,
+                max_bytes=32,
+            )
+        self.assertEqual(status, -2)
+        self.assertEqual(events, [])
 
     def test_http_json_preserves_structured_http_error_for_diagnosis(self) -> None:
         import json
