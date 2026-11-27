@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import crypto from 'node:crypto';
 import {
   RUNTIME_FILES,
   copyRuntime,
@@ -1023,4 +1024,140 @@ test('local HTTP download interruption removes partial uv installer data', async
     await new Promise((resolve) => server.close(resolve));
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+
+test('uv installer download enforces the size limit while streaming', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-uv-size-limit-'));
+  const destination = path.join(directory, 'install-uv.sh');
+  try {
+    const oversized = new ReadableStream({
+      start(controller) {
+        const chunk = new Uint8Array(1024 * 1024);
+        for (let index = 0; index < 5; index += 1) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    await assert.rejects(
+      __test__.fetchInstaller('https://unit.test/oversized-installer', destination, {
+        timeoutMs: 1000,
+        fetchImpl: async () => new Response(oversized, { status: 200 }),
+      }),
+      /4 MiB safety limit/u,
+    );
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.existsSync(destination + '.part'), false);
+
+    await assert.rejects(
+      __test__.fetchInstaller('https://unit.test/declared-oversized-installer', destination, {
+        timeoutMs: 1000,
+        fetchImpl: async () => new Response('small', {
+          status: 200,
+          headers: { 'content-length': String(5 * 1024 * 1024) },
+        }),
+      }),
+      /4 MiB safety limit/u,
+    );
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.existsSync(destination + '.part'), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+
+test('private permission hardening never follows symlinks outside the managed install', {
+  skip: process.platform === 'win32',
+}, () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-private-paths-'));
+  const external = path.join(root, 'external');
+  const install = path.join(root, 'install');
+  const externalConfig = path.join(external, 'config');
+  const externalEnv = path.join(external, 'external.env');
+  const externalYaml = path.join(external, 'shadow.yaml');
+  const externalManifest = path.join(external, 'manifest.json');
+  try {
+    fs.mkdirSync(externalConfig, { recursive: true });
+    fs.mkdirSync(path.join(install, 'config'), { recursive: true });
+    for (const file of [externalEnv, externalYaml, externalManifest]) {
+      fs.writeFileSync(file, 'external data');
+      fs.chmodSync(file, 0o644);
+    }
+
+    fs.symlinkSync(externalEnv, path.join(install, '.env'));
+    fs.symlinkSync(externalConfig, path.join(install, 'config-link'));
+    fs.rmSync(path.join(install, 'config'), { recursive: true, force: true });
+    fs.symlinkSync(externalConfig, path.join(install, 'config'), 'dir');
+    fs.symlinkSync(externalManifest, path.join(install, '.shadow-cli.json'));
+
+    __test__.securePrivatePaths(install);
+
+    assert.equal(fs.statSync(externalEnv).mode & 0o777, 0o644);
+    assert.equal(fs.statSync(externalYaml).mode & 0o777, 0o644);
+    assert.equal(fs.statSync(externalManifest).mode & 0o777, 0o644);
+    assert.equal(fs.lstatSync(path.join(install, '.env')).isSymbolicLink(), true);
+    assert.equal(fs.lstatSync(path.join(install, 'config')).isSymbolicLink(), true);
+    assert.equal(fs.lstatSync(path.join(install, '.shadow-cli.json')).isSymbolicLink(), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('private permission hardening refuses a symlinked install root', {
+  skip: process.platform === 'win32',
+}, () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-private-root-'));
+  const external = path.join(root, 'external');
+  const link = path.join(root, 'managed-link');
+  try {
+    fs.mkdirSync(path.join(external, 'config'), { recursive: true });
+    fs.writeFileSync(path.join(external, '.env'), 'PRIVATE_TOKEN=keep');
+    fs.chmodSync(path.join(external, '.env'), 0o644);
+    fs.chmodSync(external, 0o755);
+    fs.symlinkSync(external, link, 'dir');
+
+    __test__.securePrivatePaths(link);
+
+    assert.equal(fs.statSync(external).mode & 0o777, 0o755);
+    assert.equal(fs.statSync(path.join(external, '.env')).mode & 0o777, 0o644);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test('uv bootstrap download must match the pinned SHA-256 when integrity is required', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-uv-integrity-'));
+  const destination = path.join(directory, 'install-uv.sh');
+  const body = 'pinned-installer-content';
+  const expectedSha256 = crypto.createHash('sha256').update(body).digest('hex');
+  const fetchImpl = async () => new Response(body, { status: 200 });
+  try {
+    await __test__.fetchInstaller('https://unit.test/pinned-installer', destination, {
+      timeoutMs: 1000,
+      fetchImpl,
+      expectedSha256,
+    });
+    assert.equal(fs.readFileSync(destination, 'utf8'), body);
+    assert.equal(fs.existsSync(destination + '.part'), false);
+
+    const mismatchPath = path.join(directory, 'mismatch.ps1');
+    await assert.rejects(
+      __test__.fetchInstaller('https://unit.test/tampered-installer', mismatchPath, {
+        timeoutMs: 1000,
+        fetchImpl,
+        expectedSha256: '0'.repeat(64),
+      }),
+      /SHA-256 integrity check/u,
+    );
+    assert.equal(fs.existsSync(mismatchPath), false);
+    assert.equal(fs.existsSync(mismatchPath + '.part'), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('pinned uv bootstrap hashes are defined for Unix and Windows installers', () => {
+  assert.match(__test__.UV_INSTALLER_SHA256.unix, /^[a-f0-9]{64}$/u);
+  assert.match(__test__.UV_INSTALLER_SHA256.win32, /^[a-f0-9]{64}$/u);
 });

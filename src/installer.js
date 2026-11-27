@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -11,6 +12,10 @@ import { parse as parseYaml } from 'yaml';
 const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = path.resolve(THIS_DIR, '..');
 const UV_VERSION = '0.13.9';
+const UV_INSTALLER_SHA256 = Object.freeze({
+  unix: 'ccc888115ac831bd9c30855c1d4abeae32fce679701d2aac8e72eb0beffb41c2',
+  win32: '43b64ed13b8abfcdb3bcfc6ad6a1600dec0849d9e656c18f8ad81305b5d6d4a2',
+});
 const PYTHON_VERSION = '3.12';
 const PACKAGE_NAME = 'shadow-gateway';
 const GITHUB_REPO = 'https://github.com/Ninja7z/shadow';
@@ -95,17 +100,43 @@ export function findExecutable(name, env = process.env, home = os.homedir()) {
   return null;
 }
 
+function getManagedRegularFile(installDir, relative) {
+  try {
+    const root = fs.lstatSync(installDir);
+    if (!root.isDirectory() || root.isSymbolicLink()) return null;
+    let parent = installDir;
+    for (const segment of relative.split(/[\\/]/u).slice(0, -1)) {
+      parent = path.join(parent, segment);
+      const directory = fs.lstatSync(parent);
+      if (!directory.isDirectory() || directory.isSymbolicLink()) return null;
+    }
+    const target = path.join(installDir, relative);
+    const file = fs.lstatSync(target);
+    return file.isFile() && !file.isSymbolicLink() ? target : null;
+  } catch {
+    return null;
+  }
+}
+
 function securePrivatePaths(installDir) {
   if (process.platform === 'win32') return;
-  for (const directory of [installDir, path.join(installDir, 'config')]) {
-    if (fs.existsSync(directory)) fs.chmodSync(directory, 0o700);
-  }
+  let root;
+  try { root = fs.lstatSync(installDir); } catch { return; }
+  if (!root.isDirectory() || root.isSymbolicLink()) return;
+  fs.chmodSync(installDir, 0o700);
+
+  const configDir = path.join(installDir, 'config');
+  try {
+    const directory = fs.lstatSync(configDir);
+    if (directory.isDirectory() && !directory.isSymbolicLink()) fs.chmodSync(configDir, 0o700);
+  } catch { /* Missing or unreadable config directory. */ }
+
   for (const relative of PRIVATE_RUNTIME_FILES) {
-    const target = path.join(installDir, relative);
-    if (fs.existsSync(target) && fs.statSync(target).isFile()) fs.chmodSync(target, 0o600);
+    const target = getManagedRegularFile(installDir, relative);
+    if (target) fs.chmodSync(target, 0o600);
   }
-  const manifest = path.join(installDir, '.shadow-cli.json');
-  if (fs.existsSync(manifest)) fs.chmodSync(manifest, 0o600);
+  const manifest = getManagedRegularFile(installDir, '.shadow-cli.json');
+  if (manifest) fs.chmodSync(manifest, 0o600);
 }
 
 export function copyRuntime(packageRoot, installDir, packageVersion, { force = false, onCopyFile } = {}) {
@@ -389,22 +420,61 @@ function capture(command, args, options = {}) {
   });
 }
 
-export async function fetchInstaller(url, destination, { timeoutMs = 45000, fetchImpl = fetch } = {}) {
+export async function fetchInstaller(url, destination, { timeoutMs = 45000, fetchImpl = fetch, expectedSha256 } = {}) {
   const partialPath = destination + '.part';
+  const maxBytes = 4 * 1024 * 1024;
+  let descriptor = null;
+  let reader = null;
   try {
     const response = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
     if (!response.ok) throw new Error('Could not download the official uv installer (HTTP ' + response.status + ').');
-    const body = Buffer.from(await response.arrayBuffer());
-    if (body.length === 0 || body.length > 4 * 1024 * 1024) {
-      throw new Error('The downloaded uv installer has an unexpected size.');
+    const declaredLength = Number(response.headers?.get?.('content-length'));
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      throw new Error('The downloaded uv installer exceeds the 4 MiB safety limit.');
     }
-    fs.writeFileSync(partialPath, body, { mode: 0o600, flag: 'wx' });
+    if (!response.body || typeof response.body.getReader !== 'function') {
+      throw new Error('The uv installer response does not contain a readable download stream.');
+    }
+
+    reader = response.body.getReader();
+    descriptor = fs.openSync(partialPath, 'wx', 0o600);
+    const digest = crypto.createHash('sha256');
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      totalBytes += chunk.length;
+      if (totalBytes > maxBytes) {
+        throw new Error('The downloaded uv installer exceeds the 4 MiB safety limit.');
+      }
+      digest.update(chunk);
+      let offset = 0;
+      while (offset < chunk.length) {
+        const written = fs.writeSync(descriptor, chunk, offset, chunk.length - offset);
+        if (written <= 0) throw new Error('Could not write the temporary uv installer file.');
+        offset += written;
+      }
+    }
+    if (totalBytes === 0) throw new Error('The downloaded uv installer is empty.');
+    const actualSha256 = digest.digest('hex');
+    if (expectedSha256 && actualSha256 !== expectedSha256.toLowerCase()) {
+      throw new Error('The downloaded uv installer failed its SHA-256 integrity check.');
+    }
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = null;
     fs.renameSync(partialPath, destination);
+  } catch (error) {
+    try { await reader?.cancel(); } catch { /* The stream may already be aborted or closed. */ }
+    throw error;
   } finally {
+    if (descriptor !== null) {
+      try { fs.closeSync(descriptor); } catch { /* Already closed by the OS. */ }
+    }
     fs.rmSync(partialPath, { force: true });
   }
 }
-
 export function cleanupStaleUvTempDirs({
   tempRoot = os.tmpdir(),
   now = Date.now(),
@@ -451,7 +521,9 @@ export async function ensureUv(installDir, { env = process.env } = {}) {
     ? 'https://astral.sh/uv/' + UV_VERSION + '/install.ps1'
     : 'https://astral.sh/uv/' + UV_VERSION + '/install.sh';
   try {
-    await fetchInstaller(installerUrl, installerPath);
+    await fetchInstaller(installerUrl, installerPath, {
+      expectedSha256: windows ? UV_INSTALLER_SHA256.win32 : UV_INSTALLER_SHA256.unix,
+    });
     const installEnv = {
       ...mergePath(env, binDir),
       UV_INSTALL_DIR: binDir,
@@ -1303,10 +1375,14 @@ export function inspectInstallation(installDir, { platform = process.platform } 
   checks.push(check('Gateway configuration', configOk, configDetail));
 
   if (platform !== 'win32') {
-    for (const [label, target] of [['.env permissions', envPath], ['Gateway config permissions', configPath]]) {
-      let privateMode = false;
-      try { privateMode = (fs.statSync(target).mode & 0o077) === 0; } catch { /* Missing file is reported by its own check. */ }
-      checks.push(check(label, privateMode, privateMode ? 'owner-only' : 'must be chmod 600'));
+    for (const [label, relative] of [['.env permissions', '.env'], ['Gateway config permissions', 'config/shadow.yaml']]) {
+      const target = getManagedRegularFile(installDir, relative);
+      const privateMode = Boolean(target && (fs.lstatSync(target).mode & 0o077) === 0);
+      checks.push(check(
+        label,
+        privateMode,
+        privateMode ? 'owner-only' : 'must be a regular file inside the managed install directory with chmod 600',
+      ));
     }
   }
   return checks;
@@ -1529,7 +1605,10 @@ export const __test__ = {
   run,
   capture,
   fetchInstaller,
+  UV_INSTALLER_SHA256,
   cleanupStaleUvTempDirs,
+  securePrivatePaths,
+  getManagedRegularFile,
   installCoreDependenciesLocked,
   INSTALL_STATE_FILE,
 };
