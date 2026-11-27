@@ -67,3 +67,6 @@ config/local/
 .cline/
 .opencode/
 .continue/
+
+# Local development-agent skills; never ship with Shadow Gateway
+.codex/

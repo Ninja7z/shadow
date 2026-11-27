@@ -30,6 +30,8 @@ Use outro gateway ou arquivo de ambiente quando necessário:
 python scripts/smoke_test.py --base-url http://127.0.0.1:4000 --env-file .env
 ~~~
 
+O catálogo do assistente de configuração prioriza OpenAI primeiro, Anthropic em segundo e os demais provedores depois. Isso altera somente a ordem de apresentação no assistente; não transforma provedores pagos em fallback automático nem muda a prioridade de roteamento.
+
 ## Verificação opcional de tool call via Chat Completions
 
 ~~~bash

@@ -54,6 +54,15 @@ class GeneratedConfigTests(unittest.TestCase):
             self.assertEqual(sourced.stdout, secret)
             assert_private_env_file(self, env_path)
 
+    def test_provider_catalog_prioritizes_openai_then_anthropic(self):
+        catalog = shadow.load_yaml(shadow.CATALOG, {"providers": []})
+        provider_ids = [item["id"] for item in catalog["providers"]]
+        self.assertEqual(provider_ids[:2], ["openai", "anthropic"])
+        self.assertEqual(provider_ids.count("openai"), 1)
+        self.assertEqual(provider_ids.count("anthropic"), 1)
+        self.assertFalse(next(item for item in catalog["providers"] if item["id"] == "openai")["auto_fallback"])
+        self.assertFalse(next(item for item in catalog["providers"] if item["id"] == "anthropic")["auto_fallback"])
+
     def test_local_only_config_has_no_remote_provider(self):
         config = shadow.build_config({"LITELLM_MASTER_KEY": "local-secret"})
         names = [item["model_name"] for item in config["model_list"]]
@@ -351,7 +360,7 @@ class OnboardingTests(unittest.TestCase):
             env_path.write_text("LITELLM_MASTER_KEY=local-test-key\\n", encoding="utf-8")
             config_path = root / "shadow.yaml"
             output = io.StringIO()
-            with patch.object(shadow, "ENV_FILE", env_path), patch.object(shadow, "LOCAL_CONFIG", config_path), patch("builtins.input", side_effect=["1"]), patch("getpass.getpass", return_value="gemini-private-test-key"), contextlib.redirect_stdout(output):
+            with patch.object(shadow, "ENV_FILE", env_path), patch.object(shadow, "LOCAL_CONFIG", config_path), patch("builtins.input", side_effect=["3"]), patch("getpass.getpass", return_value="gemini-private-test-key"), contextlib.redirect_stdout(output):
                 result = shadow.configure_catalog_interactively()
             self.assertEqual(result, 0)
             self.assertIn("GEMINI_API_KEY=gemini-private-test-key", env_path.read_text(encoding="utf-8"))

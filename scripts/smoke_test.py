@@ -259,6 +259,7 @@ def _anthropic_tool_call(
                 "type": "object",
                 "properties": {"status": {"type": "string"}},
                 "required": ["status"],
+                "additionalProperties": False,
             },
         }],
         "tool_choice": {"type": "tool", "name": "status_check"},

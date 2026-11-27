@@ -30,6 +30,8 @@ Use another gateway or env file when needed:
 python scripts/smoke_test.py --base-url http://127.0.0.1:4000 --env-file .env
 ~~~
 
+The setup provider catalog is ordered OpenAI first, Anthropic second, then other providers. This controls the order shown by the setup wizard only; it does not make paid providers automatic fallbacks or change routing priority.
+
 ## Optional Chat Completions tool-call check
 
 ~~~bash

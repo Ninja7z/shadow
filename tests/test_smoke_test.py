@@ -127,6 +127,28 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("cost=0", detail)
 
+    def test_chat_tool_call_uses_openai_chat_completions_contract(self) -> None:
+        fake = {
+            "choices": [{"message": {"tool_calls": [{
+                "function": {"name": "status_check", "arguments": '{"status":"EXPECTED"}'}
+            }]}}],
+            "model": "test-model",
+            "usage": {"total_tokens": 9},
+        }
+        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
+            ok, _ = smoke._chat_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+            )
+        self.assertTrue(ok)
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "http://127.0.0.1:4000/v1/chat/completions")
+        self.assertEqual(kwargs["method"], "POST")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
+        self.assertEqual(kwargs["payload"]["model"], "shadow-openai")
+        self.assertEqual(kwargs["payload"]["tools"][0]["type"], "function")
+        self.assertEqual(kwargs["payload"]["tool_choice"], "auto")
+        self.assertIs(kwargs["payload"]["stream"], False)
+
     def test_anthropic_tool_call_function_accepts_expected_status(self) -> None:
         fake = {
             "content": [{
@@ -143,6 +165,28 @@ class ResponseShapeTests(unittest.TestCase):
             )
         self.assertTrue(ok)
         self.assertIn("stop=tool_use", detail)
+
+    def test_anthropic_tool_call_uses_messages_contract_and_version_header(self) -> None:
+        fake = {
+            "content": [{"type": "tool_use", "name": "status_check", "input": {"status": "EXPECTED"}}],
+            "stop_reason": "tool_use",
+            "usage": {"input_tokens": 5, "output_tokens": 4},
+        }
+        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
+            ok, _ = smoke._anthropic_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-anthropic", "EXPECTED", 1
+            )
+        self.assertTrue(ok)
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "http://127.0.0.1:4000/v1/messages")
+        self.assertEqual(kwargs["method"], "POST")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
+        self.assertEqual(kwargs["headers"]["anthropic-version"], "2023-06-01")
+        self.assertEqual(kwargs["payload"]["model"], "shadow-anthropic")
+        self.assertEqual(kwargs["payload"]["tool_choice"], {"type": "tool", "name": "status_check"})
+        schema = kwargs["payload"]["tools"][0]["input_schema"]
+        self.assertEqual(schema["required"], ["status"])
+        self.assertFalse(schema["additionalProperties"])
 
     def test_inference_checks_use_the_selected_alias(self) -> None:
         args = SimpleNamespace(
