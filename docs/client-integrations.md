@@ -48,6 +48,18 @@ If an alias is not returned by /v1/models, do not assume it exists. On DB-less L
 
 ## 3. Configure each client
 
+### Match the client to the API protocol
+
+Shadow exposes separate compatibility surfaces. Pick the one the client adapter actually speaks; a model alias does not change the API protocol.
+
+| Shadow endpoint | Client configuration | Typical client |
+|---|---|---|
+| `POST /v1/chat/completions` | OpenAI Chat Completions / OpenAI Compatible | OpenCode compatible provider, Cline OpenAI Compatible, Kilo OpenAI Compatible |
+| `POST /v1/responses` | OpenAI Responses | OpenCode Responses package, Kilo OpenAI Responses |
+| `POST /v1/messages` | Anthropic Messages | OpenCode Anthropic-compatible package, Claude Code, Kilo Anthropic Messages |
+
+The default OpenCode, Cline and Kilo examples below use Chat Completions. OpenCode also has separate Responses and Anthropic-compatible profiles, and Claude Code uses Anthropic Messages. LiteLLM also exposes the Responses and Anthropic Messages surfaces; the selected upstream model still determines which tools, images, reasoning features and streaming behaviors work. Do not treat protocol translation as feature parity.
+
 Examples use your local master key. It is an administrative credential suitable only for a single-user installation bound to 127.0.0.1. Do not share it with untrusted users or machines.
 
 ### OpenCode
@@ -86,6 +98,52 @@ opencode
 
 To use another route, add its exact /v1/models alias under models and select shadow/<alias>.
 
+OpenCode's package above uses Chat Completions. To select the Responses API instead, register a separate provider with the Responses-compatible package and keep the same gateway base URL:
+
+~~~jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "shadow-responses/shadow-auto",
+  "providers": {
+    "shadow-responses": {
+      "name": "Shadow Gateway · Responses",
+      "env": ["LITELLM_MASTER_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible/responses",
+      "settings": {
+        "baseURL": "http://127.0.0.1:4000/v1"
+      },
+      "models": {
+        "shadow-auto": { "name": "Shadow Auto · Responses" }
+      }
+    }
+  }
+}
+~~~
+
+For custom OpenCode models, declare capabilities and context/output limits that match the actual route. Set tool support only when the model behind that alias (including every possible `shadow-auto` fallback) has been validated for tool calling; OpenCode cannot infer those capabilities from the alias.
+
+To use the Anthropic Messages surface, configure a distinct Anthropic-compatible provider. The Anthropic base URL is the gateway root, not the OpenAI `/v1` base:
+
+~~~jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "shadow-anthropic/shadow-auto",
+  "providers": {
+    "shadow-anthropic": {
+      "name": "Shadow Gateway · Anthropic",
+      "env": ["LITELLM_MASTER_KEY"],
+      "package": "@opencode/ai/providers/anthropic-compatible",
+      "settings": {
+        "baseURL": "http://127.0.0.1:4000"
+      },
+      "models": {
+        "shadow-auto": { "name": "Shadow Auto · Anthropic" }
+      }
+    }
+  }
+}
+~~~
+
 ### Cline
 
 1. Open Cline settings.
@@ -96,7 +154,7 @@ To use another route, add its exact /v1/models alias under models and select sha
    - Model ID: an exact alias, for example shadow-auto
 4. Save and use Verify if it is available in your installed version.
 
-Do not select the native OpenAI provider. Choose OpenAI Compatible.
+Do not select the native OpenAI provider. Choose OpenAI Compatible. This recipe targets Shadow's Chat Completions endpoint. It does not configure the Responses or Anthropic Messages adapters.
 
 ### Continue
 
@@ -132,7 +190,7 @@ Continue resolves secrets.* from its supported .env files. Do not rely only on a
 
 1. Open Settings → Providers → Custom provider.
 2. Create a provider with ID shadow and display name Shadow Gateway.
-3. Set Provider API to **OpenAI Compatible**.
+3. Set Provider API to **OpenAI Compatible** for `/v1/chat/completions`. Kilo also offers **OpenAI Responses** for `/v1/responses` and **Anthropic Messages** for `/v1/messages`; choose the matching API mode when using those surfaces instead.
 4. Enter:
    - Base URL: http://127.0.0.1:4000/v1
    - API key: this installation's LITELLM_MASTER_KEY
@@ -171,7 +229,7 @@ ANTHROPIC_MODEL=shadow-auto \
 claude
 ~~~
 
-Replace shadow-auto with an alias listed by /v1/models. Tool use, streaming, vision, and context depend on the upstream model and LiteLLM translation. The scripts/claude-route.sh launcher is a separate advanced flow and may require additional local configuration; the example above is the direct path for a fresh clone.
+Replace shadow-auto with an alias listed by /v1/models. `ANTHROPIC_MODEL` must match a configured LiteLLM `model_name` exactly. Claude Code's built-in model-picker names are not automatically aliases on Shadow; selecting one that is absent from `model_list` will fail. Tool use, streaming, vision, and context depend on the upstream model and LiteLLM translation. The scripts/claude-route.sh launcher is a separate advanced flow and may require additional local configuration; the example above is the direct path for a fresh clone.
 
 ### Windows PowerShell
 

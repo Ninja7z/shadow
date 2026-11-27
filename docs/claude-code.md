@@ -17,7 +17,7 @@ ANTHROPIC_MODEL=shadow-auto \
 claude
 ~~~
 
-Use the exact model alias returned by GET /v1/models. The gateway root is intentional: Claude Code appends the Anthropic Messages path.
+Use the exact model alias returned by GET /v1/models. The gateway root is intentional: Claude Code appends the Anthropic Messages path (`/v1/messages`). `ANTHROPIC_MODEL` must match a configured LiteLLM `model_name` exactly. Claude Code's built-in model-picker names are not automatically aliases on Shadow; selecting one that is absent from `model_list` will fail.
 
 ## Credentials
 
