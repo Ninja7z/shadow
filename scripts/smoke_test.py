@@ -222,24 +222,103 @@ def _chat_tool_call(
     )
     if code != 200 or not data:
         return False, f"HTTP {status_text(code)}"
-    choices = data.get("choices") or []
-    message = (choices[0].get("message") or {}) if choices else {}
     valid = False
-    for call in message.get("tool_calls") or []:
-        function = call.get("function") or {}
-        if function.get("name") != "status_check":
-            continue
-        try:
-            arguments = json.loads(function.get("arguments") or "{}")
-        except json.JSONDecodeError:
-            continue
-        if arguments.get("status") == status:
-            valid = True
-    detail = f"model={data.get('model') or alias}"
-    cost = (data.get("usage") or {}).get("cost")
+    choices = data.get("choices")
+    if isinstance(choices, list):
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            message = choice.get("message")
+            if not isinstance(message, dict):
+                continue
+            tool_calls = message.get("tool_calls")
+            if not isinstance(tool_calls, list):
+                continue
+            for call in tool_calls:
+                if not isinstance(call, dict):
+                    continue
+                function = call.get("function")
+                if not isinstance(function, dict) or function.get("name") != "status_check":
+                    continue
+                raw_arguments = function.get("arguments")
+                if not isinstance(raw_arguments, str):
+                    continue
+                try:
+                    arguments = json.loads(raw_arguments)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(arguments, dict) and arguments.get("status") == status:
+                    valid = True
+                    break
+            if valid:
+                break
+    model = data.get("model")
+    detail = f"model={model if isinstance(model, str) and model else alias}"
+    usage = data.get("usage")
+    cost = usage.get("cost") if isinstance(usage, dict) else None
     if cost is not None:
         detail += f"; cost={cost}"
     return valid, detail if valid else detail + "; tool_call missing/invalid"
+
+
+def _responses_tool_call(
+    base: str, master_key: str, alias: str, status: str, timeout: int
+) -> tuple[bool, str]:
+    """Exercise the native OpenAI Responses API without translating it to Chat Completions."""
+    payload = {
+        "model": alias,
+        "input": f"Call status_check now with status exactly {status}. Do not answer in prose.",
+        "tools": [{
+            "type": "function",
+            "name": "status_check",
+            "description": "Record a smoke-test status",
+            "parameters": {
+                "type": "object",
+                "properties": {"status": {"type": "string"}},
+                "required": ["status"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        }],
+        "tool_choice": "auto",
+        "max_output_tokens": 192,
+    }
+    code, data = http_json(
+        f"{base}/v1/responses",
+        method="POST",
+        payload=payload,
+        headers=_bearer(master_key),
+        timeout=timeout,
+    )
+    if code != 200 or not data:
+        return False, f"HTTP {status_text(code)}"
+
+    valid = False
+    output = data.get("output")
+    if isinstance(output, list):
+        for item in output:
+            if not isinstance(item, dict) or item.get("type") != "function_call":
+                continue
+            if item.get("name") != "status_check":
+                continue
+            raw_arguments = item.get("arguments")
+            if not isinstance(raw_arguments, str):
+                continue
+            try:
+                arguments = json.loads(raw_arguments)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(arguments, dict) and arguments.get("status") == status:
+                valid = True
+                break
+
+    model = data.get("model")
+    detail = f"model={model if isinstance(model, str) and model else alias}"
+    usage = data.get("usage")
+    cost = usage.get("cost") if isinstance(usage, dict) else None
+    if cost is not None:
+        detail += f"; cost={cost}"
+    return valid, detail if valid else detail + "; function_call missing/invalid"
 
 
 def _anthropic_tool_call(
@@ -264,8 +343,9 @@ def _anthropic_tool_call(
         }],
         "tool_choice": {"type": "tool", "name": "status_check"},
     }
-    headers = _bearer(master_key)
-    headers["anthropic-version"] = "2023-06-01"
+    # Anthropic SDK clients authenticate with x-api-key; LiteLLM accepts
+    # this native header on /v1/messages for gateway keys.
+    headers = {"x-api-key": master_key, "anthropic-version": "2023-06-01"}
     code, data = http_json(
         f"{base}/v1/messages",
         method="POST",
@@ -275,14 +355,21 @@ def _anthropic_tool_call(
     )
     if code != 200 or not data:
         return False, f"HTTP {status_text(code)}"
-    valid = any(
-        block.get("type") == "tool_use"
-        and block.get("name") == "status_check"
-        and (block.get("input") or {}).get("status") == status
-        for block in data.get("content") or []
-    )
-    detail = f"stop={data.get('stop_reason', 'unknown')}"
-    cost = (data.get("usage") or {}).get("cost")
+    content = data.get("content")
+    valid = False
+    if isinstance(content, list):
+        valid = any(
+            isinstance(block, dict)
+            and block.get("type") == "tool_use"
+            and block.get("name") == "status_check"
+            and isinstance(block.get("input"), dict)
+            and block["input"].get("status") == status
+            for block in content
+        )
+    stop_reason = data.get("stop_reason")
+    detail = f"stop={stop_reason if isinstance(stop_reason, str) else 'unknown'}"
+    usage = data.get("usage")
+    cost = usage.get("cost") if isinstance(usage, dict) else None
     if cost is not None:
         detail += f"; cost={cost}"
     return valid, detail if valid else detail + "; tool_use missing/invalid"
@@ -305,6 +392,16 @@ def inference_checks(
                 base, master_key, alias, "SHADOW_SMOKE_CHAT", args.inference_timeout
             )
             (report.ok if ok else report.fail)("Chat Completions tool call", detail)
+
+    if getattr(args, "responses_tools", False):
+        alias = args.responses_model
+        if alias not in aliases:
+            report.fail("OpenAI Responses tool call", f"alias {alias!r} is not in /v1/models")
+        else:
+            ok, detail = _responses_tool_call(
+                base, master_key, alias, "SHADOW_SMOKE_RESPONSES", args.inference_timeout
+            )
+            (report.ok if ok else report.fail)("OpenAI Responses tool call", detail)
 
     if args.anthropic_tools:
         alias = args.anthropic_model
@@ -345,6 +442,16 @@ def parse_args() -> argparse.Namespace:
         help="Alias to test through OpenAI Chat Completions",
     )
     parser.add_argument(
+        "--responses-model",
+        default="shadow-auto",
+        help="Alias to test through the native OpenAI Responses API",
+    )
+    parser.add_argument(
+        "--responses-tools",
+        action="store_true",
+        help="Send one structured function-call inference request through --responses-model",
+    )
+    parser.add_argument(
         "--anthropic-model",
         default="shadow-auto",
         help="Alias to test through Anthropic Messages",
@@ -371,10 +478,11 @@ def main() -> int:
     print(
         "Mode: "
         + ("Chat Completions tool call" if args.tool_calls else "safe GET checks")
+        + (" + OpenAI Responses function_call" if args.responses_tools else "")
         + (" + Anthropic Messages tool_use" if args.anthropic_tools else "")
     )
     base, aliases = safe_checks(args, report)
-    if args.tool_calls or args.anthropic_tools:
+    if args.tool_calls or args.responses_tools or args.anthropic_tools:
         inference_checks(args, base, aliases, report)
     return report.summary()
 

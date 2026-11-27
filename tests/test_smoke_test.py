@@ -40,6 +40,15 @@ class EnvFileTests(unittest.TestCase):
 
 
 class GatewayChecksTests(unittest.TestCase):
+    def test_cli_exposes_separate_chat_completions_responses_and_anthropic_checks(self) -> None:
+        with patch("sys.argv", ["smoke_test.py"]):
+            args = smoke.parse_args()
+        self.assertFalse(args.tool_calls)
+        self.assertFalse(args.responses_tools)
+        self.assertFalse(args.anthropic_tools)
+        self.assertEqual(args.responses_model, "shadow-auto")
+        self.assertEqual(args.anthropic_model, "shadow-auto")
+
     def test_default_inference_timeout_allows_cold_local_model_load(self) -> None:
         with patch("sys.argv", ["smoke_test.py"]):
             args = smoke.parse_args()
@@ -149,6 +158,74 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertEqual(kwargs["payload"]["tool_choice"], "auto")
         self.assertIs(kwargs["payload"]["stream"], False)
 
+    def test_chat_tool_call_treats_malformed_provider_shapes_as_a_failed_check(self) -> None:
+        malformed_responses = [
+            {"choices": [None], "usage": "invalid"},
+            {"choices": [{"message": "not-an-object"}]},
+            {"choices": [{"message": {"tool_calls": {"function": "invalid"}}}]},
+            {"choices": [{"message": {"tool_calls": [{
+                "function": {"name": "status_check", "arguments": "[\"not-an-object\"]"}
+            }]}}]},
+            {"choices": [{"message": {"tool_calls": [{
+                "function": {"name": "status_check", "arguments": {"status": "EXPECTED"}}
+            }]}}]},
+        ]
+        for response in malformed_responses:
+            with self.subTest(response=response):
+                with patch.object(smoke, "http_json", return_value=(200, response)):
+                    ok, detail = smoke._chat_tool_call(
+                        "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
+                    )
+                self.assertFalse(ok)
+                self.assertIn("tool_call missing/invalid", detail)
+
+    def test_responses_tool_call_uses_native_openai_responses_contract(self) -> None:
+        fake = {
+            "id": "resp_test",
+            "object": "response",
+            "model": "test-model",
+            "output": [{
+                "type": "function_call",
+                "call_id": "call_test",
+                "name": "status_check",
+                "arguments": '{"status":"EXPECTED"}',
+            }],
+            "usage": {"input_tokens": 4, "output_tokens": 3, "total_tokens": 7},
+        }
+        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
+            ok, _ = smoke._responses_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+            )
+        self.assertTrue(ok)
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "http://127.0.0.1:4000/v1/responses")
+        self.assertEqual(kwargs["method"], "POST")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
+        payload = kwargs["payload"]
+        self.assertEqual(payload["model"], "shadow-openai")
+        self.assertIn("Call status_check", payload["input"])
+        self.assertEqual(payload["tools"][0]["type"], "function")
+        self.assertEqual(payload["tools"][0]["name"], "status_check")
+        self.assertTrue(payload["tools"][0]["strict"])
+        self.assertEqual(payload["max_output_tokens"], 192)
+        self.assertNotIn("messages", payload)
+
+    def test_responses_tool_call_handles_malformed_output_without_crashing(self) -> None:
+        malformed = [
+            {"output": [None], "usage": "invalid"},
+            {"output": [{"type": "function_call", "name": "status_check", "arguments": ["invalid"]}]},
+            {"output": [{"type": "function_call", "name": "status_check", "arguments": '["invalid"]'}]},
+            {"output": "not-an-array"},
+        ]
+        for response in malformed:
+            with self.subTest(response=response):
+                with patch.object(smoke, "http_json", return_value=(200, response)):
+                    ok, detail = smoke._responses_tool_call(
+                        "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
+                    )
+                self.assertFalse(ok)
+                self.assertIn("function_call missing/invalid", detail)
+
     def test_anthropic_tool_call_function_accepts_expected_status(self) -> None:
         fake = {
             "content": [{
@@ -166,6 +243,36 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("stop=tool_use", detail)
 
+    def test_anthropic_tool_call_treats_malformed_provider_shapes_as_a_failed_check(self) -> None:
+        malformed_responses = [
+            {"content": [None], "usage": "invalid"},
+            {"content": [{"type": "tool_use", "name": "status_check", "input": ["invalid"]}]},
+            {"content": "not-an-array"},
+            {"content": [{"type": "text", "text": "done"}]},
+        ]
+        for response in malformed_responses:
+            with self.subTest(response=response):
+                with patch.object(smoke, "http_json", return_value=(200, response)):
+                    ok, detail = smoke._anthropic_tool_call(
+                        "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
+                    )
+                self.assertFalse(ok)
+                self.assertIn("tool_use missing/invalid", detail)
+
+    def test_anthropic_messages_uses_native_api_key_header(self) -> None:
+        fake = {
+            "content": [{"type": "tool_use", "name": "status_check", "input": {"status": "EXPECTED"}}],
+            "stop_reason": "tool_use",
+        }
+        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
+            smoke._anthropic_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-anthropic", "EXPECTED", 1
+            )
+        headers = request.call_args.kwargs["headers"]
+        self.assertEqual(headers["x-api-key"], "local-test-key")
+        self.assertEqual(headers["anthropic-version"], "2023-06-01")
+        self.assertNotIn("Authorization", headers)
+
     def test_anthropic_tool_call_uses_messages_contract_and_version_header(self) -> None:
         fake = {
             "content": [{"type": "tool_use", "name": "status_check", "input": {"status": "EXPECTED"}}],
@@ -180,7 +287,8 @@ class ResponseShapeTests(unittest.TestCase):
         args, kwargs = request.call_args
         self.assertEqual(args[0], "http://127.0.0.1:4000/v1/messages")
         self.assertEqual(kwargs["method"], "POST")
-        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
+        self.assertEqual(kwargs["headers"]["x-api-key"], "local-test-key")
+        self.assertNotIn("Authorization", kwargs["headers"])
         self.assertEqual(kwargs["headers"]["anthropic-version"], "2023-06-01")
         self.assertEqual(kwargs["payload"]["model"], "shadow-anthropic")
         self.assertEqual(kwargs["payload"]["tool_choice"], {"type": "tool", "name": "status_check"})
@@ -205,6 +313,42 @@ class ResponseShapeTests(unittest.TestCase):
             "http://127.0.0.1:4000", "test-master", "shadow-custom-demo", "SHADOW_SMOKE_CHAT", 30
         )
         self.assertEqual(report.passed, 1)
+
+    def test_responses_only_uses_selected_responses_alias(self) -> None:
+        args = SimpleNamespace(
+            tool_calls=False,
+            responses_tools=True,
+            responses_model="shadow-openai-responses",
+            anthropic_tools=False,
+            model="shadow-auto",
+            anthropic_model="shadow-auto",
+            inference_timeout=45,
+        )
+        report = smoke.Reporter()
+        with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
+            with patch.object(
+                smoke, "_responses_tool_call", return_value=(True, "model=test")
+            ) as responses_call:
+                with patch.object(smoke, "_chat_tool_call") as chat_call:
+                    with patch.object(smoke, "_anthropic_tool_call") as anthropic_call:
+                        with redirect_stdout(io.StringIO()):
+                            smoke.inference_checks(
+                                args,
+                                "http://127.0.0.1:4000",
+                                ["shadow-openai-responses"],
+                                report,
+                            )
+        responses_call.assert_called_once_with(
+            "http://127.0.0.1:4000",
+            "test-master",
+            "shadow-openai-responses",
+            "SHADOW_SMOKE_RESPONSES",
+            45,
+        )
+        chat_call.assert_not_called()
+        anthropic_call.assert_not_called()
+        self.assertEqual(report.passed, 1)
+        self.assertEqual(report.failed, 0)
 
     def test_anthropic_only_does_not_send_chat_tool_calls(self) -> None:
         args = SimpleNamespace(

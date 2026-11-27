@@ -40,18 +40,28 @@ python scripts/smoke_test.py --tool-calls --model shadow-auto
 
 Envia uma única requisição estruturada curta status_check pelo alias escolhido. É uma chamada real de inferência e pode consumir cota ou gerar cobrança. Escolha um alias que ofereça suporte a tool calling.
 
+## Verificação opcional de function call via OpenAI Responses API
+
+~~~bash
+python scripts/smoke_test.py --responses-tools --responses-model shadow-auto
+~~~
+
+Exercita o contrato nativo /v1/responses (input, ferramentas de função do Responses, itens function_call na saída e max_output_tokens). É separado de Chat Completions e não é convertido em um payload messages. O endpoint está disponível na versão do LiteLLM fixada pelo projeto. É uma chamada real de inferência e pode consumir cota ou gerar cobrança.
+
 ## Verificação opcional de tool_use via Anthropic Messages
 
 ~~~bash
 python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto
 ~~~
 
-Envia uma requisição Anthropic Messages tool_use pelo alias escolhido. O alias precisa existir e sua rota upstream deve oferecer suporte ao recurso solicitado.
+Envia uma requisição Anthropic Messages tool_use pelo alias escolhido usando os headers nativos x-api-key e anthropic-version, esperados por clientes do SDK Anthropic. O alias precisa existir e sua rota upstream deve oferecer suporte ao recurso solicitado. É uma chamada real de inferência e pode consumir cota ou gerar cobrança.
 
 Use um timeout maior para provedores lentos:
 
 ~~~bash
 python scripts/smoke_test.py --tool-calls --model shadow-auto --inference-timeout 60
+python scripts/smoke_test.py --responses-tools --responses-model shadow-auto --inference-timeout 60
+python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto --inference-timeout 60
 ~~~
 
 Não execute verificações de inferência em loop de monitoramento.
