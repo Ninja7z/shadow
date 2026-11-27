@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import {
   RUNTIME_FILES,
   copyRuntime,
@@ -23,6 +24,7 @@ import {
   createRuntimeBackup,
   recoverInterruptedInstall,
   acquireInstallLock,
+  __test__,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -827,5 +829,192 @@ test('installer orchestration recovers after real child-process termination at r
       fs.rmSync(oldPackage, { recursive: true, force: true });
       fs.rmSync(newPackage, { recursive: true, force: true });
     }
+  }
+});
+
+
+test('uv installer download uses an atomic temporary file and removes partial data on stream failure', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-uv-download-'));
+  const destination = path.join(directory, 'install-uv.sh');
+  try {
+    const failedFetch = async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('partial-installer'));
+        controller.error(new Error('simulated network interruption'));
+      },
+    }), { status: 200 });
+
+    await assert.rejects(
+      __test__.fetchInstaller('https://unit.test/uv-installer', destination, {
+        timeoutMs: 100,
+        fetchImpl: failedFetch,
+      }),
+      /simulated network interruption/u,
+    );
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.existsSync(destination + '.part'), false);
+
+    await __test__.fetchInstaller('https://unit.test/uv-installer', destination, {
+      timeoutMs: 100,
+      fetchImpl: async () => new Response('complete-installer', { status: 200 }),
+    });
+    assert.equal(fs.readFileSync(destination, 'utf8'), 'complete-installer');
+    assert.equal(fs.existsSync(destination + '.part'), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('uv installer download timeout leaves no partial installer behind', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-uv-timeout-'));
+  const destination = path.join(directory, 'install-uv.sh');
+  try {
+    const hangingFetch = async (_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+    await assert.rejects(
+      __test__.fetchInstaller('https://unit.test/slow-installer', destination, {
+        timeoutMs: 25,
+        fetchImpl: hangingFetch,
+      }),
+      /timed out|abort/u,
+    );
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.existsSync(destination + '.part'), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('run timeout terminates child process trees instead of leaving orphan installers', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-run-tree-'));
+  const marker = path.join(directory, 'orphan-survived.txt');
+  const childSource = [
+    'const { spawn } = require("node:child_process");',
+    'const fs = require("node:fs");',
+    'const marker = ' + JSON.stringify(marker) + ';',
+    'const grandchild = spawn(process.execPath, ["-e", "setTimeout(() => require(\\\"node:fs\\\").writeFileSync(" + JSON.stringify(marker) + ", \\\"orphan\\\"), 1800)"], { stdio: "ignore" });',
+    'grandchild.unref();',
+    'setInterval(() => {}, 1000);',
+  ].join('\n');
+  try {
+    await assert.rejects(
+      __test__.run(process.execPath, ['-e', childSource], {
+        timeoutMs: 120,
+        stdio: 'ignore',
+      }),
+      /timed out after 120 ms/u,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 2100));
+    assert.equal(fs.existsSync(marker), false, 'grandchild must not survive a timed-out installer process');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+
+test('capture timeout terminates spawned process trees', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-capture-tree-'));
+  const marker = path.join(directory, 'capture-orphan-survived.txt');
+  const childSource = [
+    'const { spawn } = require("node:child_process");',
+    'const marker = ' + JSON.stringify(marker) + ';',
+    'const grandchild = spawn(process.execPath, ["-e", "setTimeout(() => require(\\\"node:fs\\\").writeFileSync(" + JSON.stringify(marker) + ", \\\"orphan\\\"), 1600)"], { stdio: "ignore" });',
+    'grandchild.unref();',
+    'setInterval(() => {}, 1000);',
+  ].join('\n');
+  try {
+    await assert.rejects(
+      __test__.capture(process.execPath, ['-e', childSource], { timeoutMs: 100 }),
+      /timed out after 100 ms/u,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1900));
+    assert.equal(fs.existsSync(marker), false, 'capture must not leave an orphaned grandchild');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('run abort signal terminates the full process tree', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-run-abort-'));
+  const marker = path.join(directory, 'aborted-child-survived.txt');
+  const childSource = [
+    'const { spawn } = require("node:child_process");',
+    'const marker = ' + JSON.stringify(marker) + ';',
+    'const grandchild = spawn(process.execPath, ["-e", "setTimeout(() => require(\\\"node:fs\\\").writeFileSync(" + JSON.stringify(marker) + ", \\\"orphan\\\"), 1300)"], { stdio: "ignore" });',
+    'grandchild.unref();',
+    'setInterval(() => {}, 1000);',
+  ].join('\n');
+  const controller = new AbortController();
+  try {
+    const execution = __test__.run(process.execPath, ['-e', childSource], {
+      signal: controller.signal,
+      stdio: 'ignore',
+    });
+    setTimeout(() => controller.abort(new Error('test cancellation')), 100);
+    await assert.rejects(execution, /test cancellation/u);
+    await new Promise((resolve) => setTimeout(resolve, 1600));
+    assert.equal(fs.existsSync(marker), false, 'aborted process tree must not leave orphan descendants');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+
+test('uv temporary cleanup removes only stale owned temp directories', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-uv-cleanup-test-'));
+  const stale = fs.mkdtempSync(path.join(root, 'shadow-uv-stale-'));
+  const fresh = fs.mkdtempSync(path.join(root, 'shadow-uv-fresh-'));
+  const unrelated = fs.mkdtempSync(path.join(root, 'other-installer-'));
+  const symlink = path.join(root, 'shadow-uv-link');
+  let symlinkCreated = false;
+  try {
+    fs.writeFileSync(path.join(stale, 'install-uv.sh.part'), 'partial download');
+    const old = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    fs.utimesSync(stale, old, old);
+    try {
+      fs.symlinkSync(unrelated, symlink, 'dir');
+      symlinkCreated = true;
+    } catch (error) {
+      if (!['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) throw error;
+    }
+
+    const removed = __test__.cleanupStaleUvTempDirs({ tempRoot: root, now: Date.now() });
+    assert.equal(removed, 1);
+    assert.equal(fs.existsSync(stale), false);
+    assert.equal(fs.existsSync(fresh), true);
+    assert.equal(fs.existsSync(unrelated), true);
+    if (symlinkCreated) assert.equal(fs.lstatSync(symlink).isSymbolicLink(), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test('local HTTP download interruption removes partial uv installer data', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-http-download-'));
+  const destination = path.join(directory, 'install-uv.sh');
+  const server = createServer((request, response) => {
+    response.writeHead(200, { 'Content-Length': '4096', 'Content-Type': 'text/plain' });
+    response.write('partial installer body');
+    setTimeout(() => response.destroy(), 30);
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    await assert.rejects(
+      __test__.fetchInstaller('http://127.0.0.1:' + address.port + '/uv.sh', destination, {
+        timeoutMs: 1000,
+      }),
+    );
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.existsSync(destination + '.part'), false);
+  } finally {
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });

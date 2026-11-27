@@ -172,30 +172,138 @@ function withoutInheritedPythonEnv(env) {
   return clean;
 }
 
+function signalProcessTree(child, signal) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    try { child.kill(signal); } catch { /* The child may already have exited. */ }
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    try { child.kill(signal); } catch { /* The process may already have exited. */ }
+  }
+}
+
+function forceKillProcessTree(child, callback) {
+  if (!child?.pid) {
+    callback();
+    return;
+  }
+  if (process.platform !== 'win32') {
+    signalProcessTree(child, 'SIGKILL');
+    callback();
+    return;
+  }
+
+  let killer;
+  try {
+    killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+  } catch {
+    try { child.kill('SIGKILL'); } catch { /* Already exited. */ }
+    callback();
+    return;
+  }
+  let completed = false;
+  const finish = () => {
+    if (completed) return;
+    completed = true;
+    callback();
+  };
+  killer.once('error', () => {
+    try { child.kill('SIGKILL'); } catch { /* Already exited. */ }
+    finish();
+  });
+  killer.once('close', finish);
+}
+
 function run(command, args, options = {}) {
   const cwd = options.cwd;
   const env = options.env || process.env;
   const input = options.input;
   const timeoutMs = options.timeoutMs || 0;
+  const signal = options.signal;
   const stdio = input === undefined ? (options.stdio || 'inherit') : ['pipe', 'inherit', 'inherit'];
+
+  if (signal?.aborted) {
+    return Promise.reject(signal.reason instanceof Error ? signal.reason : new Error('Process was aborted.'));
+  }
+
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, shell: false, stdio, windowsHide: false });
-    let timer;
-    if (timeoutMs > 0) {
-      timer = setTimeout(() => {
-        child.kill('SIGTERM');
-        reject(new Error(path.basename(command) + ' timed out after ' + timeoutMs + ' ms.'));
-      }, timeoutMs);
-      timer.unref?.();
-    }
-    child.once('error', (error) => {
-      if (timer) clearTimeout(timer);
-      reject(error);
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      shell: false,
+      stdio,
+      windowsHide: false,
+      detached: process.platform !== 'win32',
     });
-    child.once('close', (code, signal) => {
-      if (timer) clearTimeout(timer);
-      if (code === 0) resolve({ code, signal });
-      else reject(new Error(path.basename(command) + ' exited with code ' + (code ?? 'unknown') + (signal ? ' (' + signal + ')' : '') + '.'));
+    let timeout;
+    let forceTimer;
+    let termination = null;
+    let closeInfo = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      if (forceTimer) clearTimeout(forceTimer);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const settle = () => {
+      if (settled || !closeInfo || (termination && !termination.forceKillFinished)) return;
+      settled = true;
+      cleanup();
+      if (termination) {
+        reject(termination.error);
+      } else if (closeInfo.code === 0) {
+        resolve({ code: closeInfo.code, signal: closeInfo.signal });
+      } else {
+        reject(new Error(path.basename(command) + ' exited with code ' + (closeInfo.code ?? 'unknown') +
+          (closeInfo.signal ? ' (' + closeInfo.signal + ')' : '') + '.'));
+      }
+    };
+    const terminate = (error) => {
+      if (termination) return;
+      termination = { error, forceKillFinished: false };
+      const forceKill = () => {
+        forceKillProcessTree(child, () => {
+          termination.forceKillFinished = true;
+          settle();
+        });
+      };
+      if (process.platform === 'win32') {
+        // Terminating only the PowerShell/npm parent can orphan descendants.
+        // taskkill /T must see the original parent PID to terminate its tree.
+        forceKill();
+      } else {
+        signalProcessTree(child, 'SIGTERM');
+        forceTimer = setTimeout(forceKill, 500);
+        forceTimer.unref?.();
+      }
+    };
+    const onAbort = () => terminate(
+      signal.reason instanceof Error ? signal.reason : new Error('Process was aborted.')
+    );
+
+    if (timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        terminate(new Error(path.basename(command) + ' timed out after ' + timeoutMs + ' ms.'));
+      }, timeoutMs);
+      timeout.unref?.();
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    child.once('error', (error) => {
+      closeInfo = { code: 1, signal: null, error };
+      if (!termination) termination = { error, forceKillFinished: true };
+      settle();
+    });
+    child.once('close', (code, childSignal) => {
+      closeInfo = { code: code ?? 1, signal: childSignal };
+      settle();
     });
     if (input !== undefined) child.stdin.end(input);
   });
@@ -205,39 +313,124 @@ function capture(command, args, options = {}) {
   const cwd = options.cwd;
   const env = options.env || process.env;
   const timeoutMs = options.timeoutMs || 15000;
+  const signal = options.signal;
+  if (signal?.aborted) {
+    return Promise.reject(signal.reason instanceof Error ? signal.reason : new Error('Process was aborted.'));
+  }
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      detached: process.platform !== 'win32',
+    });
     let stdout = '';
     let stderr = '';
-    const timer = setTimeout(() => {
-      child.kill('SIGTERM');
-      reject(new Error(path.basename(command) + ' timed out after ' + timeoutMs + ' ms.'));
-    }, timeoutMs);
-    timer.unref?.();
+    let timeout;
+    let forceTimer;
+    let termination = null;
+    let closeInfo = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      if (forceTimer) clearTimeout(forceTimer);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const settle = () => {
+      if (settled || !closeInfo || (termination && !termination.forceKillFinished)) return;
+      settled = true;
+      cleanup();
+      if (termination) reject(termination.error);
+      else resolve({ code: closeInfo.code ?? 1, stdout: stdout.trim(), stderr: stderr.trim() });
+    };
+    const terminate = (error) => {
+      if (termination) return;
+      termination = { error, forceKillFinished: false };
+      const forceKill = () => forceKillProcessTree(child, () => {
+        termination.forceKillFinished = true;
+        settle();
+      });
+      if (process.platform === 'win32') forceKill();
+      else {
+        signalProcessTree(child, 'SIGTERM');
+        forceTimer = setTimeout(forceKill, 500);
+        forceTimer.unref?.();
+      }
+    };
+    const onAbort = () => terminate(
+      signal.reason instanceof Error ? signal.reason : new Error('Process was aborted.')
+    );
+
     child.stdout.setEncoding('utf8').on('data', (chunk) => { stdout += chunk; });
     child.stderr.setEncoding('utf8').on('data', (chunk) => { stderr += chunk; });
+    if (timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        terminate(new Error(path.basename(command) + ' timed out after ' + timeoutMs + ' ms.'));
+      }, timeoutMs);
+      timeout.unref?.();
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
     child.once('error', (error) => {
-      clearTimeout(timer);
-      reject(error);
+      closeInfo = { code: 1 };
+      if (!termination) termination = { error, forceKillFinished: true };
+      settle();
     });
     child.once('close', (code) => {
-      clearTimeout(timer);
-      resolve({ code: code ?? 1, stdout: stdout.trim(), stderr: stderr.trim() });
+      closeInfo = { code: code ?? 1 };
+      settle();
     });
   });
 }
 
-async function fetchInstaller(url, destination) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(45000), redirect: 'follow' });
-  if (!response.ok) throw new Error('Could not download the official uv installer (HTTP ' + response.status + ').');
-  const body = Buffer.from(await response.arrayBuffer());
-  if (body.length === 0 || body.length > 4 * 1024 * 1024) {
-    throw new Error('The downloaded uv installer has an unexpected size.');
+export async function fetchInstaller(url, destination, { timeoutMs = 45000, fetchImpl = fetch } = {}) {
+  const partialPath = destination + '.part';
+  try {
+    const response = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
+    if (!response.ok) throw new Error('Could not download the official uv installer (HTTP ' + response.status + ').');
+    const body = Buffer.from(await response.arrayBuffer());
+    if (body.length === 0 || body.length > 4 * 1024 * 1024) {
+      throw new Error('The downloaded uv installer has an unexpected size.');
+    }
+    fs.writeFileSync(partialPath, body, { mode: 0o600, flag: 'wx' });
+    fs.renameSync(partialPath, destination);
+  } finally {
+    fs.rmSync(partialPath, { force: true });
   }
-  fs.writeFileSync(destination, body, { mode: 0o600 });
+}
+
+export function cleanupStaleUvTempDirs({
+  tempRoot = os.tmpdir(),
+  now = Date.now(),
+  maxAgeMs = 24 * 60 * 60 * 1000,
+} = {}) {
+  const root = path.resolve(tempRoot);
+  if (!fs.existsSync(root)) return 0;
+  let entries;
+  try { entries = fs.readdirSync(root, { withFileTypes: true }); }
+  catch { return 0; }
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.name.startsWith('shadow-uv-')) continue;
+    const candidate = path.join(root, entry.name);
+    try {
+      const info = fs.lstatSync(candidate);
+      if (!info.isDirectory() || info.isSymbolicLink() || now - info.mtimeMs < maxAgeMs) continue;
+      const resolved = fs.realpathSync(candidate);
+      if (path.dirname(resolved) !== fs.realpathSync(root)) continue;
+      fs.rmSync(candidate, { recursive: true, force: true });
+      removed += 1;
+    } catch {
+      // Temporary cleanup is best-effort and must not block installation.
+    }
+  }
+  return removed;
 }
 
 export async function ensureUv(installDir, { env = process.env } = {}) {
+  cleanupStaleUvTempDirs();
   const privateUv = getUvPath(installDir);
   if (fs.existsSync(privateUv)) return { path: privateUv, installed: false };
   const existing = findExecutable('uv', env);
@@ -708,7 +901,10 @@ async function installCoreDependenciesLocked(installDir, packageRoot, packageVer
   const transaction = Boolean(installedVersion && (installedVersion !== packageVersion || forceClean));
   if (transaction) {
     createRuntimeBackup(installDir, installedVersion, packageVersion, {
-      onBackupFile: (relative) => hooks.onBackupFileCopied?.(relative),
+      onBackupFile: (relative) => {
+        hooks.onBackupFileCopied?.(relative);
+        phase('during_backup_file');
+      },
       onVenvMoved: () => phase('during_backup_venv_move'),
     });
     phase('after_backup');
@@ -1326,6 +1522,10 @@ export const __test__ = {
   withoutInheritedPythonEnv,
   PRIVATE_RUNTIME_FILES,
   ensurePython,
+  run,
+  capture,
+  fetchInstaller,
+  cleanupStaleUvTempDirs,
   installCoreDependenciesLocked,
   INSTALL_STATE_FILE,
 };
