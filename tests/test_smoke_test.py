@@ -50,6 +50,8 @@ class GatewayChecksTests(unittest.TestCase):
         self.assertFalse(args.anthropic_stream_tools)
         self.assertEqual(args.responses_model, "shadow-auto")
         self.assertEqual(args.anthropic_model, "shadow-auto")
+        self.assertEqual(args.expect_alias, [])
+        self.assertIsNone(args.reasoning_effort)
 
     def test_default_inference_timeout_allows_cold_local_model_load(self) -> None:
         with patch("sys.argv", ["smoke_test.py"]):
@@ -57,19 +59,38 @@ class GatewayChecksTests(unittest.TestCase):
         self.assertGreaterEqual(args.inference_timeout, 150)
 
     def test_safe_checks_use_only_local_gateway_endpoints(self) -> None:
-        args = SimpleNamespace(base_url="http://127.0.0.1:4000", timeout=5)
+        args = SimpleNamespace(
+            base_url="http://127.0.0.1:4000",
+            timeout=5,
+            expect_alias=["router-local"],
+        )
         report = smoke.Reporter()
-        models = {"data": [{"id": "shadow-local"}, {"id": "shadow-auto"}, {"id": "shadow-custom-test"}]}
+        models = {"data": [{"id": "router-local"}, {"id": "router-remote"}]}
         with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
             with patch.object(smoke, "http_json", side_effect=[(200, {}), (200, models)]) as request:
                 with redirect_stdout(io.StringIO()):
                     base, aliases = smoke.safe_checks(args, report)
         self.assertEqual(base, "http://127.0.0.1:4000")
-        self.assertEqual(aliases, ["shadow-auto", "shadow-custom-test", "shadow-local"])
+        self.assertEqual(aliases, ["router-local", "router-remote"])
         self.assertEqual(request.call_count, 2)
         self.assertEqual(report.failed, 0)
         self.assertTrue(all("127.0.0.1:4000" in call.args[0] for call in request.call_args_list))
 
+
+    def test_safe_checks_does_not_require_shadow_local_or_shadow_auto(self) -> None:
+        args = SimpleNamespace(
+            base_url="http://127.0.0.1:4401",
+            timeout=5,
+            expect_alias=[],
+        )
+        report = smoke.Reporter()
+        models = {"data": [{"id": "router-local"}]}
+        with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
+            with patch.object(smoke, "http_json", side_effect=[(200, {}), (200, models)]):
+                with redirect_stdout(io.StringIO()):
+                    _, aliases = smoke.safe_checks(args, report)
+        self.assertEqual(aliases, ["router-local"])
+        self.assertEqual(report.failed, 0)
 
     def test_configured_aliases_reads_only_model_names(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -91,7 +112,12 @@ class GatewayChecksTests(unittest.TestCase):
                 "model_list:\n  - model_name: shadow-local\n  - model_name: shadow-auto\n",
                 encoding="utf-8",
             )
-            args = SimpleNamespace(base_url="http://127.0.0.1:4000", timeout=5, env_file=env_file)
+            args = SimpleNamespace(
+                base_url="http://127.0.0.1:4000",
+                timeout=5,
+                env_file=env_file,
+                expect_alias=["shadow-auto", "shadow-local"],
+            )
             report = smoke.Reporter()
             payload = {"error": {"type": "no_db_connection", "message": "No connected db."}}
             with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "test-master"}):
@@ -157,8 +183,34 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
         self.assertEqual(kwargs["payload"]["model"], "shadow-openai")
         self.assertEqual(kwargs["payload"]["tools"][0]["type"], "function")
-        self.assertEqual(kwargs["payload"]["tool_choice"], "auto")
+        self.assertEqual(
+            kwargs["payload"]["tool_choice"],
+            {"type": "function", "function": {"name": "status_check"}},
+        )
         self.assertIs(kwargs["payload"]["stream"], False)
+
+    def test_reasoning_effort_is_sent_only_when_explicitly_requested(self) -> None:
+        fake = {
+            "choices": [{"message": {"tool_calls": [{
+                "function": {"name": "status_check", "arguments": '{"status":"EXPECTED"}'}
+            }]}}],
+        }
+        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
+            smoke._chat_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
+            )
+        self.assertNotIn("reasoning_effort", request.call_args.kwargs["payload"])
+
+        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
+            smoke._chat_tool_call(
+                "http://127.0.0.1:4000",
+                "local-test-key",
+                "test-alias",
+                "EXPECTED",
+                1,
+                reasoning_effort="none",
+            )
+        self.assertEqual(request.call_args.kwargs["payload"]["reasoning_effort"], "none")
 
     def test_chat_tool_call_treats_malformed_provider_shapes_as_a_failed_check(self) -> None:
         malformed_responses = [
@@ -245,6 +297,7 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertIn("Call status_check", payload["input"])
         self.assertEqual(payload["tools"][0]["type"], "function")
         self.assertEqual(payload["tools"][0]["name"], "status_check")
+        self.assertEqual(payload["tool_choice"], {"type": "function", "name": "status_check"})
         self.assertTrue(payload["tools"][0]["strict"])
         self.assertEqual(payload["max_output_tokens"], 192)
         self.assertNotIn("messages", payload)

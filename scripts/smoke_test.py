@@ -231,11 +231,11 @@ def safe_checks(args: argparse.Namespace, report: Reporter) -> tuple[str, list[s
             aliases = configured_aliases(config_file)
             if aliases:
                 report.ok("local model configuration", f"{len(aliases)} aliases loaded; LiteLLM API discovery needs a database")
-                for required in ("shadow-local", "shadow-auto"):
+                for required in getattr(args, "expect_alias", []) or []:
                     if required in aliases:
-                        report.ok(f"required alias {required}")
+                        report.ok(f"expected alias {required}")
                     else:
-                        report.fail(f"required alias {required}", "missing from local config")
+                        report.fail(f"expected alias {required}", "missing from local config")
                 return base, aliases
         report.fail("gateway model catalog", f"HTTP {status_text(code)}")
         return base, []
@@ -250,16 +250,21 @@ def safe_checks(args: argparse.Namespace, report: Reporter) -> tuple[str, list[s
         return base, []
 
     report.ok("gateway model catalog", f"{len(aliases)} aliases available")
-    for required in ("shadow-local", "shadow-auto"):
+    for required in getattr(args, "expect_alias", []) or []:
         if required in aliases:
-            report.ok(f"required alias {required}")
+            report.ok(f"expected alias {required}")
         else:
-            report.fail(f"required alias {required}", "missing from /v1/models")
+            report.fail(f"expected alias {required}", "missing from /v1/models")
     return base, aliases
 
 
 def _chat_tool_call(
-    base: str, master_key: str, alias: str, status: str, timeout: int
+    base: str,
+    master_key: str,
+    alias: str,
+    status: str,
+    timeout: int,
+    reasoning_effort: str | None = None,
 ) -> tuple[bool, str]:
     payload = {
         "model": alias,
@@ -280,10 +285,12 @@ def _chat_tool_call(
                 },
             },
         }],
-        "tool_choice": "auto",
+        "tool_choice": {"type": "function", "function": {"name": "status_check"}},
         "max_tokens": 192,
         "stream": False,
     }
+    if reasoning_effort is not None:
+        payload["reasoning_effort"] = reasoning_effort
     code, data = http_json(
         f"{base}/v1/chat/completions",
         method="POST",
@@ -333,7 +340,12 @@ def _chat_tool_call(
 
 
 def _chat_stream_tool_call(
-    base: str, master_key: str, alias: str, status: str, timeout: int
+    base: str,
+    master_key: str,
+    alias: str,
+    status: str,
+    timeout: int,
+    reasoning_effort: str | None = None,
 ) -> tuple[bool, str]:
     """Exercise OpenAI Chat Completions SSE and join fragmented tool-call arguments."""
     payload = {
@@ -355,10 +367,12 @@ def _chat_stream_tool_call(
                 },
             },
         }],
-        "tool_choice": "auto",
+        "tool_choice": {"type": "function", "function": {"name": "status_check"}},
         "max_tokens": 192,
         "stream": True,
     }
+    if reasoning_effort is not None:
+        payload["reasoning_effort"] = reasoning_effort
     code, events = http_sse_events(
         f"{base}/v1/chat/completions",
         method="POST",
@@ -419,7 +433,12 @@ def _chat_stream_tool_call(
 
 
 def _anthropic_stream_tool_call(
-    base: str, master_key: str, alias: str, status: str, timeout: int
+    base: str,
+    master_key: str,
+    alias: str,
+    status: str,
+    timeout: int,
+    reasoning_effort: str | None = None,
 ) -> tuple[bool, str]:
     """Exercise Anthropic Messages SSE and assemble input_json_delta fragments."""
     payload = {
@@ -442,6 +461,8 @@ def _anthropic_stream_tool_call(
         "tool_choice": {"type": "tool", "name": "status_check"},
         "stream": True,
     }
+    if reasoning_effort is not None:
+        payload["reasoning_effort"] = reasoning_effort
     code, events = http_sse_events(
         f"{base}/v1/messages",
         method="POST",
@@ -497,7 +518,12 @@ def _anthropic_stream_tool_call(
 
 
 def _responses_tool_call(
-    base: str, master_key: str, alias: str, status: str, timeout: int
+    base: str,
+    master_key: str,
+    alias: str,
+    status: str,
+    timeout: int,
+    reasoning_effort: str | None = None,
 ) -> tuple[bool, str]:
     """Exercise the native OpenAI Responses API without translating it to Chat Completions."""
     payload = {
@@ -515,9 +541,11 @@ def _responses_tool_call(
             },
             "strict": True,
         }],
-        "tool_choice": "auto",
+        "tool_choice": {"type": "function", "name": "status_check"},
         "max_output_tokens": 192,
     }
+    if reasoning_effort is not None:
+        payload["reasoning_effort"] = reasoning_effort
     code, data = http_json(
         f"{base}/v1/responses",
         method="POST",
@@ -557,7 +585,12 @@ def _responses_tool_call(
 
 
 def _anthropic_tool_call(
-    base: str, master_key: str, alias: str, status: str, timeout: int
+    base: str,
+    master_key: str,
+    alias: str,
+    status: str,
+    timeout: int,
+    reasoning_effort: str | None = None,
 ) -> tuple[bool, str]:
     payload = {
         "model": alias,
@@ -581,6 +614,8 @@ def _anthropic_tool_call(
     # Anthropic SDK clients authenticate with x-api-key; LiteLLM accepts
     # this native header on /v1/messages for gateway keys.
     headers = {"x-api-key": master_key, "anthropic-version": "2023-06-01"}
+    if reasoning_effort is not None:
+        payload["reasoning_effort"] = reasoning_effort
     code, data = http_json(
         f"{base}/v1/messages",
         method="POST",
@@ -618,13 +653,19 @@ def inference_checks(
         report.fail("inference checks", "LITELLM_MASTER_KEY missing")
         return
 
+    reasoning_kwargs = {}
+    reasoning_effort = getattr(args, "reasoning_effort", None)
+    if reasoning_effort is not None:
+        reasoning_kwargs["reasoning_effort"] = reasoning_effort
+
     if args.tool_calls:
         alias = args.model
         if alias not in aliases:
             report.fail("Chat Completions tool call", f"alias {alias!r} is not in /v1/models")
         else:
             ok, detail = _chat_tool_call(
-                base, master_key, alias, "SHADOW_SMOKE_CHAT", args.inference_timeout
+                base, master_key, alias, "SHADOW_SMOKE_CHAT", args.inference_timeout,
+                **reasoning_kwargs,
             )
             (report.ok if ok else report.fail)("Chat Completions tool call", detail)
 
@@ -634,7 +675,8 @@ def inference_checks(
             report.fail("Chat Completions streaming tool call", f"alias {alias!r} is not in /v1/models")
         else:
             ok, detail = _chat_stream_tool_call(
-                base, master_key, alias, "SHADOW_SMOKE_CHAT_STREAM", args.inference_timeout
+                base, master_key, alias, "SHADOW_SMOKE_CHAT_STREAM", args.inference_timeout,
+                **reasoning_kwargs,
             )
             (report.ok if ok else report.fail)("Chat Completions streaming tool call", detail)
 
@@ -644,7 +686,8 @@ def inference_checks(
             report.fail("OpenAI Responses tool call", f"alias {alias!r} is not in /v1/models")
         else:
             ok, detail = _responses_tool_call(
-                base, master_key, alias, "SHADOW_SMOKE_RESPONSES", args.inference_timeout
+                base, master_key, alias, "SHADOW_SMOKE_RESPONSES", args.inference_timeout,
+                **reasoning_kwargs,
             )
             (report.ok if ok else report.fail)("OpenAI Responses tool call", detail)
 
@@ -654,7 +697,8 @@ def inference_checks(
             report.fail("Anthropic Messages streaming tool_use", f"alias {alias!r} is not in /v1/models")
         else:
             ok, detail = _anthropic_stream_tool_call(
-                base, master_key, alias, "SHADOW_SMOKE_ANTHROPIC_STREAM", args.inference_timeout
+                base, master_key, alias, "SHADOW_SMOKE_ANTHROPIC_STREAM", args.inference_timeout,
+                **reasoning_kwargs,
             )
             (report.ok if ok else report.fail)("Anthropic Messages streaming tool_use", detail)
 
@@ -664,7 +708,8 @@ def inference_checks(
             report.fail("Anthropic Messages tool_use", f"alias {alias!r} is not in /v1/models")
         else:
             ok, detail = _anthropic_tool_call(
-                base, master_key, alias, "SHADOW_SMOKE_ANTHROPIC", args.inference_timeout
+                base, master_key, alias, "SHADOW_SMOKE_ANTHROPIC", args.inference_timeout,
+                **reasoning_kwargs,
             )
             (report.ok if ok else report.fail)("Anthropic Messages tool_use", detail)
 
@@ -690,6 +735,18 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=150,
         help="Timeout for optional inference/tool-call checks (allows a cold local-model load)",
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        default=None,
+        help="Optional upstream reasoning effort override (e.g. none for local Qwen thinking models)",
+    )
+    parser.add_argument(
+        "--expect-alias",
+        action="append",
+        default=[],
+        metavar="ALIAS",
+        help="Require this exact /v1/models alias (repeatable; defaults to no fixed alias assumptions)",
     )
     parser.add_argument(
         "--model",

@@ -32,6 +32,8 @@ python scripts/smoke_test.py --base-url http://127.0.0.1:4000 --env-file .env
 
 The setup provider catalog is ordered OpenAI first, Anthropic second, then other providers. This controls the order shown by the setup wizard only; it does not make paid providers automatic fallbacks or change routing priority.
 
+The smoke test does not impose a provider-specific reasoning setting by default. For local thinking models such as Qwen 3.5, pass --reasoning-effort none to keep protocol checks short and deterministic. This setting is sent only on these test requests; it does not change gateway defaults or client settings. Use it only when the selected upstream supports the value.
+
 ## Optional Chat Completions tool-call check
 
 ~~~bash
@@ -72,14 +74,16 @@ python scripts/smoke_test.py --anthropic-stream-tools --anthropic-model shadow-a
 
 This consumes Anthropic Messages SSE events, joins input_json_delta fragments, and requires message_stop before passing. It uses the native x-api-key and anthropic-version headers. It is a real inference request and may consume provider quota or incur charges.
 
+To disable optional reasoning on local thinking models, add --reasoning-effort none. This is optional and is not sent by default.
+
 Use a longer inference timeout for slow providers:
 
 ~~~bash
-python scripts/smoke_test.py --tool-calls --model shadow-auto --inference-timeout 60
-python scripts/smoke_test.py --responses-tools --responses-model shadow-auto --inference-timeout 60
-python scripts/smoke_test.py --stream-tool-calls --model shadow-auto --inference-timeout 60
-python scripts/smoke_test.py --anthropic-tools --anthropic-model shadow-auto --inference-timeout 60
-python scripts/smoke_test.py --anthropic-stream-tools --anthropic-model shadow-auto --inference-timeout 60
+python scripts/smoke_test.py --tool-calls --model router-local --expect-alias router-local --reasoning-effort none --inference-timeout 60
+python scripts/smoke_test.py --responses-tools --responses-model router-local --expect-alias router-local --reasoning-effort none --inference-timeout 60
+python scripts/smoke_test.py --stream-tool-calls --model router-local --expect-alias router-local --reasoning-effort none --inference-timeout 60
+python scripts/smoke_test.py --anthropic-tools --anthropic-model router-local --expect-alias router-local --reasoning-effort none --inference-timeout 60
+python scripts/smoke_test.py --anthropic-stream-tools --anthropic-model router-local --expect-alias router-local --reasoning-effort none --inference-timeout 60
 ~~~
 
 Do not run inference checks in a tight monitoring loop.
