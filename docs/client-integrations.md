@@ -190,14 +190,18 @@ Continue resolves secrets.* from its supported .env files. Do not rely only on a
 
 1. Open Settings → Providers → Custom provider.
 2. Create a provider with ID shadow and display name Shadow Gateway.
-3. Set Provider API to **OpenAI Compatible** for `/v1/chat/completions`. Kilo also offers **OpenAI Responses** for `/v1/responses` and **Anthropic Messages** for `/v1/messages`; choose the matching API mode when using those surfaces instead.
-4. Enter:
-   - Base URL: http://127.0.0.1:4000/v1
-   - API key: this installation's LITELLM_MASTER_KEY
-   - Models: exact aliases returned by /v1/models, such as shadow-auto and shadow-local.
-5. Save and select the model.
+3. Select the API mode that matches the endpoint you want to use:
+   - **OpenAI Compatible** → `/v1/chat/completions` (`@ai-sdk/openai-compatible`).
+   - **OpenAI Responses** → `/v1/responses` (`@ai-sdk/openai`).
+   - **Anthropic Messages** → `/v1/messages` (`@ai-sdk/anthropic`).
+4. Configure the base URL for the selected adapter:
+   - Chat Completions: `http://127.0.0.1:4000/v1`
+   - OpenAI Responses: `http://127.0.0.1:4000/v1`
+   - Anthropic Messages in Kilo: `http://127.0.0.1:4000/v1` (the Kilo Anthropic SDK adapter appends `/messages`; do not use the bare Gateway root here).
+5. API key: this installation's `LITELLM_MASTER_KEY`.
+6. Models: exact aliases returned by /v1/models, such as shadow-auto and shadow-local. Save and select the model.
 
-If automatic model discovery fails, add aliases manually. Do not put upstream keys in Kilo.
+If automatic model discovery fails, add aliases manually. Do not put upstream keys in Kilo. Tool-loop completion also depends on the upstream model; verify that a local model stops after receiving a successful tool result instead of repeating the same call.
 
 ### Aider
 
