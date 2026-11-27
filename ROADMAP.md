@@ -1,6 +1,6 @@
 # Shadow roadmap
 
-The release goal is a dependable, terminal-first gateway before adding a web interface. The web experience is the final planned delivery in the 1.0.0 milestone, not a reason to rush the reliability work.
+The release goal is a dependable, terminal-first gateway before adding a web interface. The web experience is the final planned delivery in the 1.0.0 milestone, not a reason to rush the reliability work. The current published baseline is `shadow-gateway@0.1.9`; the planned path below gives the project room to mature through several `0.x` releases before the stable web launch.
 
 ## Before 1.0.0
 
@@ -9,6 +9,21 @@ The release goal is a dependable, terminal-first gateway before adding a web int
 3. **Security:** credential handling, filesystem permissions, process boundaries and supply-chain controls.
 4. **Compatibility:** Linux, Windows and macOS validation, supported Node/Python versions, providers and client integrations.
 5. **Web interface:** optional local interface started by `web-shadow`, with the terminal remaining fully supported.
+
+## Planned version path
+
+These are release targets, not promises or already-published versions. Version numbers track product maturity; they do not map one-to-one to phase numbers. Keep the Gateway terminal-first and do not bundle skills, MCP servers, agent tools, or unrelated runtime features into it.
+
+| Version target | Purpose | Relationship to the roadmap |
+| --- | --- | --- |
+| `0.1.x` | Existing foundation and current published line. | Current baseline; `0.1.9` is the latest verified package version. |
+| `0.2.0` | First compatibility milestone: close the current Phase 4 baseline with repeatable smoke tests, documented client/protocol support, clean-package validation, and green Linux/Windows/macOS CI. | No web interface. This is the next planned release target. |
+| `0.3.x` | Broaden provider/client combinations and close the highest-value cross-platform E2E gaps. | Continue compatibility improvements without expanding the Gateway beyond its core role. |
+| `0.4.x` | Consolidate reliability, recovery, rollback, diagnostics, security and supply-chain hardening against the release checklist. | Finish remaining Phase 2 and Phase 3 hardening work. |
+| `0.5.x` | Stabilize the terminal-first experience, installation/update paths, documentation, package contents and full regression coverage. | Pre-1.0 release-readiness line; prepare the Phase 5 scope without shipping a premature web UI. |
+| `1.0.0` | First stable release that delivers the optional local `web-shadow` interface while preserving full terminal functionality. | Phase 5 delivery and stable Gateway milestone. |
+
+The `0.2.0` gate is evidence-based: the supported compatibility baseline must be reproducible, documented, and pass the agreed automated and local checks before the release is considered ready. Subsequent `0.x` milestones may be adjusted when testing exposes real gaps, but the stable web launch remains targeted at `1.0.0`. Publishing any npm version still requires the user's explicit approval in that moment.
 
 ## 1.x after the 1.0.0 launch
 
