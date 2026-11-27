@@ -280,8 +280,10 @@ function run(command, args, options = {}) {
         forceKill();
       } else {
         signalProcessTree(child, 'SIGTERM');
+        // Keep the escalation timer referenced: after SIGTERM the process
+        // group may exit immediately, but this timer must still run SIGKILL
+        // to reap any descendants that ignored SIGTERM.
         forceTimer = setTimeout(forceKill, 500);
-        forceTimer.unref?.();
       }
     };
     const onAbort = () => terminate(
@@ -356,8 +358,10 @@ function capture(command, args, options = {}) {
       if (process.platform === 'win32') forceKill();
       else {
         signalProcessTree(child, 'SIGTERM');
+        // Keep the escalation timer referenced: after SIGTERM the process
+        // group may exit immediately, but this timer must still run SIGKILL
+        // to reap any descendants that ignored SIGTERM.
         forceTimer = setTimeout(forceKill, 500);
-        forceTimer.unref?.();
       }
     };
     const onAbort = () => terminate(
