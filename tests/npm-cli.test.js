@@ -870,7 +870,13 @@ test('uv installer download timeout leaves no partial installer behind', async (
   const destination = path.join(directory, 'install-uv.sh');
   try {
     const hangingFetch = async (_url, { signal }) => new Promise((_resolve, reject) => {
-      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      // Keep the test event loop alive until AbortSignal.timeout fires.
+      // Node versions may unref the timeout signal's internal timer.
+      const guard = setTimeout(() => reject(new Error('fetch timeout signal did not fire')), 1000);
+      signal.addEventListener('abort', () => {
+        clearTimeout(guard);
+        reject(signal.reason);
+      }, { once: true });
     });
     await assert.rejects(
       __test__.fetchInstaller('https://unit.test/slow-installer', destination, {
