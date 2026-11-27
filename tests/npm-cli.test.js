@@ -595,142 +595,6 @@ test('committed update marker prevents recovery from restoring a partially clean
 });
 
 
-test('real process termination at installer phases recovers or keeps the committed generation', () => {
-  const phases = [
-    'after_backup',
-    'after_runtime_sync',
-    'after_uv_bootstrap',
-    'after_python_provision',
-    'after_venv_create',
-    'after_dependencies',
-    'after_import_validation',
-    'after_commit',
-  ];
-  const childScript = String.raw`
-    import fs from 'node:fs';
-    import path from 'node:path';
-    import {
-      acquireInstallLock, createRuntimeBackup, copyRuntime, RUNTIME_FILES,
-    } from './src/installer.js';
-
-    const [installDir, packageRoot, phase] = process.argv.slice(1);
-    acquireInstallLock(installDir);
-    const stop = (at) => {
-      if (phase !== at) return;
-      process.stdout.write('INTENTIONAL_TERMINATION:' + at + '\\n');
-      process.kill(process.pid, 'SIGKILL');
-      process.exit(137);
-    };
-
-    createRuntimeBackup(installDir, '0.1.0', '0.2.0');
-    stop('after_backup');
-
-    copyRuntime(packageRoot, installDir, '0.2.0');
-    stop('after_runtime_sync');
-
-    fs.mkdirSync(path.join(installDir, 'bin'), { recursive: true });
-    fs.writeFileSync(path.join(installDir, 'bin', 'uv'), 'uv-v2');
-    stop('after_uv_bootstrap');
-
-    fs.mkdirSync(path.join(installDir, '.cache', 'shadow-installer'), { recursive: true });
-    fs.writeFileSync(path.join(installDir, '.cache', 'shadow-installer', 'python-provisioned'), 'python-3.12');
-    stop('after_python_provision');
-
-    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true });
-    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), 'new-python');
-    stop('after_venv_create');
-
-    fs.mkdirSync(path.join(installDir, '.venv', 'site-packages', 'litellm'), { recursive: true });
-    fs.writeFileSync(path.join(installDir, '.venv', 'site-packages', 'litellm', '__init__.py'), 'installed');
-    stop('after_dependencies');
-
-    fs.writeFileSync(path.join(installDir, '.venv', 'import-health.ok'), 'imports-ok');
-    stop('after_import_validation');
-
-    fs.writeFileSync(
-      path.join(installDir, '.shadow-install-state.json'),
-      JSON.stringify({ status: 'committed', packageVersion: '0.2.0' }),
-    );
-    stop('after_commit');
-    process.exit(99);
-  `;
-
-  for (const phase of phases) {
-    const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-kill-matrix-'));
-    const oldPackage = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-kill-old-package-'));
-    const newPackage = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-kill-new-package-'));
-    try {
-      for (const relative of RUNTIME_FILES) {
-        const oldFile = path.join(oldPackage, relative);
-        const newFile = path.join(newPackage, relative);
-        fs.mkdirSync(path.dirname(oldFile), { recursive: true });
-        fs.mkdirSync(path.dirname(newFile), { recursive: true });
-        fs.writeFileSync(oldFile, 'v1:' + relative);
-        fs.writeFileSync(newFile, 'v2:' + relative);
-      }
-      copyRuntime(oldPackage, installDir, '0.1.0');
-      fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true });
-      fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), 'previous-python');
-      fs.mkdirSync(path.join(installDir, 'bin'), { recursive: true });
-      fs.writeFileSync(path.join(installDir, 'bin', 'uv'), 'uv-v1');
-      fs.mkdirSync(path.join(installDir, 'config'), { recursive: true });
-      fs.writeFileSync(path.join(installDir, '.env'), 'PRIVATE_TOKEN=keep-this');
-      fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'local: preserve');
-      fs.writeFileSync(path.join(installDir, 'config', 'providers.local.yaml'), 'providers: []');
-      fs.writeFileSync(path.join(installDir, 'user-data.db'), 'user-owned-data');
-
-      const crashed = spawnSync(process.execPath, [
-        '--input-type=module', '-e', childScript, installDir, newPackage, phase,
-      ], { cwd: path.resolve('.'), encoding: 'utf8', timeout: 10000 });
-      assert.equal(crashed.error, undefined, phase + ': child process timed out or could not launch');
-      assert.ok(
-        crashed.stdout.includes('INTENTIONAL_TERMINATION:' + phase),
-        phase + ': child did not reach the requested interruption checkpoint',
-      );
-      assert.ok(crashed.signal === 'SIGKILL' || crashed.status !== 0, phase + ': expected forced process termination');
-
-      // Restart exactly as the installer does: reclaim the dead process lock,
-      // recover the transaction, and release the new process lock.
-      const release = acquireInstallLock(installDir);
-      let recovered;
-      try {
-        recovered = recoverInterruptedInstall(installDir);
-      } finally {
-        release();
-      }
-
-      assert.equal(fs.readFileSync(path.join(installDir, '.env'), 'utf8'), 'PRIVATE_TOKEN=keep-this', phase);
-      assert.equal(fs.readFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'utf8'), 'local: preserve', phase);
-      assert.equal(fs.readFileSync(path.join(installDir, 'config', 'providers.local.yaml'), 'utf8'), 'providers: []', phase);
-      assert.equal(fs.readFileSync(path.join(installDir, 'user-data.db'), 'utf8'), 'user-owned-data', phase);
-      assert.equal(fs.existsSync(path.join(installDir, '.shadow-install.lock')), false, phase);
-      assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback')), false, phase);
-      assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback.tmp')), false, phase);
-      assert.equal(fs.existsSync(path.join(installDir, '.shadow-install-state.json')), false, phase);
-
-      const expectedVersion = phase === 'after_commit' ? '0.2.0' : '0.1.0';
-      assert.equal(
-        JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion,
-        expectedVersion,
-        phase,
-      );
-      if (phase === 'after_commit') {
-        assert.deepEqual(recovered, { recovered: true, rolledBack: false }, phase);
-        assert.equal(fs.readFileSync(path.join(installDir, 'scripts/shadow.py'), 'utf8'), 'v2:scripts/shadow.py');
-      } else {
-        assert.deepEqual(recovered, { recovered: true, rolledBack: true }, phase);
-        assert.equal(fs.readFileSync(path.join(installDir, 'scripts/shadow.py'), 'utf8'), 'v1:scripts/shadow.py');
-        assert.equal(fs.readFileSync(path.join(installDir, '.venv', 'bin', 'python'), 'utf8'), 'previous-python');
-        assert.equal(fs.readFileSync(path.join(installDir, 'bin', 'uv'), 'utf8'), 'uv-v1');
-      }
-    } finally {
-      fs.rmSync(installDir, { recursive: true, force: true });
-      fs.rmSync(oldPackage, { recursive: true, force: true });
-      fs.rmSync(newPackage, { recursive: true, force: true });
-    }
-  }
-});
-
 test('process termination during rollback restoration is idempotently recoverable', () => {
   const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-kill-rollback-'));
   const oldPackage = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-kill-rollback-old-'));
@@ -803,5 +667,165 @@ test('process termination during rollback restoration is idempotently recoverabl
     fs.rmSync(installDir, { recursive: true, force: true });
     fs.rmSync(oldPackage, { recursive: true, force: true });
     fs.rmSync(newPackage, { recursive: true, force: true });
+  }
+});
+
+
+test('installer orchestration recovers after real child-process termination at runtime phase hooks', async () => {
+  const phases = [
+    'during_backup_file',
+    'during_backup_venv_move',
+    'after_backup',
+    'during_runtime_sync',
+    'after_runtime_sync',
+    'after_uv_bootstrap',
+    'after_python_provision',
+    'after_managed_reset',
+    'after_venv_create',
+    'after_dependencies',
+    'after_import_validation',
+    'after_commit',
+  ];
+  const childScript = String.raw`
+    import fs from 'node:fs';
+    import path from 'node:path';
+    import {
+      acquireInstallLock, __test__, RUNTIME_FILES,
+    } from './src/installer.js';
+
+    const [installDir, packageRoot, targetPhase] = process.argv.slice(1);
+    const release = acquireInstallLock(installDir);
+    const phase = (name) => {
+      if (name !== targetPhase) return;
+      process.stdout.write('INSTALLER_CHECKPOINT:' + name + '\\n');
+      process.kill(process.pid, 'SIGKILL');
+      process.exit(137);
+    };
+
+    const hooks = {
+      onPhase: phase,
+      onBackupFileCopied: (relative) => {
+        if (relative === RUNTIME_FILES[0]) phase('during_backup_file');
+      },
+      onRuntimeFileCopied: (relative) => {
+        if (relative === RUNTIME_FILES[0]) phase('during_runtime_sync');
+      },
+      ensureUv: async (root) => {
+        const uv = path.join(root, 'bin', 'uv');
+        fs.mkdirSync(path.dirname(uv), { recursive: true });
+        fs.writeFileSync(uv, 'uv-v2');
+        return { path: uv, installed: true };
+      },
+      ensurePython: async () => path.join(installDir, 'test-managed-python'),
+      isRuntimeHealthy: async (venvPython) =>
+        fs.existsSync(path.resolve(path.dirname(venvPython), '..', 'import-health.ok')),
+      run: async (_python, args) => {
+        if (args.at(-1) !== 'setup') throw new Error('Unexpected child runtime command in test fixture');
+        const venv = path.join(installDir, '.venv');
+        const pythonDir = process.platform === 'win32' ? 'Scripts' : 'bin';
+        const pythonName = process.platform === 'win32' ? 'python.exe' : 'python';
+        const venvPython = path.join(venv, pythonDir, pythonName);
+        fs.mkdirSync(path.dirname(venvPython), { recursive: true });
+        fs.writeFileSync(venvPython, 'new-python');
+        phase('after_venv_create');
+        fs.mkdirSync(path.join(venv, 'site-packages', 'litellm'), { recursive: true });
+        fs.writeFileSync(path.join(venv, 'site-packages', 'litellm', '__init__.py'), 'installed');
+        phase('after_dependencies');
+        fs.writeFileSync(path.join(venv, 'import-health.ok'), 'imports-ok');
+      },
+    };
+
+    await __test__.installCoreDependenciesLocked(installDir, packageRoot, '0.2.0', {
+      quiet: true,
+      hooks,
+    });
+    release();
+    process.exit(98);
+  `;
+
+  for (const targetPhase of phases) {
+    const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-installer-orchestration-'));
+    const oldPackage = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-installer-old-package-'));
+    const newPackage = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-installer-new-package-'));
+    try {
+      for (const relative of RUNTIME_FILES) {
+        for (const [root, version] of [[oldPackage, 'v1'], [newPackage, 'v2']]) {
+          const file = path.join(root, relative);
+          fs.mkdirSync(path.dirname(file), { recursive: true });
+          fs.writeFileSync(file, version + ':' + relative);
+        }
+      }
+      copyRuntime(oldPackage, installDir, '0.1.0');
+      const previousPython = getPythonVenvPath(installDir);
+      fs.mkdirSync(path.dirname(previousPython), { recursive: true });
+      fs.writeFileSync(previousPython, 'previous-python');
+      fs.mkdirSync(path.join(installDir, 'bin'), { recursive: true });
+      fs.writeFileSync(path.join(installDir, 'bin', 'uv'), 'uv-v1');
+      fs.mkdirSync(path.join(installDir, 'config'), { recursive: true });
+      fs.writeFileSync(path.join(installDir, '.env'), 'PRIVATE_TOKEN=preserve');
+      fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'local: keep');
+      fs.writeFileSync(path.join(installDir, 'config', 'providers.local.yaml'), 'providers: []');
+      fs.writeFileSync(path.join(installDir, 'user-data.db'), 'do-not-delete');
+
+      const crashed = spawnSync(process.execPath, [
+        '--input-type=module', '-e', childScript, installDir, newPackage, targetPhase,
+      ], { cwd: path.resolve('.'), encoding: 'utf8', timeout: 10000 });
+      assert.equal(crashed.error, undefined, targetPhase + ': child must not time out');
+      assert.ok(
+        crashed.stdout.includes('INSTALLER_CHECKPOINT:' + targetPhase),
+        targetPhase + ': actual installer orchestration did not reach the checkpoint. stdout=' +
+          crashed.stdout + ' stderr=' + crashed.stderr,
+      );
+
+      const release = acquireInstallLock(installDir);
+      let recovered;
+      try {
+        recovered = recoverInterruptedInstall(installDir);
+      } finally {
+        release();
+      }
+
+      const committed = targetPhase === 'after_commit';
+      const backupPreparationInterrupted = targetPhase.startsWith('during_backup_');
+      assert.deepEqual(
+        recovered,
+        backupPreparationInterrupted
+          ? { recovered: false, rolledBack: false }
+          : { recovered: true, rolledBack: !committed },
+        targetPhase,
+      );
+      assert.equal(
+        JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8')).packageVersion,
+        committed ? '0.2.0' : '0.1.0',
+        targetPhase,
+      );
+      assert.equal(
+        fs.readFileSync(path.join(installDir, 'scripts/shadow.py'), 'utf8'),
+        (committed ? 'v2:' : 'v1:') + 'scripts/shadow.py',
+        targetPhase,
+      );
+      assert.equal(fs.readFileSync(path.join(installDir, '.env'), 'utf8'), 'PRIVATE_TOKEN=preserve', targetPhase);
+      assert.equal(fs.readFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'utf8'), 'local: keep', targetPhase);
+      assert.equal(fs.readFileSync(path.join(installDir, 'config', 'providers.local.yaml'), 'utf8'), 'providers: []', targetPhase);
+      assert.equal(fs.readFileSync(path.join(installDir, 'user-data.db'), 'utf8'), 'do-not-delete', targetPhase);
+      assert.equal(fs.existsSync(path.join(installDir, '.shadow-install.lock')), false, targetPhase);
+      assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback')), false, targetPhase);
+      assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback.tmp')), false, targetPhase);
+      assert.equal(fs.existsSync(path.join(installDir, '.shadow-install-state.json')), false, targetPhase);
+      assert.equal(
+        fs.readFileSync(getPythonVenvPath(installDir), 'utf8'),
+        committed ? 'new-python' : 'previous-python',
+        targetPhase,
+      );
+      assert.equal(
+        fs.readFileSync(path.join(installDir, 'bin', 'uv'), 'utf8'),
+        committed ? 'uv-v2' : 'uv-v1',
+        targetPhase,
+      );
+    } finally {
+      fs.rmSync(installDir, { recursive: true, force: true });
+      fs.rmSync(oldPackage, { recursive: true, force: true });
+      fs.rmSync(newPackage, { recursive: true, force: true });
+    }
   }
 });

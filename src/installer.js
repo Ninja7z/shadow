@@ -108,7 +108,7 @@ function securePrivatePaths(installDir) {
   if (fs.existsSync(manifest)) fs.chmodSync(manifest, 0o600);
 }
 
-export function copyRuntime(packageRoot, installDir, packageVersion, { force = false } = {}) {
+export function copyRuntime(packageRoot, installDir, packageVersion, { force = false, onCopyFile } = {}) {
   const manifestPath = path.join(installDir, '.shadow-cli.json');
   let previousVersion = null;
   try {
@@ -131,6 +131,7 @@ export function copyRuntime(packageRoot, installDir, packageVersion, { force = f
     fs.mkdirSync(path.dirname(destination), { recursive: true, mode: 0o700 });
     fs.copyFileSync(source, destination);
     copied += 1;
+    onCopyFile?.(relative);
   }
 
   const manifest = {
@@ -554,7 +555,7 @@ function writeInstallState(statePath, state) {
   fs.renameSync(tempPath, statePath);
 }
 
-export function createRuntimeBackup(installDir, previousVersion, packageVersion) {
+export function createRuntimeBackup(installDir, previousVersion, packageVersion, { onBackupFile, onVenvMoved } = {}) {
   const paths = managedRuntimePaths(installDir);
   fs.rmSync(paths.rollbackTemp, { recursive: true, force: true });
   fs.mkdirSync(paths.rollbackTemp, { recursive: true, mode: 0o700 });
@@ -566,6 +567,7 @@ export function createRuntimeBackup(installDir, previousVersion, packageVersion)
     fs.mkdirSync(path.dirname(destination), { recursive: true, mode: 0o700 });
     fs.copyFileSync(source, destination);
     existingFiles.push(relative);
+    onBackupFile?.(relative);
   }
   const manifestPath = path.join(installDir, '.shadow-cli.json');
   const hadManifest = fs.existsSync(manifestPath);
@@ -574,7 +576,10 @@ export function createRuntimeBackup(installDir, previousVersion, packageVersion)
   const hadVenv = fs.existsSync(venvPath);
   const metadata = { previousVersion, packageVersion, existingFiles, hadManifest, hadVenv };
   fs.writeFileSync(path.join(paths.rollbackTemp, 'backup.json'), JSON.stringify(metadata, null, 2) + '\n', { mode: 0o600 });
-  if (hadVenv) fs.renameSync(venvPath, path.join(paths.rollbackTemp, '.venv'));
+  if (hadVenv) {
+    fs.renameSync(venvPath, path.join(paths.rollbackTemp, '.venv'));
+    onVenvMoved?.();
+  }
   try {
     fs.rmSync(paths.rollback, { recursive: true, force: true });
     fs.renameSync(paths.rollbackTemp, paths.rollback);
@@ -683,7 +688,16 @@ export function recoverInterruptedInstall(installDir) {
   return { recovered: false, rolledBack: false };
 }
 
-async function installCoreDependenciesLocked(installDir, packageRoot, packageVersion, { quiet = false, forceClean = false } = {}) {
+async function installCoreDependenciesLocked(installDir, packageRoot, packageVersion, options = {}) {
+  const { quiet = false, forceClean = false } = options;
+  // These overrides are reachable only through the internal __test__ export.
+  // Normal CLI execution always uses the real uv/Python process implementations.
+  const hooks = options.hooks || {};
+  const phase = (name) => hooks.onPhase?.(name);
+  const ensureUvRuntime = hooks.ensureUv || ensureUv;
+  const ensurePythonRuntime = hooks.ensurePython || ensurePython;
+  const runRuntime = hooks.run || run;
+  const checkRuntimeHealth = hooks.isRuntimeHealthy || isRuntimeHealthy;
   const paths = managedRuntimePaths(installDir);
   const recovery = recoverInterruptedInstall(installDir);
   let installedVersion = null;
@@ -692,18 +706,29 @@ async function installCoreDependenciesLocked(installDir, packageRoot, packageVer
   } catch { /* Fresh installation or missing manifest. */ }
 
   const transaction = Boolean(installedVersion && (installedVersion !== packageVersion || forceClean));
-  if (transaction) createRuntimeBackup(installDir, installedVersion, packageVersion);
+  if (transaction) {
+    createRuntimeBackup(installDir, installedVersion, packageVersion, {
+      onBackupFile: (relative) => hooks.onBackupFileCopied?.(relative),
+      onVenvMoved: () => phase('during_backup_venv_move'),
+    });
+    phase('after_backup');
+  }
 
   try {
-    const update = copyRuntime(packageRoot, installDir, packageVersion);
+    const update = copyRuntime(packageRoot, installDir, packageVersion, {
+      onCopyFile: (relative) => hooks.onRuntimeFileCopied?.(relative),
+    });
+    phase('after_runtime_sync');
     const interrupted = fs.existsSync(paths.state);
     const binDir = path.join(installDir, 'bin');
     const currentEnv = mergePath(withoutInheritedPythonEnv(process.env), binDir);
-    const uvResult = await ensureUv(installDir, { env: currentEnv });
+    const uvResult = await ensureUvRuntime(installDir, { env: currentEnv });
+    phase('after_uv_bootstrap');
     const env = mergePath(currentEnv, path.dirname(uvResult.path));
-    const pythonExe = await ensurePython(uvResult.path, { env });
+    const pythonExe = await ensurePythonRuntime(uvResult.path, { env });
+    phase('after_python_provision');
     const venvPython = getPythonVenvPath(installDir);
-    const healthy = await isRuntimeHealthy(venvPython);
+    const healthy = await checkRuntimeHealth(venvPython);
     const rebuild = forceClean || interrupted || update.changed || !healthy;
 
     if (rebuild) {
@@ -721,6 +746,7 @@ async function installCoreDependenciesLocked(installDir, packageRoot, packageVer
             : 'Preparing a clean Shadow runtime installation.');
       }
       resetManagedRuntime(installDir);
+      phase('after_managed_reset');
       writeInstallState(paths.state, {
         status: transaction ? 'updating' : 'installing',
         packageVersion,
@@ -728,8 +754,9 @@ async function installCoreDependenciesLocked(installDir, packageRoot, packageVer
         backupReady: transaction,
         startedAt: new Date().toISOString(),
       });
-      await run(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
-      if (!(await isRuntimeHealthy(venvPython))) throw new Error('The rebuilt Python runtime failed its import health check.');
+      await runRuntime(pythonExe, [path.join(installDir, 'scripts', 'shadow.py'), 'setup'], { cwd: installDir, env });
+      if (!(await checkRuntimeHealth(venvPython))) throw new Error('The rebuilt Python runtime failed its import health check.');
+      phase('after_import_validation');
     }
 
     const envFile = path.join(installDir, '.env');
@@ -745,6 +772,7 @@ async function installCoreDependenciesLocked(installDir, packageRoot, packageVer
       throw new Error('Runtime validation failed: required local configuration is missing.');
     }
     writeInstallState(paths.state, { status: 'committed', packageVersion, committedAt: new Date().toISOString() });
+    phase('after_commit');
     let cleanupDeferred = false;
     try {
       fs.rmSync(paths.rollback, { recursive: true, force: true });
@@ -1292,4 +1320,12 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
   throw new Error('Unknown command: ' + command + '. Run shadow --help.');
 }
 
-export const __test__ = { getUvPath, mergePath, withoutInheritedPythonEnv, PRIVATE_RUNTIME_FILES, ensurePython, INSTALL_STATE_FILE };
+export const __test__ = {
+  getUvPath,
+  mergePath,
+  withoutInheritedPythonEnv,
+  PRIVATE_RUNTIME_FILES,
+  ensurePython,
+  installCoreDependenciesLocked,
+  INSTALL_STATE_FILE,
+};
