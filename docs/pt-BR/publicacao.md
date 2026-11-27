@@ -22,15 +22,7 @@ O script primeiro verifica npm whoami e a versão da tag latest; depois aplica n
 
 Para conferir exatamente o que será aplicado, sem autenticação ou gravação no registro, execute **npm run deprecate:legacy -- --plan**.
 
-Se o npm exigir uma senha temporária (2FA), digite-a somente no terminal local. No Linux/macOS, este comando oculta a digitação e passa o código apenas ao processo do npm.
-
-```bash
-read -rsp "Código 2FA do npm: " NPM_OTP; echo
-npm_config_otp="$NPM_OTP" npm run deprecate:legacy
-unset NPM_OTP
-```
-
-Não cole códigos temporários no chat, em arquivos-fonte, no histórico do shell ou em GitHub Secrets.
+Quando o npm exigir 2FA, o helper reconhece o desafio WebAuthn oficial, abre a página de autorização do npm no navegador e consulta o endpoint oficial do registry até receber o token temporário. Aprove com a passkey/chave de segurança cadastrada (por exemplo, a confirmação do Google Password Manager no celular). O token fica somente na memória do processo e é passado apenas à nova tentativa do npm; valores npm_config_otp antigos herdados são removidos. Não copie a passkey nem use uma senha como OTP.
 
 ## Configuração do Trusted Publisher
 

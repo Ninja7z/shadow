@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import crypto from 'node:crypto';
-import { getDeprecationPlan, LEGACY_VERSION_RANGE, LEGACY_PACKAGE_SPEC, buildLegacyDeprecationMessage } from '../scripts/deprecate-legacy-versions.mjs';
+import { getDeprecationPlan, LEGACY_VERSION_RANGE, LEGACY_PACKAGE_SPEC, buildLegacyDeprecationMessage, parseWebAuthChallenge, pollWebAuthToken, sanitizeNpmEnvironment } from '../scripts/deprecate-legacy-versions.mjs';
 import {
   RUNTIME_FILES,
   copyRuntime,
@@ -1200,10 +1200,10 @@ test('legacy notice message always points users to the current npm tag', () => {
 test('legacy deprecation verifies auth and latest before applying the version range', async () => {
   const { main } = await import('../scripts/deprecate-legacy-versions.mjs');
   const calls = [];
-  const status = main({
+  const status = await main({
     argv: [],
     env: { npm_execpath: '/mock/npm-cli.js' },
-    run: (args) => { calls.push(args); return 0; },
+    run: async (args) => { calls.push(args); return 0; },
   });
   assert.equal(status, 0);
   assert.deepEqual(calls, [
@@ -1216,11 +1216,120 @@ test('legacy deprecation verifies auth and latest before applying the version ra
 test('legacy deprecation stops before registry mutation when npm authentication fails', async () => {
   const { main } = await import('../scripts/deprecate-legacy-versions.mjs');
   const calls = [];
-  const status = main({
+  const status = await main({
     argv: [],
     env: { npm_execpath: '/mock/npm-cli.js' },
-    run: (args) => { calls.push(args); return 1; },
+    run: async (args) => { calls.push(args); return 1; },
   });
   assert.equal(status, 1);
   assert.deepEqual(calls, [['whoami']]);
+});
+
+
+test('WebAuthn challenge parser accepts only official npm CLI and registry URLs', () => {
+  const challenge = {
+    error: {
+      code: 'EOTP',
+      authUrl: 'https://www.npmjs.com/auth/cli/opaque-session-id',
+      doneUrl: 'https://registry.npmjs.org/-/v1/done?authId=opaque-auth-id',
+    },
+  };
+  assert.deepEqual(parseWebAuthChallenge(JSON.stringify(challenge)), {
+    authUrl: challenge.error.authUrl,
+    doneUrl: challenge.error.doneUrl,
+  });
+  assert.equal(parseWebAuthChallenge(JSON.stringify({ error: { code: 'E401' } })), null);
+  assert.throws(
+    () => parseWebAuthChallenge(JSON.stringify({
+      error: {
+        ...challenge.error,
+        authUrl: 'https://attacker.invalid/auth/cli/session',
+      },
+    })),
+    /untrusted URL/u,
+  );
+});
+
+test('WebAuthn token polling waits for browser approval and returns the short-lived token', async () => {
+  const doneUrl = 'https://registry.npmjs.org/-/v1/done?authId=opaque-auth-id';
+  const token = 'a'.repeat(64);
+  const calls = [];
+  const waits = [];
+  const responses = [
+    new Response(null, { status: 202, headers: { 'retry-after': '1' } }),
+    new Response(JSON.stringify({ token }), { status: 200, headers: { 'content-type': 'application/json' } }),
+  ];
+  const result = await pollWebAuthToken(doneUrl, {
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return responses.shift();
+    },
+    sleep: async (ms) => { waits.push(ms); },
+    now: () => 1000,
+    timeoutMs: 5000,
+  });
+  assert.equal(result, token);
+  assert.equal(calls.length, 2);
+  assert.equal(waits[0], 1000);
+  assert.equal(calls[0].options.redirect, 'error');
+  assert.equal(calls[0].options.headers.accept, 'application/json');
+});
+
+test('WebAuthn token polling rejects non-npm completion hosts', async () => {
+  await assert.rejects(
+    pollWebAuthToken('https://attacker.invalid/-/v1/done?authId=nope', {
+      fetchImpl: async () => { throw new Error('must not fetch an untrusted host'); },
+    }),
+    /untrusted npm WebAuthn completion URL/u,
+  );
+});
+
+test('npm environment strips inherited OTP and injects only the one-time WebAuthn token for retry', () => {
+  const original = {
+    npm_config_otp: 'stale-invalid-value',
+    NPM_CONFIG_OTP: 'another-stale-value',
+    npm_execpath: '/mock/npm-cli.js',
+    PATH: '/bin',
+  };
+  const clean = sanitizeNpmEnvironment(original);
+  assert.equal('npm_config_otp' in clean, false);
+  assert.equal('NPM_CONFIG_OTP' in clean, false);
+  assert.equal(clean.npm_execpath, original.npm_execpath);
+
+  const retry = sanitizeNpmEnvironment(original, 'short-lived-web-auth-token');
+  assert.equal(retry.npm_config_otp, 'short-lived-web-auth-token');
+  assert.equal('NPM_CONFIG_OTP' in retry, false);
+  assert.equal(original.npm_config_otp, 'stale-invalid-value');
+});
+
+test('legacy deprecation retries only after official browser approval returns an npm token', async () => {
+  const { main } = await import('../scripts/deprecate-legacy-versions.mjs');
+  const calls = [];
+  const opened = [];
+  const polled = [];
+  const authUrl = 'https://www.npmjs.com/auth/cli/opaque-session-id';
+  const doneUrl = 'https://registry.npmjs.org/-/v1/done?authId=opaque-auth-id';
+  const status = await main({
+    argv: [],
+    env: { npm_execpath: '/mock/npm-cli.js', npm_config_otp: 'stale-config-value' },
+    run: async (args, options = {}) => {
+      calls.push({ args, options });
+      if (args[0] === 'whoami' || args[0] === 'view') return 0;
+      if (options.otp === 'short-lived-web-auth-token') return { status: 0, stdout: '', stderr: '' };
+      return {
+        status: 1,
+        stdout: JSON.stringify({ error: { code: 'EOTP', authUrl, doneUrl } }),
+        stderr: '',
+      };
+    },
+    openBrowser: async (url) => { opened.push(url); },
+    pollToken: async (url) => { polled.push(url); return 'short-lived-web-auth-token'; },
+  });
+
+  assert.equal(status, 0);
+  assert.deepEqual(opened, [authUrl]);
+  assert.deepEqual(polled, [doneUrl]);
+  assert.deepEqual(calls.map((call) => call.args[0]), ['whoami', 'view', 'deprecate', 'deprecate']);
+  assert.equal(calls.at(-1).options.otp, 'short-lived-web-auth-token');
+  assert.equal(calls.at(-1).options.env.npm_config_otp, 'stale-config-value');
 });
