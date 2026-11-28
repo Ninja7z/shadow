@@ -95,3 +95,5 @@ python -m unittest discover -s tests -v
 ~~~
 
 The suite uses local fixtures and mocked HTTP responses. It does not contact upstream providers or spend inference quota.
+
+The Python parser tests also include parallel streaming tool-call fixtures: two OpenAI Chat Completions tool calls with separate indices and two Anthropic Messages `tool_use` blocks. These are parser/unit fixtures, not live model inference tests.
