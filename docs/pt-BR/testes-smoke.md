@@ -56,7 +56,7 @@ Consome o stream SSE de OpenAI Chat Completions, remonta os argumentos fragmenta
 python scripts/smoke_test.py --responses-tools --responses-model shadow-auto
 ~~~
 
-Exercita o contrato nativo /v1/responses (input, ferramentas de função do Responses, itens function_call na saída e max_output_tokens). É separado de Chat Completions e não é convertido em um payload messages. O LiteLLM expõe essa rota para provedores compatíveis, mas o suporte depende do adaptador e modelo upstream selecionados. É uma chamada real de inferência e pode consumir cota ou gerar cobrança.
+Executa um ciclo Responses stateless completo em duas requisições: solicita um function_call, reenvia todos os itens de saída retornados (incluindo reasoning) junto do function_call_output correspondente e exige uma mensagem final do assistente. As duas requisições usam store=false, portanto o teste não depende de banco de dados nem de previous_response_id. É separado de Chat Completions e não é convertido em um payload messages. O LiteLLM expõe essa rota para provedores compatíveis, mas o suporte depende do adaptador e modelo upstream selecionados. É um teste real de inferência e pode consumir cota ou gerar cobrança.
 
 ## Verificação opcional de tool_use via Anthropic Messages
 
