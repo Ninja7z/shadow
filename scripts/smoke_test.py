@@ -518,70 +518,132 @@ def _anthropic_stream_tool_call(
 
 
 def _responses_tool_call(
-    base: str,
-    master_key: str,
-    alias: str,
-    status: str,
-    timeout: int,
+    base: str, master_key: str, alias: str, status: str, timeout: int,
     reasoning_effort: str | None = None,
 ) -> tuple[bool, str]:
-    """Exercise the native OpenAI Responses API without translating it to Chat Completions."""
+    """Exercise a complete, stateless OpenAI Responses function-call round-trip."""
+    prompt = f"Call status_check now with status exactly {status}. After its result, answer DONE."
+    tool = {
+        "type": "function",
+        "name": "status_check",
+        "description": "Record a smoke-test status",
+        "parameters": {
+            "type": "object",
+            "properties": {"status": {"type": "string"}},
+            "required": ["status"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
     payload = {
         "model": alias,
-        "input": f"Call status_check now with status exactly {status}. Do not answer in prose.",
-        "tools": [{
-            "type": "function",
-            "name": "status_check",
-            "description": "Record a smoke-test status",
-            "parameters": {
-                "type": "object",
-                "properties": {"status": {"type": "string"}},
-                "required": ["status"],
-                "additionalProperties": False,
-            },
-            "strict": True,
-        }],
+        "input": prompt,
+        "tools": [tool],
         "tool_choice": {"type": "function", "name": "status_check"},
         "max_output_tokens": 192,
+        "store": False,
     }
     if reasoning_effort is not None:
         payload["reasoning_effort"] = reasoning_effort
-    code, data = http_json(
+    code, first = http_json(
         f"{base}/v1/responses",
         method="POST",
         payload=payload,
         headers=_bearer(master_key),
         timeout=timeout,
     )
-    if code != 200 or not data:
-        return False, f"HTTP {status_text(code)}"
+    if code != 200 or not first:
+        return False, f"initial HTTP {status_text(code)}"
 
-    valid = False
-    output = data.get("output")
-    if isinstance(output, list):
-        for item in output:
-            if not isinstance(item, dict) or item.get("type") != "function_call":
-                continue
-            if item.get("name") != "status_check":
-                continue
-            raw_arguments = item.get("arguments")
-            if not isinstance(raw_arguments, str):
-                continue
-            try:
-                arguments = json.loads(raw_arguments)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(arguments, dict) and arguments.get("status") == status:
-                valid = True
-                break
+    first_output = first.get("output")
+    if not isinstance(first_output, list):
+        return False, "initial response output missing/invalid"
 
-    model = data.get("model")
-    detail = f"model={model if isinstance(model, str) and model else alias}"
-    usage = data.get("usage")
-    cost = usage.get("cost") if isinstance(usage, dict) else None
-    if cost is not None:
-        detail += f"; cost={cost}"
-    return valid, detail if valid else detail + "; function_call missing/invalid"
+    call = None
+    for item in first_output:
+        if not isinstance(item, dict) or item.get("type") != "function_call":
+            continue
+        if item.get("name") != "status_check":
+            continue
+        raw_arguments = item.get("arguments")
+        call_id = item.get("call_id")
+        if not isinstance(raw_arguments, str) or not isinstance(call_id, str) or not call_id:
+            continue
+        try:
+            arguments = json.loads(raw_arguments)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(arguments, dict) and arguments.get("status") == status:
+            call = item
+            break
+    if call is None:
+        return False, "function_call missing/invalid"
+
+    # A DB-less Gateway must not depend on previous_response_id. Replay every
+    # output item in order (including reasoning items) and attach the matching
+    # function_call_output, following the stateless Responses API contract.
+    followup_input = [{"role": "user", "content": prompt}, *first_output]
+    followup_input.append({
+        "type": "function_call_output",
+        "call_id": call["call_id"],
+        "output": status,
+    })
+    followup_payload = {
+        "model": alias,
+        "input": followup_input,
+        "tools": [tool],
+        "tool_choice": "none",
+        "max_output_tokens": 128,
+        "store": False,
+    }
+    if reasoning_effort is not None:
+        followup_payload["reasoning_effort"] = reasoning_effort
+    followup_code, final = http_json(
+        f"{base}/v1/responses",
+        method="POST",
+        payload=followup_payload,
+        headers=_bearer(master_key),
+        timeout=timeout,
+    )
+    if followup_code != 200 or not final:
+        return False, f"tool result follow-up HTTP {status_text(followup_code)}"
+
+    final_output = final.get("output")
+    final_text: list[str] = []
+    has_more_calls = False
+    if isinstance(final_output, list):
+        for item in final_output:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "function_call":
+                has_more_calls = True
+            if item.get("type") != "message":
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if isinstance(block, dict) and block.get("type") in {"output_text", "text"}:
+                    text_value = block.get("text")
+                    if isinstance(text_value, str) and text_value:
+                        final_text.append(text_value)
+    if isinstance(final.get("output_text"), str) and final["output_text"]:
+        final_text.append(final["output_text"])
+    answer = " ".join(final_text).strip()
+    if not answer or has_more_calls:
+        return False, "tool result accepted but final assistant message missing/invalid"
+
+    model = final.get("model") or first.get("model") or alias
+    detail = f"model={model}; stateless function_call_output round-trip completed"
+    costs = []
+    for response in (first, final):
+        usage = response.get("usage")
+        cost = usage.get("cost") if isinstance(usage, dict) else None
+        if isinstance(cost, (int, float)):
+            costs.append(cost)
+    if costs:
+        detail += f"; cost={sum(costs):g}"
+    return True, detail
 
 
 def _anthropic_tool_call(

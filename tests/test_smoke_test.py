@@ -300,37 +300,81 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("stream incomplete", detail)
 
-    def test_responses_tool_call_uses_native_openai_responses_contract(self) -> None:
-        fake = {
-            "id": "resp_test",
+    def test_responses_tool_call_completes_stateless_function_call_round_trip(self) -> None:
+        first = {
+            "id": "resp_initial",
             "object": "response",
             "model": "test-model",
+            "output": [
+                {"type": "reasoning", "id": "reasoning_1", "summary": []},
+                {
+                    "type": "function_call",
+                    "id": "fc_1",
+                    "call_id": "call_test",
+                    "name": "status_check",
+                    "arguments": '{"status":"EXPECTED"}',
+                },
+            ],
+            "usage": {"input_tokens": 4, "output_tokens": 3, "cost": 0.001},
+        }
+        final = {
+            "id": "resp_final",
+            "object": "response",
+            "model": "test-model",
+            "output": [{
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": "DONE"}],
+            }],
+            "output_text": "DONE",
+            "usage": {"input_tokens": 8, "output_tokens": 2, "cost": 0.002},
+        }
+        with patch.object(smoke, "http_json", side_effect=[(200, first), (200, final)]) as request:
+            ok, detail = smoke._responses_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+            )
+        self.assertTrue(ok)
+        self.assertIn("stateless function_call_output round-trip completed", detail)
+        self.assertIn("cost=0.003", detail)
+        self.assertEqual(request.call_count, 2)
+        first_args, first_kwargs = request.call_args_list[0]
+        second_args, second_kwargs = request.call_args_list[1]
+        self.assertEqual(first_args[0], "http://127.0.0.1:4000/v1/responses")
+        self.assertEqual(first_kwargs["method"], "POST")
+        self.assertEqual(first_kwargs["headers"]["Authorization"], "Bearer local-test-key")
+        self.assertFalse(first_kwargs["payload"]["store"])
+        self.assertEqual(first_kwargs["payload"]["model"], "shadow-openai")
+        self.assertEqual(first_kwargs["payload"]["tool_choice"], {"type": "function", "name": "status_check"})
+        self.assertTrue(first_kwargs["payload"]["tools"][0]["strict"])
+        self.assertEqual(second_args[0], "http://127.0.0.1:4000/v1/responses")
+        self.assertFalse(second_kwargs["payload"]["store"])
+        self.assertEqual(second_kwargs["payload"]["tool_choice"], "none")
+        replay = second_kwargs["payload"]["input"]
+        self.assertEqual(replay[0]["role"], "user")
+        self.assertEqual(replay[1], first["output"][0], "all earlier output items must be replayed")
+        self.assertEqual(replay[2], first["output"][1])
+        self.assertEqual(replay[3], {
+            "type": "function_call_output",
+            "call_id": "call_test",
+            "output": "EXPECTED",
+        })
+        self.assertNotIn("previous_response_id", second_kwargs["payload"])
+
+    def test_responses_tool_call_fails_if_function_result_followup_fails(self) -> None:
+        first = {
             "output": [{
                 "type": "function_call",
                 "call_id": "call_test",
                 "name": "status_check",
                 "arguments": '{"status":"EXPECTED"}',
-            }],
-            "usage": {"input_tokens": 4, "output_tokens": 3, "total_tokens": 7},
+            }]
         }
-        with patch.object(smoke, "http_json", return_value=(200, fake)) as request:
-            ok, _ = smoke._responses_tool_call(
-                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+        with patch.object(smoke, "http_json", side_effect=[(200, first), (400, {"error": "failed"})]):
+            ok, detail = smoke._responses_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
             )
-        self.assertTrue(ok)
-        args, kwargs = request.call_args
-        self.assertEqual(args[0], "http://127.0.0.1:4000/v1/responses")
-        self.assertEqual(kwargs["method"], "POST")
-        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
-        payload = kwargs["payload"]
-        self.assertEqual(payload["model"], "shadow-openai")
-        self.assertIn("Call status_check", payload["input"])
-        self.assertEqual(payload["tools"][0]["type"], "function")
-        self.assertEqual(payload["tools"][0]["name"], "status_check")
-        self.assertEqual(payload["tool_choice"], {"type": "function", "name": "status_check"})
-        self.assertTrue(payload["tools"][0]["strict"])
-        self.assertEqual(payload["max_output_tokens"], 192)
-        self.assertNotIn("messages", payload)
+        self.assertFalse(ok)
+        self.assertIn("tool result follow-up HTTP 400", detail)
 
     def test_responses_tool_call_handles_malformed_output_without_crashing(self) -> None:
         malformed = [
@@ -346,7 +390,7 @@ class ResponseShapeTests(unittest.TestCase):
                         "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
                     )
                 self.assertFalse(ok)
-                self.assertIn("function_call missing/invalid", detail)
+                self.assertIn("missing/invalid", detail)
 
     def test_anthropic_tool_call_function_accepts_expected_status(self) -> None:
         fake = {
