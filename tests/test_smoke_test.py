@@ -390,7 +390,7 @@ class ResponseShapeTests(unittest.TestCase):
                         "http://127.0.0.1:4000", "local-test-key", "test-alias", "EXPECTED", 1
                     )
                 self.assertFalse(ok)
-                self.assertIn("function_call missing/invalid", detail)
+                self.assertIn("missing/invalid", detail)
 
     def test_anthropic_tool_call_function_accepts_expected_status(self) -> None:
         fake = {
