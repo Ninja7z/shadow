@@ -52,7 +52,7 @@ Shadow Gateway can connect to local, free, and paid providers. A contribution mu
 
 ## License and permitted use
 
-Shadow Gateway is distributed under the **PolyForm Noncommercial License 1.0.0**. Contributions are subject to the repository's license and contribution terms. Do not submit code or assets that you do not have the right to contribute. Provider APIs remain subject to each provider's own terms, policies, and licenses.
+Shadow Gateway code is distributed under the **MIT License**, including for commercial use. Contributions must be compatible with that license; do not submit code or assets that you do not have the right to contribute. The MIT License covers only the Gateway code and does not grant rights to provider APIs, models, weights, datasets, SDKs, or services. Each provider retains its own terms, policies, licenses, commercial-use permissions, prices, and limits.
 
 ---
 
@@ -93,4 +93,4 @@ A Shadow Gateway pode conectar provedores locais, gratuitos e pagos. Uma contrib
 
 ## Licença e uso permitido
 
-A Shadow Gateway é distribuída sob a licença **PolyForm Noncommercial 1.0.0**. As contribuições estão sujeitas à licença e aos termos do repositório. Não envie código ou materiais que você não tenha direito de contribuir. As APIs dos provedores continuam sujeitas aos próprios termos, políticas e licenças de cada provedor.
+O código da Shadow Gateway é distribuído sob a **MIT License**, inclusive para uso comercial. As contribuições devem ser compatíveis com essa licença; não envie código ou materiais que você não tenha direito de contribuir. A MIT cobre somente o código do Gateway e não concede direitos sobre APIs, modelos, pesos, datasets, SDKs ou serviços de provedores. Cada provedor mantém seus próprios termos, políticas, licenças, permissões para uso comercial, preços e limites.

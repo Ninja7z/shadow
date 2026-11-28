@@ -194,7 +194,7 @@ anyio==4.16.0 \
 apscheduler==3.11.3 \
     --hash=sha256:bbeb2ec02d23d3c06a6c07ed7f0f3939ada6680eb121fae809a69bb42c537a30 \
     --hash=sha256:cd2fcc9330039a81a5893472ad49facf23a6d5604cbe1d918c835c6de7834d5a
-    # via litellm
+    # via -r requirements.txt
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
     --hash=sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32
@@ -211,15 +211,15 @@ azure-core==1.41.0 \
 azure-identity==1.27.0 \
     --hash=sha256:6a4c50e25e8e9a47b324a95ad024897e56cb3c6241e0094e93b126a2bf71edc5 \
     --hash=sha256:92fd2a93c0d2f777dac6c04e5fd7d5734f6643582b983544ef66b4575844e46d
-    # via litellm
+    # via -r requirements.txt
 azure-storage-blob==12.31.1 \
     --hash=sha256:0d6e5b860a1357efc602db04cfa7c9950ac86126edcf7db89320cde281555fe5 \
     --hash=sha256:9e012d5f4ab658b7cb8a4581329d7a7aa2bf5f39b4d63baeefaae7f9e90fe6f0
-    # via litellm
+    # via -r requirements.txt
 backoff==2.2.1 \
     --hash=sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba \
     --hash=sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8
-    # via litellm
+    # via -r requirements.txt
 backports-zstd==1.8.0 ; python_full_version < '3.14' \
     --hash=sha256:029bca2385ebb4355135bdb8559792d2768ae19707705eea84e68c42a30a0276 \
     --hash=sha256:045e15ed3b3ebd8816edaa7d66f024becf050d9aec09605f549ce33cfda01098 \
@@ -315,12 +315,13 @@ backports-zstd==1.8.0 ; python_full_version < '3.14' \
     --hash=sha256:fc9ee08e6a17f388f670a421b36a5d3a9417a404c2f39ac0bf5e6ad958ac853c
     # via
     #   -c requirements.constraints.txt
-    #   litellm
+    #   -r requirements.txt
 boto3==1.44.11 \
     --hash=sha256:a39a4d09ee47ab9a12e1dccf14b184d6002c5ae699d9205fda119aac69910119 \
     --hash=sha256:afb34bb96846a60ee4fb054777272e442838a0997050205b67c3d7dc7255abdd
     # via
     #   -c requirements.constraints.txt
+    #   -r requirements.txt
     #   litellm
 botocore==1.44.11 \
     --hash=sha256:441c5ebbad9bb2911120d12bda448d4b55793fc52fc7425d9392ebb02f4814a4 \
@@ -695,9 +696,9 @@ cryptography==50.0.2 \
     --hash=sha256:fa8f5efb344d6908a1ce62f4a24e2e5780f825d6f53f5f50ec5ffacac72936cb \
     --hash=sha256:fdd28f912fccfec1846a94e2e1e8f9b0012f557f0c46fe4f3eb0d7a87afcf90b
     # via
+    #   -r requirements.txt
     #   azure-identity
     #   azure-storage-blob
-    #   litellm
     #   msal
     #   pyjwt
 dnspython==2.9.2 \
@@ -711,17 +712,17 @@ email-validator==2.4.0 \
 expression==5.8.0 \
     --hash=sha256:2286e4ff71802420a69b235fa78fffdd21f404958524c1cb95133419f7f64e5f \
     --hash=sha256:3420f0ed06e2282f1f030ab8eefb70f06ed62365cd1988ad3b7c6525db9df179
-    # via litellm
+    # via -r requirements.txt
 fastapi==0.165.0 \
     --hash=sha256:896f48462042bb4f162147eb8fac7e858753dc1f486765709baf105d70e4fc5b \
     --hash=sha256:dd94d4128319c1e1d50535ab023ab698f850a4d2822f0e181747b46f4ff3c0ab
     # via
+    #   -r requirements.txt
     #   fastapi-sso
-    #   litellm
 fastapi-sso==0.23.0 \
     --hash=sha256:7dd537adc836142e8b64def86a901fead21c9d42d4001872a18e6f9316bc4ec0 \
     --hash=sha256:be2858b30603a6337ad59aba82049099f5536ebc1eb41b036ad498a95f06ce29
-    # via litellm
+    # via -r requirements.txt
 fastuuid==0.14.0 ; python_full_version < '3.15' \
     --hash=sha256:05a8dde1f395e0c9b4be515b7a521403d1e8349443e7641761af07c7ad1624b1 \
     --hash=sha256:0737606764b29785566f968bd8005eace73d3666bd0862f33a760796e26d1ede \
@@ -1036,11 +1037,11 @@ granian==2.8.9 \
     --hash=sha256:f8c170585d276ab18bff7d0df5435df975da94ef1f87957402befb832e2aa7ca \
     --hash=sha256:fad368a456bc25ef6df236a7f680390d2590a6b0a4ad528ab6c84d8005ce8755 \
     --hash=sha256:fb5af2059bc43b9d3ad875eabf987d1fbbcfedfc40f676d65b0a0cdb4cf9319f
-    # via litellm
+    # via -r requirements.txt
 gunicorn==23.0.0 \
     --hash=sha256:ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d \
     --hash=sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec
-    # via litellm
+    # via -r requirements.txt
 h11==0.16.0 \
     --hash=sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
@@ -1199,7 +1200,7 @@ hiredis==3.5.0 \
     --hash=sha256:fc5e619354f5ddc7381d244e0b00125180a7910a747ec3582bd4bc569da8e357 \
     --hash=sha256:fca8f8974588f3563decb8812df201f08cd2ac1d4bb84fca295ff820cfbf0524 \
     --hash=sha256:fcc7542689996df026486d75a29080e102c6b7131c064e22b762949f44d5e4c2
-    # via litellm
+    # via -r requirements.txt
 hpack==4.2.0 \
     --hash=sha256:0895cfa3b5531fc65fe439c05eb65144f123bf7a394fcaa56aa423548d8e45c0 \
     --hash=sha256:858ac0b02280fa582b5080d68db0899c62a80375e0e5413a74970c5e518b6986
@@ -1223,8 +1224,8 @@ httpx2==2.16.2 \
     --hash=sha256:748b615678f07d8e3b183efe81ad13b655ca88bfc56ce4589219b2d442860574 \
     --hash=sha256:f05c13aade4c45dbf1c9060647a1058f0acad62398fad96e741269edb33d46f5
     # via
+    #   -r requirements.txt
     #   huggingface-hub
-    #   litellm
     #   mcp
     #   openai
 httpx2-jsfetch==1.0 ; sys_platform == 'emscripten' \
@@ -1259,7 +1260,7 @@ importlib-metadata==8.9.0 \
 inquirerpy==0.3.4 \
     --hash=sha256:89d2ada0111f337483cb41ae31073108b2ec1e618a49d7110b0d7ade89fc197e \
     --hash=sha256:c65fdfbac1fa00e3ee4fb10679f4d3ed7a012abf4833910e63c295827fe2a7d4
-    # via litellm
+    # via -r requirements.txt
 isodate==0.7.2 \
     --hash=sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15 \
     --hash=sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6
@@ -1401,10 +1402,6 @@ litellm==1.110.3 \
     --hash=sha256:caee88a2c927b565c902ee5da22c2c20e3c95d51dd322ea3650e53b8121e5c15 \
     --hash=sha256:e809005b433fb19a452fcc4027f219fbf3eed5e3e9bd5723ecc11ad0f42528c5
     # via -r requirements.txt
-litellm-enterprise==0.1.83.post2 \
-    --hash=sha256:59e0897a16d14f4f4e270d7b2037e51cc9e43675d95dfa4815d5051d5ffbe400 \
-    --hash=sha256:e3aee3f4a4cdd5a1cc9093249c267f4230bc2d2507acc1e9cba29f5e16294157
-    # via litellm
 litellm-proxy==1.110.3 \
     --hash=sha256:04fcc9c28dcb16b231010e3a84e1883b9470d6f55f340a7f5378af36def86917 \
     --hash=sha256:20b25e87ae15f836e7e89fa776d5dade623f9b93b1a15ad5f6e85115c2c0683b \
@@ -1413,11 +1410,7 @@ litellm-proxy==1.110.3 \
     --hash=sha256:978b402333e900bcb0ba43f23b9b67ce1ebf0f90f3d015097119b483389d0cad \
     --hash=sha256:c114c7099c291653d71ce838324f128583f7572da74aa9ef5c91189aa0c41207 \
     --hash=sha256:eeb979c30fd16d8d67343f8d7897159cc89a9d3ce0d9d29749f2c8cae8bdd0a5
-    # via litellm
-litellm-proxy-extras==0.4.114.post1 \
-    --hash=sha256:26210d41acb98d8e6b3cb4a053f7f1bd9f875fc7263ef8cb449ada73900e225f \
-    --hash=sha256:46a2e2173bce2956bbcf3c6f4e996d5dc408883d696895cd43b64e1a75471368
-    # via litellm
+    # via -r requirements.txt
 markdown-it-py==4.3.0 \
     --hash=sha256:7aa1511a46c39138de78d9eba92ce47e63124d8003fc98b3a351909e04239efa \
     --hash=sha256:91a58fa5b72c71a40cf7177250fd767480d7a2bb3ac426ccfb76fb90305fdaaa
@@ -1578,7 +1571,7 @@ markupsafe==3.0.4 \
 mcp==2.3.0 \
     --hash=sha256:8b147a50441cf059dc88c684e0aeed3687f0aa0f39c6cde7b90330effd2b34d8 \
     --hash=sha256:dd0c44c089d16453e8ae31a3877a0054d7a2314caaa81f5e0541b9b1734b2377
-    # via litellm
+    # via -r requirements.txt
 mcp-types==2.3.0 \
     --hash=sha256:968efdbdaedfab06adae40d378a34395f1090c5921d4be3c9cde283aaf76d91d \
     --hash=sha256:d1e46549edb35ee19a94940fcee6d1addd7e589ab7ea92dda83f5d84781fc362
@@ -1896,7 +1889,7 @@ orjson==3.13.0 \
     --hash=sha256:f5c05a8fee59309f537590a1ff12d3c1009c485e96a50a9ac60dd085c09d0fc0 \
     --hash=sha256:fb8644dc6d705e1269ed2842bf4dbe2b4e50d670de503bf79d5cef3a5148a4c7 \
     --hash=sha256:fbbad6b9b1da43f25c1f5b20cd5a268e028a2fc95d5a8d1ade6059973bc71584
-    # via litellm
+    # via -r requirements.txt
 packaging==26.4 \
     --hash=sha256:81383611a09c1bc0b08b76e0fd5829d7c6824c65b27a6aee339da133f4233ea2 \
     --hash=sha256:c4b671c41ddb9bf26e543c37723610d28fb6bf7affc4da17cf048d419d2c062a
@@ -1911,7 +1904,7 @@ pfzy==0.3.4 \
 polars==1.44.2 \
     --hash=sha256:1bb331f17a40d9d931101533dcd33637b66edc61eb377b07020dac16a0f0377b \
     --hash=sha256:86c8e26b6c2de8c8d344bb910b74dfc47b118ac3fe0f19b44909467990a0b281
-    # via litellm
+    # via -r requirements.txt
 polars-runtime-32==1.44.2 \
     --hash=sha256:10c0c695a418407617b5159db7d9a21074a733e4c6d61275b6762f25cb31ca99 \
     --hash=sha256:1fd536720668ba203a16a20b08cd6b23057e407a0279cf36b2f35f879d6e3208 \
@@ -2069,78 +2062,6 @@ propcache==0.5.4 \
     # via
     #   aiohttp
     #   yarl
-psycopg==3.3.9 \
-    --hash=sha256:87c1d85c3e0e88e811d3c0b3808f947bd967c6faf34af6cd86fd021f77793d6c \
-    --hash=sha256:d2d7d04a1ce6dab4f5b27316bea3b52585cafa2f2d631e5b09dd69823f5c26f6
-    # via litellm-proxy-extras
-psycopg-binary==3.3.9 \
-    --hash=sha256:0793764fac48b5f0bf4d7154e38c60def4fa0cce16caa60b737f770bd29016ac \
-    --hash=sha256:08689018e9169ca8e6769f5b3f2ce748442bda95b5f1ec260995a8ff63e6d6a4 \
-    --hash=sha256:0953c1b94c73f97efce5b8fb1dad85cf5e4085b94902e439e27e6805ebc8be99 \
-    --hash=sha256:0b513957b283d181ed04961567b9893cae79309e23655d54c91cb8781ad81fc5 \
-    --hash=sha256:0f049ea20c87608eab3df8f055e8e29743a7af42f5e3e1bdb653611194fa64eb \
-    --hash=sha256:109c5df5b0e5117e01a42d3b56a2f4ccd5431bd54d25efdfc89df095ac9f9605 \
-    --hash=sha256:13bfe814718c8a1b9b656c0d754962e0027cc3e43630661825fe197babc99320 \
-    --hash=sha256:14666a85aa330058929e4abedd940f754f0e5589efae6366d95c513288856fb5 \
-    --hash=sha256:180e4a99904d7a77f826fbb6dd16834bb3313675d8a6f055e39742fda00c33dc \
-    --hash=sha256:1ce1a6f04211626ca1a3deadee560235e8686e3888fb18f78d2be3e83bceabc4 \
-    --hash=sha256:300bd86d4b81d297e204a8ba223f54ec09a4b54fd069c32a74bf75b42860703f \
-    --hash=sha256:30a95cb2b00b94b4ec4fd5d41de047598c60e0db26fd43bd9154152cc380b282 \
-    --hash=sha256:366e2021a785afed9154f83f64793f662348a9ef244fef9779175c0906e8aacc \
-    --hash=sha256:3c223b8e8040e05ad9f8f2af33c7f21f3ad907a17bdf69c79c97a71e69c9cc84 \
-    --hash=sha256:3efe96cd98081b755ee3b0a50f2d35d9af55cb1ba462440a41048b9e7c6b9caa \
-    --hash=sha256:417c3fe0ac2079a82a8c72ba214a65c66c22036a5d2d8c24c77c5708a58938b9 \
-    --hash=sha256:4992acd5a7479013d52615b8c23fdce9bc22f3cacbfb1007fa474e6b5ebe94c7 \
-    --hash=sha256:49fc0189d72ceba21853d3d35aa65801b44758350416cdf7ee9f884aa8fafa51 \
-    --hash=sha256:4b44a09bb7c92666aec8a00d5d390ff6f4e573d345ccde0f71b45597511449fb \
-    --hash=sha256:4ba688a9402e3cc9d425e6ad20f97b96698f59f867279c265c1d0ca6df9dad57 \
-    --hash=sha256:4c064e4d9f5c6a59b975c6d7f6e2f03cab164359cfd3a592817db97f8b0f463a \
-    --hash=sha256:509affcdeeafd86077bdf037aa40e809989b935708e902613cd67f317c55fec6 \
-    --hash=sha256:5117a4745b3b850872140d3a66a8d83c55801916ae6e3cf502af0a794f64f9b7 \
-    --hash=sha256:5bd2e0315dd43b8bb28f4c124f91d9a8eb866d04bd66899ae5d82086f36ac0c2 \
-    --hash=sha256:66b20619acbd434e4e46d734a915768a1192db09754c2ad041d391d72f30e5eb \
-    --hash=sha256:6ab13f8174a0a63d0b9ec39ac27dd129a4d78f22099f146455b5c3a73957cfb2 \
-    --hash=sha256:6bc7e10d05f236f53b184d9592e8f3d22587bc2e7b964fea9f5d0de2b1142fe5 \
-    --hash=sha256:721cddea84b6da23937e80814589fdc5c25bf674f63146ce2463438798b51df8 \
-    --hash=sha256:75dc9ebbad779969174e59422c71444c2bd8d0362d5758a7b6f500eff11aa4ac \
-    --hash=sha256:79071f66f484d682b420f08386e835060b2338f23236d918a01a60281a807d3b \
-    --hash=sha256:7e7869bbefeefb9e621f3a8c86cd7b50bc0bf24e94b53091e2305d1d99a5b23b \
-    --hash=sha256:80ce081d2512ced75f1ca08ff80257a1288a3555079c5fa622164a0f9ed6533a \
-    --hash=sha256:85b3892dbc4f5fb21880f82e3aed7329be6bee39fb58a0f059cbb1d0a382e98b \
-    --hash=sha256:87e5b145e1363aa6bad904c430e18c3434e7b61565197d71d42157e3084fd9b0 \
-    --hash=sha256:8fee8337812241ce26c6e16f73b2a20e94db643312c6901c00b57a0b2e203e6d \
-    --hash=sha256:9452241b4684a6321c8e047f4b31a029823fafceddb0809827ec1d506784a3cd \
-    --hash=sha256:96ef179795a800f7b8dc7c4abd14ab322cc4986726cfa6dabff552c3e16e446d \
-    --hash=sha256:9926a6f98fbfbb47ad34fab6151d5e6de917d640a07e78cf07a91005593f7c65 \
-    --hash=sha256:9f6f4108a2e1d55303dfbb41d0f3b16a0aac95232a24ac8eb3df03f56fcb83aa \
-    --hash=sha256:a0ed63b05046bc40d76109d95c757d3eac38488b17c68ae9e8160040d0ed0f89 \
-    --hash=sha256:a4abac9935ddf96baa19b831473cc4f4020e073750a5c3b4bfa2f14649ee8578 \
-    --hash=sha256:a99f0b9a19ed7a56bf5d6776456b8f15f5364db8853b0f5d184db394a45c391d \
-    --hash=sha256:a9ee20e3b314c1f36ec13093f1ea46161704a7304a6c334396318d36416bd330 \
-    --hash=sha256:b081348d8992af26e9b252f04876c286428418a6b7845d8d4caae2044b259668 \
-    --hash=sha256:b2582957ef09a0315fab23cab6ff6445ad73b850bd951a936abec58cb2f3f86e \
-    --hash=sha256:b36b1f1488843301af90a25b135dd4373a9835c4df185e564f14e6565220c353 \
-    --hash=sha256:b6733e1cd8ab3f1c256eb16e90cada43087beaec63411b6857000e8ad4759dbf \
-    --hash=sha256:b7c4b2039d82f635311e41e7d392ff1bddd94a2447f9668c6531489cc86a8ce2 \
-    --hash=sha256:b98ecad106cd48998517e03aaee56f9d88f8857e043b8e3dbc2aa7facd475db6 \
-    --hash=sha256:c25fa1ee28f8fd73aecc5e8612ab9e5700682e8e23f9422437a1617016029934 \
-    --hash=sha256:c3dc32af4bed2339bac8110a2c5d65e23fe25d922e075f191e41f2b3a61adc0f \
-    --hash=sha256:d5281f3453caebc911b2c5553398d59e217a8101f6b2596311256ba3772167fb \
-    --hash=sha256:d7b911f2b0244f76c562492ec3628a2cde7f6f3e648da5ff3ae0ee2ecd056d8b \
-    --hash=sha256:e01a4f4fd0e4beee23af30517123bdde838d53c3ac0ae594da019e36b3adabda \
-    --hash=sha256:e047c843fb5cd3c9ebc370bf9a9394cb97feb71b678f07f58419de6d1c6cb5a5 \
-    --hash=sha256:e51c7c493f07b51be56875cfa8a7674824749fa1cda3515339ca64e628f1b992 \
-    --hash=sha256:e5af7a6d4ca7781c03f9f628ef83ff739de8a7e7e0ffe4b6e7a8c274caea6f81 \
-    --hash=sha256:e7e2e3543ac17cf5bb3eaf738606fc52bcedf993500b9fc8c55a4475a3731ef9 \
-    --hash=sha256:e835af41e74176041d2290b167af92b74793b916ca3413598c39b535dd3674a5 \
-    --hash=sha256:e853041acf10de2dcb595167138dc9fc27de293d67caa1d80ed282ec27a28e87 \
-    --hash=sha256:eb74f5299501f83f3ad7b8e99405ca451b77c74d65767bac7f46d22c4e9411ae \
-    --hash=sha256:ee2ec04c3cca2e6b989020233c81b5d6c61034ccd10ca0311a85796a189884db \
-    --hash=sha256:eed1ac135d652e4454777afb4e4bb52cf88520bbfa2f30ae83066cd4df656697 \
-    --hash=sha256:f85821eba1f8c27e080eba955eb9dddaa638f61e363b4f3b2266bd9ec4ff73bd \
-    --hash=sha256:fc256b0baa9786b732bf824dde7bf4bb16ab36642913c342d955c57b7b7e8c24 \
-    --hash=sha256:fcdb76adaab57fdd5b789b13b20699bffaf17000a4bbc0527327581cfdd55e3d
-    # via litellm-proxy-extras
 pycparser==3.12 ; implementation_name != 'PyPy' \
     --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e \
     --hash=sha256:f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6
@@ -2149,6 +2070,7 @@ pydantic==2.14.4 \
     --hash=sha256:653a2ad9f6d8858529c77c72717d0ea991d6c6837fe683246b2f4b2bbfc3fadc \
     --hash=sha256:7c19f1d46f8accf55a4617a6116e1ade64840870f397b846a2c53fb9019414ba
     # via
+    #   -r requirements.txt
     #   fastapi
     #   fastapi-sso
     #   litellm
@@ -2310,8 +2232,8 @@ pyjwt==2.15.1 \
     --hash=sha256:42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193 \
     --hash=sha256:4f259e80cdfb6b3fc18a7de51fd1ef9ec79652f25019bae68975ca2468a34df8
     # via
+    #   -r requirements.txt
     #   fastapi-sso
-    #   litellm
     #   mcp
     #   msal
 pynacl==1.6.2 \
@@ -2340,13 +2262,13 @@ pynacl==1.6.2 \
     --hash=sha256:d071c6a9a4c94d79eb665db4ce5cedc537faf74f2355e4d502591d850d3913c0 \
     --hash=sha256:d29bfe37e20e015a7d8b23cfc8bd6aa7909c92a1b8f41ee416bbb3e79ef182b2 \
     --hash=sha256:fe9847ca47d287af41e82be1dd5e23023d3c31a951da134121ab02e42ac218c9
-    # via litellm
+    # via -r requirements.txt
 pyroscope-io==0.8.16 ; sys_platform != 'win32' \
     --hash=sha256:6b91ce5b240f8de756c16a17022ca8e25ef8a4eed461c7d074b8a0841cf7b445 \
     --hash=sha256:86f0f047554ff62bd92c3e5a26bc2809ccd467d11fbacb9fef898ba299dbda59 \
     --hash=sha256:dc98355e27c0b7b61f27066500fe1045b70e9459bb8b9a3082bc4755cb6392b6 \
     --hash=sha256:e07edcfd59f5bdce42948b92c9b118c824edbd551730305f095a6b9af401a9e8
-    # via litellm
+    # via -r requirements.txt
 python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
@@ -2363,7 +2285,7 @@ python-multipart==0.0.34 \
     --hash=sha256:b998ae90ca6e1e363261ce2e0e230281b8af53867b757970abd69ee9edcd843a \
     --hash=sha256:ebacd224bd686eee2f9aa1066a657affe07435a185834e05e5235e2e59173e91
     # via
-    #   litellm
+    #   -r requirements.txt
     #   mcp
 pywin32==312 ; sys_platform == 'win32' \
     --hash=sha256:02ebca0f0242b75292e218065004310d6a477407c09fa449bfe4f6022bc0c0fc \
@@ -2603,14 +2525,10 @@ requests==2.34.2 \
     #   azure-core
     #   msal
     #   tiktoken
-restrictedpython==8.5 \
-    --hash=sha256:4ed1269dbe3caa88db650d1af325198a952aeb1451eca05df0cfa65db4466215 \
-    --hash=sha256:6c70e0a3af13e830d37225788cdc8ab5804a8df4b500c135086eaef34b5c01e0
-    # via litellm
 rich==13.9.4 \
     --hash=sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098 \
     --hash=sha256:6049d5e6ec054bf2779ab3358186963bac2ea89175919d699e378b99738c2a90
-    # via litellm
+    # via -r requirements.txt
 rpds-py==2026.9.1 \
     --hash=sha256:00ba2d8c7dd4ee537978ddf4b3fbd712bef2d8751603f7f3146b3f4287768e25 \
     --hash=sha256:01445c8d194aa032a08e944f16567672da1c62dbdbefd8b6d0693032e290cf68 \
@@ -2746,7 +2664,7 @@ rpds-py==2026.9.1 \
 rq==2.12.0 \
     --hash=sha256:78116d0c860f6285817b52d7d6d0b16a726372073ce8ea1d229732ce74ef9378 \
     --hash=sha256:97e349a00e9f2a18962102b3dca156cb5ce315d3ef38145e24ba9cabd16a9361
-    # via litellm
+    # via -r requirements.txt
 s3transfer==0.19.3 \
     --hash=sha256:24eb7535804306355e31c952a90022bf5b2f9d760f9a11062c7493a217c08553 \
     --hash=sha256:8326acc3d056d7f7b8a37110c7d2aea41f67e83f6ae79cd3b5fbcca34c726406
@@ -2756,7 +2674,7 @@ semver==3.1.2 \
     --hash=sha256:bea193552413194252d33ff26ce0962b76669bd1c6fb17e8e203ac37f072feaf
     # via
     #   -c requirements.constraints.txt
-    #   litellm
+    #   -r requirements.txt
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
@@ -2775,7 +2693,7 @@ soundfile==0.14.0 \
     --hash=sha256:d828d35a059626da52f1415b5faee610aeab393319cb3fc4a9aef47b619fc14c \
     --hash=sha256:e090704718e124e7c844695236f1fce8d18a5e761eaf7c82dfcd124620805f98 \
     --hash=sha256:e85724a90bc99a6e8062c0b4ddf725f53b2a3b70afd4da875e9d2cfc4e92f377
-    # via litellm
+    # via -r requirements.txt
 sse-starlette==3.7.1 \
     --hash=sha256:9a8256e3e80a0fdc8d1dec14f2bb0b3f304c99f23a6d4d26c61ff50145761597 \
     --hash=sha256:c1bb3af0508c6c24cd4ab6257047654bbec01456a424bed36b36e8020cd7a37f
@@ -2784,8 +2702,8 @@ starlette==1.10.0 \
     --hash=sha256:478c0ab3b4ced6e82719849c118fa406f0278a3499c1a898cd15cd31bdc38ce4 \
     --hash=sha256:b8399098d4c1e3522734f7235dc79b1fc967f96cf139c81e0fa30479e0685f9b
     # via
+    #   -r requirements.txt
     #   fastapi
-    #   litellm
     #   mcp
     #   sse-starlette
 tiktoken==0.14.0 \
@@ -2883,7 +2801,7 @@ tokenizers==0.23.3 \
 tomlkit==0.15.3 \
     --hash=sha256:a83ce6de3b648e68dd9b50aabadad749ba823eb58b1d026f3c0a283c4767a9c1 \
     --hash=sha256:b3c3020ec1a4bd469d12e31fb4da938e7f6ba758cdbec3fd9047db63120eaf81
-    # via litellm
+    # via -r requirements.txt
 tqdm==4.70.1 \
     --hash=sha256:c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73 \
     --hash=sha256:cefd0eca11b2a37a3aee776544d4f4ae913f02688135b5556b8788dfa474afc4
@@ -2913,7 +2831,6 @@ typing-extensions==4.16.0 \
     #   mcp-types
     #   openai
     #   opentelemetry-api
-    #   psycopg
     #   pydantic
     #   pydantic-core
     #   pydantic-settings
@@ -2932,9 +2849,7 @@ typing-inspection==0.4.5 \
 tzdata==2026.6 ; sys_platform == 'win32' \
     --hash=sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec \
     --hash=sha256:85d2cd9c09f81f0bb29db27759fc83af4f1e620efb814f8c5bf8b4cc4feece6d
-    # via
-    #   psycopg
-    #   tzlocal
+    # via tzlocal
 tzlocal==5.4.5 \
     --hash=sha256:ba976898bad27945178c9ca25c222c19e322b30c10342b9f40b46714f70d2d5f \
     --hash=sha256:ecab534f6d65d9deb4c4ea52c121ab6dd5958e9b878e71dcb102578269752454
@@ -2949,7 +2864,7 @@ uvicorn==0.54.0 \
     --hash=sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf \
     --hash=sha256:a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620
     # via
-    #   litellm
+    #   -r requirements.txt
     #   mcp
 uvloop==0.23.0 ; sys_platform != 'win32' \
     --hash=sha256:0305871ac712f54b62af73f943dbf21ae3ce80a44bc0f0151424484affa85645 \
@@ -3013,7 +2928,7 @@ uvloop==0.23.0 ; sys_platform != 'win32' \
     --hash=sha256:fa8ed556fcc87a4091cf61587ef172fa104323dc89ecc085a618ba7ff8629a8f \
     --hash=sha256:fefea5cf8cdda9053b962ca8a90216fb0b1d40907dcb6819382b42e483e6e9f6 \
     --hash=sha256:ff7144d8167e513fe39fbb46bffb4f6f192dfb1f4b0b4e9102e1fd4f212e4747
-    # via litellm
+    # via -r requirements.txt
 wcwidth==0.9.5 \
     --hash=sha256:020031ef4b8d11c8f3247103b9fb9ea5adea7474ed2bb0a3beeb1633c6ab00e6 \
     --hash=sha256:0e83dbb5d10874d3ace494358b6aa3b21b552359b1a553f3a37fef25705876f3 \
@@ -3115,7 +3030,7 @@ websockets==15.0.1 \
     --hash=sha256:f29d80eb9a9263b8d109135351caf568cc3f80b9928bccde535c235de55c22d9 \
     --hash=sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f \
     --hash=sha256:fcd5cf9e305d7b8338754470cf69cf81f420459dbae8a3b40cee57417f4614a7
-    # via litellm
+    # via -r requirements.txt
 yarl==1.25.1 \
     --hash=sha256:0136d640dfa9b0523853e411430a99f8a91eca85774c6420285a33b755bc6de3 \
     --hash=sha256:03dd38de09bc213e9a8b29761eec33ee1d5318dac0e49d8af36e4d27830e23a7 \

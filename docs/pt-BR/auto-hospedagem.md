@@ -1,6 +1,8 @@
 # Execute sua própria API Shadow
 
-> **Aviso de licença:** a Shadow usa a PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). Ela permite uso, modificação e distribuição apenas para finalidades não comerciais. Inclui expressamente usos pessoais e determinadas organizações não comerciais (beneficentes, educacionais, de pesquisa pública, saúde/segurança pública, proteção ambiental e instituições governamentais). Uso comercial é proibido. Cada provedor, API, modelo, SDK e serviço continua sujeito à própria licença e aos próprios termos. Consulte o [texto oficial](https://polyformproject.org/licenses/noncommercial/1.0.0), o arquivo LICENSE e a [explicação em português](licenca.md).
+> **Licença:** o código do Shadow Gateway usa a MIT License e pode ser utilizado comercialmente. Isso cobre somente o código do Gateway, não APIs, modelos, pesos, SDKs ou serviços de terceiros. Cada provedor mantém seus próprios termos, licenças, permissões para uso comercial, preços e políticas. Conectar provedores não combina nem substitui esses termos. Consulte a [explicação de licença e provedores](licenca.md).
+
+O runtime Python gerenciado usa um conjunto reduzido e fixado com hashes das dependências do proxy aberto LiteLLM. Por padrão, ele não instala os pacotes opcionais de migração PostgreSQL/Prisma nem o sandbox de guardrails de código customizado. Adicionar esses recursos manualmente exige revisar as licenças dos pacotes extras.
 
 
 

@@ -2,7 +2,7 @@
   "name": "shadow-gateway",
   "version": "0.1.9",
   "description": "Shadow self-hosted AI gateway installer and interactive terminal setup",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=20.12.0"
@@ -40,6 +40,7 @@
     "docs/pt-BR/hub-mcp.md",
     "docs/pt-BR/testes-smoke.md",
     "docs/pt-BR/gateway-unificado.md",
+    "docs/licensing.md",
     "docs/pt-BR/licenca.md",
     "docs/assets/shadow-hero.svg",
     "docs/assets/shadow-hero-pt.svg",

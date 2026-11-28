@@ -1,36 +1,39 @@
-# PolyForm Noncommercial License 1.0.0
+# Licença do Shadow Gateway
 
-A Shadow usa a **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`), uma licença existente e padronizada para software. O arquivo [LICENSE](../../LICENSE) na raiz contém o texto oficial, acompanhado apenas do aviso de copyright do projeto.
+O código próprio deste repositório é distribuído sob a **MIT License**. Ela permite usar, estudar, modificar e distribuir o Shadow Gateway, inclusive em atividades e produtos comerciais, desde que o aviso de copyright e o texto da licença acompanhem as cópias ou partes substanciais do software.
 
-## O que ela permite
+A MIT cobre **somente o código sobre o qual o projeto tem direitos para licenciar**. Ela não concede, agrega, sublicencia nem substitui direitos de terceiros.
 
-A licença autoriza usar, modificar e distribuir cópias do software para finalidades não comerciais. Ela inclui expressamente usos pessoais, como:
+## Cada provedor mantém seus próprios termos
 
-- Estudo e aprendizado individual.
-- Pesquisa, experimentação e testes sem aplicação comercial prevista.
-- Entretenimento privado, hobbies e projetos amadores.
-- Criação e compartilhamento de modificações para fins não comerciais, mantendo os avisos e a licença.
+Conectar vários provedores por um endpoint comum não transforma seus contratos numa licença única. Para cada serviço utilizado, o operador continua responsável por verificar e cumprir, de forma independente:
 
-## O que ela proíbe
+- Termos de serviço, políticas de uso e requisitos de elegibilidade do provedor.
+- Licenças do modelo, pesos, datasets, SDKs e demais componentes de terceiros.
+- Permissões para uso comercial, redistribuição, hospedagem, armazenamento e processamento de dados.
+- Preços, cotas, limites de taxa, regras de faturamento, privacidade e retenção de dados.
 
-Uso comercial não é permitido. Não utilize a Shadow para obter vantagem comercial ou remuneração, por exemplo em operações empresariais, serviços comerciais, produtos pagos ou atividades profissionais com finalidade comercial.
+Uma autorização comercial concedida pela MIT ao código do Shadow **não significa** que um provedor permita uso comercial de sua API ou modelo. Da mesma forma, possuir uma chave de API não concede automaticamente direitos de redistribuição de pesos, datasets ou SDKs.
 
-## Atenção: não é estritamente limitada a pessoas físicas
+Esta licença se aplica somente ao código do Shadow Gateway neste repositório; não define a licença de outros produtos ou repositórios Shadow independentes. O Shadow Gateway não representa os provedores e não altera seus termos. Use suas próprias credenciais e consulte a documentação e os contratos oficiais de cada serviço antes de conectá-lo, especialmente em operações comerciais, produtos hospedados ou serviços oferecidos a clientes.
 
-A PolyForm Noncommercial também permite expressamente o uso por determinadas organizações não comerciais, independentemente da origem dos recursos: instituições beneficentes, educacionais, de pesquisa pública, saúde ou segurança pública, proteção ambiental e instituições governamentais.
+## O que esta licença cobre
 
-Portanto, esta licença atende à restrição de **não permitir uso comercial**, mas não significa literalmente “somente pessoas físicas”. Se a intenção for excluir também todas essas organizações, a PolyForm Noncommercial não impõe essa restrição.
+- O código do Shadow Gateway mantido neste repositório, conforme os direitos de seus autores.
+- Modificações e distribuições desse código sob as condições da MIT License.
 
-## Provedores e serviços de terceiros
+Ela não cobre automaticamente conteúdo, marcas, APIs, modelos, dados, SDKs, binários ou serviços de terceiros incluídos, baixados ou acessados pelo usuário. Esses componentes permanecem sob suas licenças e termos próprios.
 
-A licença da Shadow cobre apenas os direitos sobre o software que o projeto disponibiliza. Ela não substitui nem modifica os termos dos provedores.
+## Dependências e funções opcionais
 
-Cada API, modelo, peso de modelo, SDK, conjunto de dados e serviço conectado mantém suas próprias licenças, termos de serviço, políticas de uso, limites, cotas e preços. Você deve verificar e cumprir esses termos separadamente. A PolyForm Noncommercial não concede direitos sobre materiais de terceiros.
+O runtime gerenciado do Shadow usa uma composição reduzida do proxy aberto do LiteLLM, fixada em `requirements.lock` com hashes. Por padrão, essa composição não instala os pacotes opcionais de migração Prisma/PostgreSQL (`litellm-proxy-extras` e drivers PostgreSQL) nem o sandbox de guardrails de código customizado (`RestrictedPython`). Esses recursos avançados não fazem parte do caminho padrão do Gateway Shadow.
 
-## Identificação
+Essa escolha não altera as licenças dos componentes de terceiros que continuam presentes. Cada dependência mantém sua própria licença e seus avisos. Quem decidir adicionar manualmente uma função opcional do LiteLLM também deverá avaliar e cumprir as licenças e condições dos pacotes adicionais que ela exigir.
 
-- Nome: PolyForm Noncommercial License 1.0.0
-- SPDX: `PolyForm-Noncommercial-1.0.0`
-- Texto oficial: https://polyformproject.org/licenses/noncommercial/1.0.0
+## Versões publicadas anteriormente
 
-A licença não é uma licença open source aprovada pela OSI porque restringe usos comerciais.
+A licença de uma versão já publicada não muda retroativamente por uma alteração neste repositório. O pacote npm `shadow-gateway@0.1.9`, publicado antes desta mudança, permanece sujeito à licença incluída naquele artefato. A MIT passa a valer para o código distribuído com esta licença e para as versões futuras que a incluírem.
+
+## Texto integral
+
+Consulte o arquivo [LICENSE](../../LICENSE) na raiz do repositório para o texto completo da MIT License.
