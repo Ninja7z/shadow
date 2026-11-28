@@ -256,6 +256,36 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertTrue(kwargs["payload"]["stream"])
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer local-test-key")
 
+    def test_chat_stream_tool_call_keeps_parallel_tool_calls_separate_by_index(self) -> None:
+        events = [
+            {"choices": [{"delta": {"tool_calls": [
+                {
+                    "index": 0,
+                    "id": "call_status",
+                    "type": "function",
+                    "function": {
+                        "name": "status_check",
+                        "arguments": '{"status":"EXPECTED"}',
+                    },
+                },
+                {
+                    "index": 1,
+                    "id": "call_lookup",
+                    "type": "function",
+                    "function": {
+                        "name": "lookup_file",
+                        "arguments": '{"path":"README.md"}',
+                    },
+                },
+            ]}}]},
+            {"_sse_done": True},
+        ]
+        with patch.object(smoke, "http_sse_events", return_value=(200, events)):
+            ok, detail = smoke._chat_stream_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-openai", "EXPECTED", 1
+            )
+        self.assertTrue(ok, detail)
+
     def test_chat_stream_tool_call_rejects_incomplete_stream(self) -> None:
         events = [{
             "choices": [{"delta": {"tool_calls": [{
@@ -377,6 +407,28 @@ class ResponseShapeTests(unittest.TestCase):
         self.assertTrue(kwargs["payload"]["stream"])
         self.assertEqual(kwargs["headers"]["x-api-key"], "local-test-key")
         self.assertEqual(kwargs["headers"]["anthropic-version"], "2023-06-01")
+
+    def test_anthropic_stream_tool_use_keeps_parallel_blocks_separate_by_index(self) -> None:
+        events = [
+            {"type": "content_block_start", "index": 0, "content_block": {
+                "type": "tool_use", "id": "tool_status", "name": "status_check", "input": {}
+            }},
+            {"type": "content_block_start", "index": 1, "content_block": {
+                "type": "tool_use", "id": "tool_lookup", "name": "lookup_file", "input": {}
+            }},
+            {"type": "content_block_delta", "index": 1, "delta": {
+                "type": "input_json_delta", "partial_json": '{"path":"README.md"}'
+            }},
+            {"type": "content_block_delta", "index": 0, "delta": {
+                "type": "input_json_delta", "partial_json": '{"status":"EXPECTED"}'
+            }},
+            {"type": "message_stop"},
+        ]
+        with patch.object(smoke, "http_sse_events", return_value=(200, events)):
+            ok, detail = smoke._anthropic_stream_tool_call(
+                "http://127.0.0.1:4000", "local-test-key", "shadow-anthropic", "EXPECTED", 1
+            )
+        self.assertTrue(ok, detail)
 
     def test_anthropic_stream_tool_use_rejects_stream_without_message_stop(self) -> None:
         events = [
