@@ -95,6 +95,7 @@ shadow-gateway status
 - `status` consulta o health endpoint e o catálogo de modelos. Se o LiteLLM sem banco bloquear a descoberta autenticada, o comando usa os aliases da configuração local e explica como cadastrá-los manualmente.
 - `provider add` cadastra uma API própria OpenAI-compatible ou Anthropic Messages.
 - `provider refresh` regenera a configuração do gateway.
+- O Doctor avisa quando um alias de chat local (por exemplo, `shadow-local`, `shadow-auto` ou `router-local`) ainda usa o adaptador legado `ollama/` do LiteLLM. Chat local e chamadas de ferramentas devem usar `ollama_chat/`; mantenha `ollama/` para embeddings e reranking. O Doctor é somente leitura e nunca reescreve a configuração do usuário.
 
 ## Segurança
 
