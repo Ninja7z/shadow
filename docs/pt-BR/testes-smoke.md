@@ -95,3 +95,5 @@ python -m unittest discover -s tests -v
 ~~~
 
 A suíte usa fixtures locais e respostas HTTP simuladas. Não acessa provedores upstream nem consome cota de inferência.
+
+Os testes do parser Python também incluem fixtures de tool calls paralelos em streaming: duas chamadas OpenAI Chat Completions com índices separados e dois blocos `tool_use` do Anthropic Messages. São fixtures de parser/testes unitários, não testes de inferência com modelos reais.
