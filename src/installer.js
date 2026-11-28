@@ -762,12 +762,14 @@ async function runNpm(args, options = {}) {
   return run(spec.command, spec.args, options);
 }
 
-async function updateCliAndRuntime(installDir) {
+async function updateCliAndRuntime(installDir, previousCliVersion) {
   const release = acquireInstallLock(installDir);
   const spin = spinner();
+  let cliUpdated = false;
   try {
     spin.start('Updating Shadow CLI from the npm registry');
     await runNpm(['install', '--global', PACKAGE_NAME + '@latest'], { cwd: installDir, timeoutMs: 300000 });
+    cliUpdated = true;
     const rootSpec = npmCommandSpec(['root', '--global']);
     const globalRoot = await capture(rootSpec.command, rootSpec.args, { timeoutMs: 30000 });
     if (globalRoot.code !== 0 || !globalRoot.stdout) throw new Error('npm updated the CLI but its global package directory could not be found.');
@@ -778,6 +780,27 @@ async function updateCliAndRuntime(installDir) {
     await installCoreDependenciesLocked(installDir, packageRoot, packageJson.version, { quiet: true });
     spin.stop('Shadow CLI and local runtime updated to ' + packageJson.version);
     return 0;
+  } catch (error) {
+    if (cliUpdated) {
+      if (!previousCliVersion) {
+        spin.stop('Update failed. The previous CLI version could not be identified.');
+        throw new Error((error?.message || String(error)) + ' npm installed the new CLI, but the previous CLI version is unknown and could not be restored automatically.');
+      }
+      try {
+        await runNpm(['install', '--global', PACKAGE_NAME + '@' + previousCliVersion], {
+          cwd: installDir, timeoutMs: 300000,
+        });
+      } catch (rollbackError) {
+        spin.stop('Update failed. CLI rollback could not be completed.');
+        throw new Error((error?.message || String(error)) +
+          ' The managed runtime rollback was attempted when applicable, but npm could not restore CLI version ' +
+          previousCliVersion + ': ' + (rollbackError?.message || String(rollbackError)));
+      }
+      spin.stop('Update failed. The previous CLI and managed runtime versions were restored.');
+    } else {
+      spin.stop('Update failed. The existing CLI version was kept.');
+    }
+    throw error;
   } finally {
     release();
   }
@@ -1585,7 +1608,7 @@ export async function runCli(argv, { packageVersion, packageRoot = PACKAGE_ROOT 
   if (command === 'feedback' || command === 'shadow-feedback') { openExternal(ISSUES_URL); return 0; }
 
   const installDir = getInstallDir();
-  if (command === 'update') return updateCliAndRuntime(installDir);
+  if (command === 'update') return updateCliAndRuntime(installDir, packageVersion);
   if (command === 'reinstall') {
     const approved = await confirm({ message: 'Remove and recreate only Shadow-managed dependencies? Credentials and local configuration will be preserved.', initialValue: false });
     if (isCancel(approved) || !approved) { log.info('Reinstallation cancelled.'); return 0; }

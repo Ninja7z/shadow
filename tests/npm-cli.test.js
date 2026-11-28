@@ -27,6 +27,7 @@ import {
   recoverInterruptedInstall,
   acquireInstallLock,
   __test__,
+  runCli,
 } from '../src/installer.js';
 
 test('getInstallDir uses SHADOW_HOME when provided', () => {
@@ -455,6 +456,185 @@ test('CLI help documents repository and feedback commands', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /shadow-repository/u);
   assert.match(result.stdout, /shadow-feedback/u);
+});
+
+
+test('global update command installs the new CLI and runtime, and rolls both back on runtime failure', {
+  skip: process.platform !== 'linux',
+}, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-update-command-e2e-'));
+  const tools = path.join(root, 'tools');
+  const oldPackage = path.join(root, 'old-package');
+  const newPackage = path.join(root, 'new-package');
+  fs.mkdirSync(tools, { recursive: true });
+
+  const makePackage = (packageRoot, version) => {
+    fs.mkdirSync(packageRoot, { recursive: true });
+    for (const relative of RUNTIME_FILES) {
+      const source = path.resolve(relative);
+      const destination = path.join(packageRoot, relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    }
+    fs.writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({
+      name: 'shadow-gateway', version,
+    }) + '\n');
+  };
+  makePackage(oldPackage, '0.1.8');
+  makePackage(newPackage, '0.2.0');
+
+  const npmScript = [
+    '#!/bin/sh',
+    'set -eu',
+    'printf "%s\\n" "$*" >> "$SHADOW_TEST_NPM_LOG"',
+    'if [ "$1" = "install" ] && [ "$2" = "--global" ]; then',
+    '  case "$3" in',
+    '    shadow-gateway@latest) src="$SHADOW_TEST_NEW_PACKAGE" ;;',
+    '    shadow-gateway@*) src="$SHADOW_TEST_OLD_PACKAGE" ;;',
+    '    *) echo "unexpected npm package spec" >&2; exit 90 ;;',
+    '  esac',
+    '  dest="$SHADOW_TEST_GLOBAL_ROOT/shadow-gateway"',
+    '  rm -rf "$dest"',
+    '  mkdir -p "$dest"',
+    '  cp -a "$src/." "$dest/"',
+    '  exit 0',
+    'fi',
+    'if [ "$1" = "root" ] && [ "$2" = "--global" ]; then',
+    '  printf "%s\\n" "$SHADOW_TEST_GLOBAL_ROOT"',
+    '  exit 0',
+    'fi',
+    'echo "unexpected npm command" >&2',
+    'exit 91',
+  ].join('\n') + '\n';
+  const fakeUv = [
+    '#!/bin/sh',
+    'set -eu',
+    'if [ "$1" = "python" ] && [ "$2" = "find" ]; then',
+    '  printf "%s\\n" "$SHADOW_TEST_FAKE_PYTHON"',
+    '  exit 0',
+    'fi',
+    'echo "unexpected fake uv call" >&2',
+    'exit 92',
+  ].join('\n') + '\n';
+  const fakePython = [
+    '#!/bin/sh',
+    'set -eu',
+    'if [ "$1" = "-c" ]; then exit 0; fi',
+    'script="$1"',
+    'action="$2"',
+    'if [ "$action" = "setup" ]; then',
+    '  runtime="$(dirname "$(dirname "$script")")"',
+    '  mkdir -p "$runtime/.venv/bin"',
+    '  printf "#!/bin/sh\\nexit 0\\n" > "$runtime/.venv/bin/python"',
+    '  chmod 700 "$runtime/.venv/bin/python"',
+    '  if [ "$SHADOW_TEST_SETUP_FAIL" = "1" ]; then',
+    '    printf "partial\\n" > "$runtime/.venv/partial"',
+    '    exit 44',
+    '  fi',
+    '  exit 0',
+    'fi',
+    'echo "unexpected fake python call" >&2',
+    'exit 93',
+  ].join('\n') + '\n';
+
+  fs.writeFileSync(path.join(tools, 'npm'), npmScript, { mode: 0o755 });
+  const fakePythonPath = path.join(tools, 'fake-python');
+  fs.writeFileSync(fakePythonPath, fakePython, { mode: 0o755 });
+
+  const envKeys = [
+    'HOME', 'PATH', 'SHADOW_HOME', 'SHADOW_TEST_GLOBAL_ROOT',
+    'SHADOW_TEST_NEW_PACKAGE', 'SHADOW_TEST_OLD_PACKAGE',
+    'SHADOW_TEST_NPM_LOG', 'SHADOW_TEST_FAKE_PYTHON', 'SHADOW_TEST_SETUP_FAIL',
+  ];
+  const savedEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
+
+  const runScenario = async (name, shouldFail) => {
+    const scenarioRoot = path.join(root, name);
+    const installDir = path.join(scenarioRoot, '.shadow');
+    const globalRoot = path.join(scenarioRoot, 'global', 'node_modules');
+    const home = path.join(scenarioRoot, 'home');
+    const npmLog = path.join(scenarioRoot, 'npm.log');
+    fs.mkdirSync(installDir, { recursive: true });
+    fs.mkdirSync(globalRoot, { recursive: true });
+    fs.mkdirSync(home, { recursive: true });
+    copyRuntime(oldPackage, installDir, '0.1.8');
+
+    const uvPath = path.join(installDir, 'bin', 'uv');
+    fs.mkdirSync(path.dirname(uvPath), { recursive: true });
+    fs.writeFileSync(uvPath, fakeUv, { mode: 0o700 });
+    const previousPython = getPythonVenvPath(installDir);
+    fs.mkdirSync(path.dirname(previousPython), { recursive: true });
+    fs.writeFileSync(previousPython, '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.env'), 'PRIVATE_TEST_KEY=keep-private\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'model_list: []\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, 'config', 'providers.local.yaml'), 'providers: []\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, 'user-data.db'), 'keep-user-data');
+    fs.mkdirSync(path.join(installDir, '.cache'), { recursive: true });
+    fs.writeFileSync(path.join(installDir, '.cache', 'npm-update-check.json'), JSON.stringify({
+      checkedAt: Date.now(), latestVersion: null,
+    }));
+
+    Object.assign(process.env, {
+      HOME: home,
+      PATH: tools + path.delimiter + savedEnv.get('PATH'),
+      SHADOW_HOME: installDir,
+      SHADOW_TEST_GLOBAL_ROOT: globalRoot,
+      SHADOW_TEST_NEW_PACKAGE: newPackage,
+      SHADOW_TEST_OLD_PACKAGE: oldPackage,
+      SHADOW_TEST_NPM_LOG: npmLog,
+      SHADOW_TEST_FAKE_PYTHON: fakePythonPath,
+      SHADOW_TEST_SETUP_FAIL: shouldFail ? '1' : '0',
+    });
+
+    if (shouldFail) {
+      await assert.rejects(
+        runCli(['update'], { packageVersion: '0.1.8' }),
+        /Update failed\. The previous working Shadow runtime was restored/u,
+      );
+    } else {
+      assert.equal(await runCli(['update'], { packageVersion: '0.1.8' }), 0);
+    }
+
+    const installedManifest = JSON.parse(fs.readFileSync(path.join(installDir, '.shadow-cli.json'), 'utf8'));
+    const globalManifest = JSON.parse(fs.readFileSync(path.join(globalRoot, 'shadow-gateway', 'package.json'), 'utf8'));
+    assert.equal(installedManifest.packageVersion, shouldFail ? '0.1.8' : '0.2.0');
+    assert.equal(globalManifest.version, shouldFail ? '0.1.8' : '0.2.0');
+    assert.equal(fs.readFileSync(path.join(installDir, '.env'), 'utf8'), 'PRIVATE_TEST_KEY=keep-private\n');
+    assert.equal(fs.readFileSync(path.join(installDir, 'config', 'shadow.yaml'), 'utf8'), 'model_list: []\n');
+    assert.equal(fs.readFileSync(path.join(installDir, 'config', 'providers.local.yaml'), 'utf8'), 'providers: []\n');
+    assert.equal(fs.readFileSync(path.join(installDir, 'user-data.db'), 'utf8'), 'keep-user-data');
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-rollback')), false);
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-install-state.json')), false);
+    assert.equal(fs.existsSync(path.join(installDir, '.shadow-install.lock')), false);
+    if (shouldFail) {
+      assert.equal(fs.readFileSync(previousPython, 'utf8'), '#!/bin/sh\nexit 0\n');
+      assert.equal(fs.existsSync(path.join(installDir, '.venv', 'partial')), false);
+      assert.deepEqual(fs.readFileSync(npmLog, 'utf8').trim().split(/\r?\n/u), [
+        'install --global shadow-gateway@latest',
+        'root --global',
+        'install --global shadow-gateway@0.1.8',
+      ]);
+    } else {
+      assert.equal(fs.readFileSync(previousPython, 'utf8'), '#!/bin/sh\nexit 0\n');
+      assert.deepEqual(fs.readFileSync(npmLog, 'utf8').trim().split(/\r?\n/u), [
+        'install --global shadow-gateway@latest',
+        'root --global',
+      ]);
+    }
+  };
+
+  try {
+    await runScenario('success', false);
+    await runScenario('failure', true);
+  } finally {
+    for (const key of envKeys) {
+      const previous = savedEnv.get(key);
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('version comparison detects newer npm releases', () => {
