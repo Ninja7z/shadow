@@ -17,7 +17,7 @@ These are release targets, not promises or already-published versions. Version n
 | Version target | Purpose | Relationship to the roadmap |
 | --- | --- | --- |
 | `0.1.x` | Existing foundation and current published line. | Current baseline; `0.1.9` is the latest verified package version. |
-| `0.2.0` | First compatibility milestone: close the current Phase 4 baseline with repeatable smoke tests, documented client/protocol support, clean-package validation, and green Linux/Windows/macOS CI. | No web interface. This is the next planned release target. |
+| `0.2.0` | First compatibility milestone: close the current Phase 4 baseline with repeatable smoke tests, documented client/protocol support, clean-package validation, green Linux/Windows/macOS CI, the MIT license for Gateway code, and a hash-locked public LiteLLM proxy runtime without the proprietary Enterprise package. | Commercial use of Shadow Gateway code is permitted by MIT; every connected provider keeps its own separate terms and permissions. No web interface. This is the next planned release target. |
 | `0.3.x` | Broaden provider/client combinations and close the highest-value cross-platform E2E gaps. | Continue compatibility improvements without expanding the Gateway beyond its core role. |
 | `0.4.x` | Consolidate reliability, recovery, rollback, diagnostics, security and supply-chain hardening against the release checklist. | Finish remaining Phase 2 and Phase 3 hardening work. |
 | `0.5.x` | Stabilize the terminal-first experience, installation/update paths, documentation, package contents and full regression coverage. | Pre-1.0 release-readiness line; prepare the Phase 5 scope without shipping a premature web UI. |

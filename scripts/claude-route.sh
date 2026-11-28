@@ -44,7 +44,7 @@ if [[ -z "$LITELLM_MASTER_KEY" ]]; then
 fi
 
 if ! command -v litellm >/dev/null 2>&1; then
-  echo "LiteLLM is not installed. Install it with: uv tool install 'litellm[proxy]'" >&2
+  echo "LiteLLM is not installed. Install Shadow Gateway with its managed setup, or sync the repository requirements.lock with uv --require-hashes. Do not install the upstream litellm[proxy] extra; it includes a proprietary Enterprise package." >&2
   exit 4
 fi
 

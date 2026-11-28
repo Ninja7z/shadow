@@ -1403,3 +1403,38 @@ test('legacy deprecation retries only after official browser approval returns an
   assert.equal(calls.at(-1).options.otp, 'short-lived-web-auth-token');
   assert.equal(calls.at(-1).options.env.npm_config_otp, 'stale-config-value');
 });
+
+
+test('Python runtime pins the public LiteLLM proxy without the proprietary enterprise extra', () => {
+  const requirements = fs.readFileSync(path.join(process.cwd(), 'requirements.txt'), 'utf8');
+  const lock = fs.readFileSync(path.join(process.cwd(), 'requirements.lock'), 'utf8');
+  assert.match(requirements, /^litellm==1\.110\.3$/mu);
+  assert.match(requirements, /^litellm-proxy==1\.110\.3$/mu);
+  assert.doesNotMatch(requirements, /litellm\[proxy\]/u);
+  for (const optionalPackage of ['litellm-proxy-extras', 'psycopg', 'psycopg-binary', 'restrictedpython']) {
+    assert.doesNotMatch(requirements, new RegExp('^' + optionalPackage + '[<=>]', 'mu'));
+  }
+  const claudeLauncher = fs.readFileSync(path.join(process.cwd(), 'scripts/claude-route.sh'), 'utf8');
+  assert.doesNotMatch(claudeLauncher, /uv tool install .*litellm\[proxy\]/u);
+  for (const optionalPackage of ['litellm-enterprise', 'litellm-proxy-extras', 'psycopg', 'psycopg-binary', 'restrictedpython']) {
+    assert.doesNotMatch(lock, new RegExp('^' + optionalPackage + '==', 'mu'));
+  }
+  assert.match(lock, /^litellm==1\.110\.3 \\/mu);
+  assert.match(lock, /^litellm-proxy==1\.110\.3 \\/mu);
+  assert.match(lock, /--hash=sha256:[a-f0-9]{64}/u);
+});
+
+test('package metadata uses MIT and provider terms remain independent', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+  const packageLock = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package-lock.json'), 'utf8'));
+  const portuguese = fs.readFileSync(path.join(process.cwd(), 'docs/pt-BR/licenca.md'), 'utf8');
+  const english = fs.readFileSync(path.join(process.cwd(), 'docs/licensing.md'), 'utf8');
+  const license = fs.readFileSync(path.join(process.cwd(), 'LICENSE'), 'utf8');
+  assert.equal(packageJson.license, 'MIT');
+  assert.equal(packageLock.packages[''].license, 'MIT');
+  assert.match(license, /^MIT License/mu);
+  assert.match(portuguese, /Cada provedor mantém seus próprios termos/u);
+  assert.match(english, /Each provider keeps its own terms/u);
+  assert.match(portuguese, /não muda retroativamente/u);
+  assert.match(english, /does not change its license retroactively/u);
+});

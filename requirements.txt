@@ -1,4 +1,41 @@
-# Runtime dependency versions are deliberately pinned. Update them only after
-# exercising the gateway and the supported Linux/macOS/Windows CI matrix.
-litellm[proxy]==1.110.3
+# LiteLLM open-source proxy runtime subset used by Shadow.
+# Intentionally excludes optional Prisma/PostgreSQL migration and custom-code guardrail packages.
+litellm==1.110.3
+litellm-proxy==1.110.3
 PyYAML==6.0.4
+gunicorn<24.0,>=23.0.0
+uvicorn<1.0,>=0.33.0
+granian<3.0,>=2.7.4; python_full_version < "3.15"
+granian<3.0,>=2.8.0; python_full_version >= "3.15"
+uvloop<1.0,>=0.22.1; sys_platform != "win32"
+fastapi<1.0,>=0.136.3
+starlette<2.0,>=1.0.1
+backoff<3.0,>=2.2.1
+pyyaml<7.0,>=6.0.3
+rq<3.0,>=2.7.0
+orjson<4.0,>=3.11.6; python_full_version < "3.15"
+orjson<4.0,>=3.12.0; python_full_version >= "3.15"
+hiredis<4.0,>=3.0.0; python_full_version < "3.15"
+hiredis<4.0,>=3.5.0; python_full_version >= "3.15"
+apscheduler<4.0,>=3.11.2
+fastapi-sso<1.0,>=0.19.0
+pyjwt<3.0,>=2.13.0
+python-multipart<1.0,>=0.0.27
+cryptography<51.0,>=49.0.0
+pynacl<2.0,>=1.6.2
+websockets<16.0,>=15.0.1
+boto3<2.0,>=1.43.117
+azure-identity<2.0,>=1.25.2
+azure-storage-blob<13.0,>=12.28.0
+mcp<3,>=2.3.0
+httpx2<3,>=2.10.0
+pydantic<3,>=2.12.0
+rich<14.0,>=13.9.4
+inquirerpy<1.0,>=0.3.4
+tomlkit<1.0,>=0.13.3
+polars<2.0,>=1.38.1
+soundfile<1.0,>=0.12.1
+pyroscope-io<1.0,>=0.8.16; sys_platform != "win32"
+expression<6.0,>=5.6.0
+backports-zstd<2.0,>=1.0.0; python_full_version < "3.14"
+semver<4,>=3.0.4

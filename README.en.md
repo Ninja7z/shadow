@@ -6,7 +6,7 @@
   <a href="https://github.com/Ninja7z/shadow/stargazers"><img src="https://img.shields.io/github/stars/Ninja7z/shadow?style=for-the-badge&logo=github&label=STARS&color=8ee56b" alt="GitHub stars"/></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"/></a>
   <a href="https://docs.litellm.ai/"><img src="https://img.shields.io/badge/Powered%20by-LiteLLM-111827?style=for-the-badge" alt="LiteLLM"/></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-5965e0?style=for-the-badge" alt="PolyForm Noncommercial"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-5965e0?style=for-the-badge" alt="MIT License"/></a>
   <a href="https://github.com/Ninja7z/shadow/issues"><img src="https://img.shields.io/badge/Source-Available-16a085?style=for-the-badge" alt="Source available"/></a>
 </div>
 
@@ -405,14 +405,14 @@ Machine-specific files such as `.env`, `.venv/`, `config/shadow.yaml` and `confi
 
 ## ⚖️ License
 
-Shadow is licensed under the **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`). It permits use, modification and distribution for noncommercial purposes, including personal use and certain noncommercial organizations. **Commercial use is prohibited.**
+Shadow Gateway's code is distributed under the **MIT License**, including for commercial use. The license covers only code that the project has the right to license. It does not grant rights to third-party APIs, models, weights, datasets, SDKs, trademarks, or services.
 
-The Shadow license does not grant rights to third-party APIs, models, SDKs or services. Each provider retains its own terms, licenses, prices and policies.
+Each provider retains its own terms, licenses, policies, commercial-use permissions, prices, and limits. Connecting multiple providers through one common endpoint does not combine or change those agreements. Review and comply with each service's terms independently. Third-party dependencies also retain their own licenses and notices; see [licensing and providers](docs/licensing.md).
+
+The license of an already-published npm package does not change retroactively. `shadow-gateway@0.1.9` remains subject to the license included in the package published before this change.
 
 - [LICENSE](LICENSE)
-- [Official PolyForm Noncommercial 1.0.0 text](https://polyformproject.org/licenses/noncommercial/1.0.0)
-- [Portuguese explanation](docs/pt-BR/licenca.md)
-
+- [Licensing and provider terms](docs/licensing.md)
 ---
 
 <div align="center">

@@ -1,6 +1,8 @@
 # Run your own Shadow API
 
-> **License notice:** Shadow is licensed under the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). It permits use, modification and distribution only for noncommercial purposes. It explicitly includes personal uses and certain noncommercial organizations (charitable, educational, public research, public safety/health, environmental protection and government institutions). Commercial use is prohibited. Each provider, API, model, SDK and service remains subject to its own license and terms. Read the official [license text](https://polyformproject.org/licenses/noncommercial/1.0.0) and the repository's LICENSE file.
+> **License:** Shadow Gateway code is MIT-licensed and may be used commercially. This covers only the Gateway code, not third-party APIs, models, weights, SDKs or services. Every provider keeps its own terms, license, commercial-use permissions, pricing and policies. Connecting providers does not combine or override those terms. See [licensing and provider terms](licensing.md).
+
+The managed Python runtime uses a hash-locked subset of the open-source LiteLLM proxy dependencies. It does not include the optional PostgreSQL/Prisma migration packages or the custom-code guardrail sandbox by default. Adding those features manually requires reviewing the licenses of the extra packages.
 
 Shadow is designed to be cloned and run by its owner. The gateway software and configuration are free; you do not need a Shadow account, a hosted Shadow server, or someone else's API key.
 
