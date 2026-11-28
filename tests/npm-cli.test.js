@@ -1604,6 +1604,18 @@ test('Python runtime pins the public LiteLLM proxy without the proprietary enter
   assert.match(lock, /--hash=sha256:[a-f0-9]{64}/u);
 });
 
+test('third-party dependency notices are included in the npm package', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  const noticePath = path.resolve('THIRD_PARTY_NOTICES.md');
+  assert.equal(fs.existsSync(noticePath), true);
+  assert.ok(packageJson.files.includes('THIRD_PARTY_NOTICES.md'));
+  const notice = fs.readFileSync(noticePath, 'utf8');
+  assert.match(notice, /118 pinned distributions/u);
+  assert.match(notice, /soundfile 0\.14\.0/u);
+  assert.match(notice, /LGPL-2\.1/u);
+  assert.match(notice, /MPL-2\.0/u);
+});
+
 test('package metadata uses MIT and provider terms remain independent', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
   const packageLock = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package-lock.json'), 'utf8'));

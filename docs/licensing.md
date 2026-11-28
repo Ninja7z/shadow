@@ -30,6 +30,10 @@ Shadow's managed runtime uses a reduced composition of the open-source LiteLLM p
 
 This does not change the licenses of third-party components that remain installed. Every dependency keeps its own license and notices. Anyone who independently adds an optional LiteLLM feature must also review and comply with the licenses and conditions of any extra packages that feature requires.
 
+## Third-party dependency inventory
+
+The current pinned Python and npm dependency inventory, with recorded license metadata and additional notices for bundled components, is published in the repository-root [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). Third-party terms remain independent from the Gateway MIT license.
+
 ## Previously published versions
 
 A previously published release does not change its license retroactively because this repository's license changed. The `shadow-gateway@0.1.9` npm package, published before this change, remains subject to the license included in that artifact. The MIT License applies to code distributed with this license and to future releases that include it.
