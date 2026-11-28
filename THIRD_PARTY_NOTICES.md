@@ -134,7 +134,7 @@ Inventory snapshot: 2026-11-28. This file describes the exact versions pinned by
 
 ## Component requiring additional attention: soundfile / libsndfile
 
-The locked soundfile 0.14.0 wrapper declares BSD-3-Clause. Its installed wheel also contains _soundfile_data/libsndfile_x86_64.so and an LGPL-2.1 COPYING file. The wheel includes licensing/license_notes.md, which identifies the bundled codec components and their licenses:
+The soundfile 0.14.0 wrapper declares BSD-3-Clause. Its Linux wheel also contains _soundfile_data/libsndfile_x86_64.so and an LGPL-2.1 COPYING file. The wheel includes licensing/license_notes.md, which identifies the bundled codec components and their licenses:
 
 - libsndfile: LGPL-2.1 (COPYING bundled in the wheel).
 - libmp3lame: LGPL-2+.
@@ -142,7 +142,7 @@ The locked soundfile 0.14.0 wrapper declares BSD-3-Clause. Its installed wheel a
 - libFLAC component used by this build: BSD-3-Clause (the notes distinguish it from other differently licensed FLAC components).
 - libogg, libopus and libvorbis: BSD-3-Clause.
 
-LiteLLM 1.110.3 declares soundfile as a dependency of its proxy extra. The wheel observed in the Linux runtime reports libsndfile 1.2.2 and contains the shared library as a separate file. This is not a change to the Gateway source license, but it is a third-party binary with its own conditions. For any distribution that bundles this wheel or the installed runtime, preserve the soundfile notices and LGPL text, provide the corresponding source or another compliant LGPL source mechanism, and ensure recipients can replace or relink the library as the applicable LGPL terms require. The exact wheel/binary and replacement mechanism should be reviewed for each target OS/architecture before shipping a bundled installer or image.
+LiteLLM 1.110.3 imports its transcription pass-through handler while loading litellm.proxy.proxy_server; that handler imports soundfile at module import time. A local startup probe with soundfile blocked failed at this import, so the package is currently required for proxy startup even when audio endpoints are not used. Do not remove it from the default lock unless a tested upstream lazy-import fix replaces this behavior. The wheel observed in the Linux runtime reports libsndfile 1.2.2 and contains the shared library as a separate file. This is not a change to the Gateway source license, but it is a third-party binary with its own conditions. For any distribution that bundles this wheel or the installed runtime, preserve the soundfile notices and LGPL text, provide the corresponding source or another compliant LGPL source mechanism, and ensure recipients can replace or relink the library as the applicable LGPL terms require. The exact wheel/binary and replacement mechanism should be reviewed for each target OS/architecture before shipping a bundled installer or image.
 
 Official references: [GNU LGPL 2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html) and [GNU LGPL 2.1 Section 6 text](https://www.gnu.de/documents/lgpl-2.1.en.html). The LGPL does not by itself prohibit commercial use, but redistribution requires satisfying its conditions.
 
@@ -178,7 +178,7 @@ The npm dependency tree contains seven packages (two direct dependencies plus fi
 
 1. Do not describe third-party dependencies as MIT merely because Shadow Gateway source is MIT.
 2. When redistributing dependency wheels or a prebuilt .shadow/.venv, retain each package license and NOTICE file from the installed distribution, including bundled subcomponent notices.
-3. For soundfile/lib* components, complete a target-platform LGPL review and provide the required corresponding source/replacement mechanism before shipping bundled binaries.
+3. For soundfile/lib* components in the current default runtime, complete a target-platform LGPL review and provide the required corresponding source/replacement mechanism before shipping bundled binaries.
 4. Preserve Apache, BSD, ISC, MIT, PSF, MPL and other upstream notices and meet any source-disclosure obligations for MPL-covered files that are modified and redistributed.
 5. Re-run this inventory whenever requirements.txt, requirements.lock, package-lock.json or the packaged runtime changes.
 

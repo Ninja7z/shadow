@@ -1610,11 +1610,24 @@ test('third-party dependency notices are included in the npm package', () => {
   assert.equal(fs.existsSync(noticePath), true);
   assert.ok(packageJson.files.includes('THIRD_PARTY_NOTICES.md'));
   const notice = fs.readFileSync(noticePath, 'utf8');
-  assert.match(notice, /118 pinned distributions/u);
-  assert.match(notice, /soundfile 0\.14\.0/u);
+  assert.match(notice, /118 pinned distributions in requirements\.lock/u);
+  assert.match(notice, /\| soundfile \| 0\.14\.0 \|/u);
   assert.match(notice, /LGPL-2\.1/u);
   assert.match(notice, /MPL-2\.0/u);
 });
+
+test('soundfile remains locked because the LiteLLM proxy imports its transcription handler at startup', () => {
+  const requirements = fs.readFileSync(path.resolve('requirements.txt'), 'utf8');
+  const lock = fs.readFileSync(path.resolve('requirements.lock'), 'utf8');
+  const runtimeFiles = fs.readFileSync(path.resolve('src/installer.js'), 'utf8');
+  const notice = fs.readFileSync(path.resolve('THIRD_PARTY_NOTICES.md'), 'utf8');
+  assert.match(requirements, /^soundfile<1\.0,>=0\.12\.1$/mu);
+  assert.match(lock, /^soundfile==0\.14\.0 \\/mu);
+  assert.match(runtimeFiles, /requirements\.lock/u);
+  assert.match(notice, /imports soundfile at module import time/u);
+  assert.match(notice, /LGPL-2\.1/u);
+});
+
 
 test('package metadata uses MIT and provider terms remain independent', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));

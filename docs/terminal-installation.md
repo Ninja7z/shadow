@@ -83,6 +83,10 @@ Package updates synchronize only Shadow-managed files. The installer preserves `
 
 Ollama is optional, not a gateway requirement. If it is missing, the assistant offers the official installer for the current platform. If it is already running, the installer reads its local model catalog and lets you select an installed chat model for `shadow-local` and `shadow-auto`. Embedding/reranking models are not offered as chat models. Local chat routes use LiteLLM's `ollama_chat/` adapter and disable reasoning by default (`think: false`) so both normal replies and tool calls return a final answer. Embedding routes should continue to use `ollama/`. If no chat model exists, the assistant may offer to download `llama3.2:3b`; the transfer starts only after explicit confirmation. Ollama detection uses the local HTTP API and a timeout, so a slow or stopped Ollama service does not abort installation.
 
+## Audio and codec dependency
+
+LiteLLM 1.110.3 currently imports its transcription pass-through handler while the proxy server starts, and that handler imports soundfile. As a result, soundfile remains part of the default runtime even when you only use text models. Its wheel includes LGPL-licensed codec binaries on Linux; review the repository THIRD_PARTY_NOTICES.md before redistributing a bundled runtime.
+
 ## Diagnostics
 
 ```bash

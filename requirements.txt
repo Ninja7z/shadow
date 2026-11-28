@@ -1,4 +1,5 @@
 # LiteLLM open-source proxy runtime subset used by Shadow.
+# soundfile remains required by the current proxy import path; see THIRD_PARTY_NOTICES.md.
 # Intentionally excludes optional Prisma/PostgreSQL migration and custom-code guardrail packages.
 litellm==1.110.3
 litellm-proxy==1.110.3

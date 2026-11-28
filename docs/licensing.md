@@ -28,7 +28,7 @@ It does not automatically cover third-party content, trademarks, APIs, models, d
 
 Shadow's managed runtime uses a reduced composition of the open-source LiteLLM proxy, pinned with hashes in `requirements.lock`. By default, it does not install the optional Prisma/PostgreSQL migration packages (`litellm-proxy-extras` and PostgreSQL drivers) or the custom-code guardrail sandbox (`RestrictedPython`). These advanced features are not part of Shadow Gateway's default path.
 
-This does not change the licenses of third-party components that remain installed. Every dependency keeps its own license and notices. Anyone who independently adds an optional LiteLLM feature must also review and comply with the licenses and conditions of any extra packages that feature requires.
+This does not change the licenses of third-party components that remain installed. Every dependency keeps its own license and notices. Anyone who independently adds an optional LiteLLM feature must also review and comply with the licenses and conditions of any extra packages that feature requires. The current LiteLLM 1.110.3 proxy import path loads soundfile during server startup, so it remains in the default dependency lock even when audio endpoints are not used. Its wheel includes LGPL/BSD codec components; review THIRD_PARTY_NOTICES.md before redistributing a bundled runtime.
 
 ## Third-party dependency inventory
 
