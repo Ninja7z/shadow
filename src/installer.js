@@ -1365,9 +1365,30 @@ export function inspectInstallation(installDir, { platform = process.platform } 
   if (fs.existsSync(configPath)) {
     try {
       const config = parseYaml(fs.readFileSync(configPath, 'utf8')) || {};
-      const names = Array.isArray(config.model_list) ? config.model_list.map((item) => item?.model_name).filter(Boolean) : [];
+      const modelList = Array.isArray(config.model_list) ? config.model_list : [];
+      const names = modelList.map((item) => item?.model_name).filter(Boolean);
       configOk = new Set(names).size === names.length && names.includes('shadow-local') && names.includes('shadow-auto');
       configDetail = configOk ? names.length + ' model aliases' : 'required aliases missing or duplicated';
+
+      const legacyOllamaChatAliases = modelList
+        .filter((item) => {
+          const alias = String(item?.model_name || '').toLowerCase();
+          const model = String(item?.litellm_params?.model || '');
+          const isLocalChatAlias = alias === 'shadow-local'
+            || alias === 'shadow-auto'
+            || /(?:^|[-_])local$/u.test(alias);
+          return isLocalChatAlias && /^ollama\//iu.test(model);
+        })
+        .map((item) => String(item.model_name));
+      if (legacyOllamaChatAliases.length > 0) {
+        checks.push({
+          label: 'Ollama chat adapter',
+          ok: true,
+          warning: true,
+          detail: legacyOllamaChatAliases.join(', ') +
+            ' use ollama/; local chat and tool calling should use ollama_chat/. Keep ollama/ for embeddings and reranking.',
+        });
+      }
     } catch {
       configDetail = 'invalid YAML';
     }
@@ -1392,7 +1413,11 @@ async function runDoctor(installDir) {
   const checks = inspectInstallation(installDir);
   for (const item of checks) {
     const detail = item.detail ? ' · ' + item.detail : '';
-    (item.ok ? log.success : log.error)(item.label + ': ' + (item.ok ? 'OK' : 'PROBLEM') + detail);
+    if (item.warning) {
+      log.warn(item.label + ': WARNING' + detail);
+    } else {
+      (item.ok ? log.success : log.error)(item.label + ': ' + (item.ok ? 'OK' : 'PROBLEM') + detail);
+    }
   }
   const ollama = await checkOllama();
   if (ollama.installed && ollama.running) log.success('Ollama: ' + ollama.models.length + ' model(s)');

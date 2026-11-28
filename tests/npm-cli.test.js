@@ -212,6 +212,76 @@ test('doctor inspects configuration and private permissions without exposing sec
   }
 });
 
+test('doctor warns when local chat aliases use the legacy ollama adapter but ignores embeddings routes', { skip: process.platform === 'win32' }, () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-doctor-ollama-adapter-'));
+  try {
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true, mode: 0o700 });
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, '.shadow-cli.json'), JSON.stringify({ packageVersion: '0.1.9' }), { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, '.env'), 'LITELLM_MASTER_KEY=local-test-master-key\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), '', { mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'litellm'), '', { mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), [
+      'model_list:',
+      '  - model_name: shadow-local',
+      '    litellm_params:',
+      '      model: ollama/qwen3.5:4b',
+      '  - model_name: shadow-auto',
+      '    litellm_params:',
+      '      model: ollama_chat/qwen3.5:4b',
+      '  - model_name: router-local',
+      '    litellm_params:',
+      '      model: ollama/qwen3.5:4b',
+      '  - model_name: shadow-embeddings',
+      '    litellm_params:',
+      '      model: ollama/nomic-embed-text',
+      '',
+    ].join('\n'), { mode: 0o600 });
+
+    const checks = inspectInstallation(installDir);
+    const warning = checks.find((item) => item.label === 'Ollama chat adapter');
+    assert.ok(warning, JSON.stringify(checks));
+    assert.equal(warning.ok, true, 'legacy adapter is a warning, not an installation failure');
+    assert.equal(warning.warning, true);
+    assert.match(warning.detail, /shadow-local, router-local/u);
+    assert.doesNotMatch(warning.detail, /shadow-embeddings/u);
+    assert.ok(checks.filter((item) => item.label !== 'Ollama chat adapter').every((item) => item.ok));
+  } finally {
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
+});
+
+test('doctor does not warn for ollama_chat local chat aliases or ollama embeddings', { skip: process.platform === 'win32' }, () => {
+  const installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shadow-doctor-ollama-chat-'));
+  try {
+    fs.mkdirSync(path.join(installDir, 'config'), { recursive: true, mode: 0o700 });
+    fs.mkdirSync(path.join(installDir, '.venv', 'bin'), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, '.shadow-cli.json'), JSON.stringify({ packageVersion: '0.1.9' }), { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, '.env'), 'LITELLM_MASTER_KEY=local-test-master-key\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'python'), '', { mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, '.venv', 'bin', 'litellm'), '', { mode: 0o700 });
+    fs.writeFileSync(path.join(installDir, 'config', 'shadow.yaml'), [
+      'model_list:',
+      '  - model_name: shadow-local',
+      '    litellm_params:',
+      '      model: ollama_chat/qwen3.5:4b',
+      '  - model_name: shadow-auto',
+      '    litellm_params:',
+      '      model: ollama_chat/qwen3.5:4b',
+      '  - model_name: shadow-embeddings',
+      '    litellm_params:',
+      '      model: ollama/nomic-embed-text',
+      '',
+    ].join('\n'), { mode: 0o600 });
+
+    const checks = inspectInstallation(installDir);
+    assert.equal(checks.some((item) => item.label === 'Ollama chat adapter'), false);
+    assert.ok(checks.every((item) => item.ok));
+  } finally {
+    fs.rmSync(installDir, { recursive: true, force: true });
+  }
+});
+
 test('doctor reports missing runtime instead of silently installing it', () => {
   const installDir = path.join(os.tmpdir(), 'shadow-doctor-missing-' + process.pid);
   const checks = inspectInstallation(installDir);
